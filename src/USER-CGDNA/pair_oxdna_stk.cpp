@@ -260,8 +260,8 @@ void PairOxdnaStk::compute(int eflag, int vflag)
 
   for (in = 0; in < nbondlist; in++) {
 
-    a = bondlist[in][1]; // nucleotide in 5' direction
-    b = bondlist[in][0]; // nucleotide in 3' direction
+    a = bondlist[in][1];
+    b = bondlist[in][0];
 
     qa=bonus[ellipsoid[a]].quat;
     MathExtra::q_to_exyz(qa,ax,ay,az);
@@ -283,6 +283,25 @@ void PairOxdnaStk::compute(int eflag, int vflag)
     delr_st[1] = x[a][1] + ra_cst[1] - x[b][1] - rb_cst[1];
     delr_st[2] = x[a][2] + ra_cst[2] - x[b][2] - rb_cst[2];
 
+    // test for directionality of vector b to a
+    tptofp = MFOxdna::is_3pto5p(delr_st,bz);
+
+    // if b to a is 5' to 3' we need to swap roles of a and b
+    if (tptofp == -1) {
+
+      std::swap(a,b);
+      std::swap(ax,bx);
+      std::swap(ay,by);
+      std::swap(az,bz);
+      std::swap(ra_cst,rb_cst);
+
+      delr_st[0] *= -1;
+      delr_st[1] *= -1;
+      delr_st[2] *= -1;
+
+    }
+
+    // a now in 5' direction, b in 3' direction
     atype = type[a];
     btype = type[b];
 
