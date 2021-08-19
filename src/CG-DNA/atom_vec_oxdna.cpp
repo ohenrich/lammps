@@ -18,6 +18,10 @@
 #include "error.h"
 #include "force.h"
 
+#include "math_extra.h"
+// #include "neighbor.h"
+#include "atom_vec_ellipsoid.h"
+
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
@@ -26,6 +30,7 @@ AtomVecOxdna::AtomVecOxdna(LAMMPS *lmp) : AtomVec(lmp)
   molecular = Atom::MOLECULAR;
   bonds_allow = 1;
   mass_type = PER_TYPE;
+  forceclearflag = 1;
 
   atom->molecule_flag = 1;
 
@@ -34,15 +39,15 @@ AtomVecOxdna::AtomVecOxdna(LAMMPS *lmp) : AtomVec(lmp)
   // order of fields in a string does not matter
   // except: fields_data_atom & fields_data_vel must match data file
 
-  fields_grow = (char *) "id5p";
-  fields_copy = (char *) "id5p";
-  fields_comm = (char *) "";
+  fields_grow = (char *) "id5p bb_pos";
+  fields_copy = (char *) "id5p bb_pos";
+  fields_comm = (char *) "bb_pos";
   fields_comm_vel = (char *) "";
   fields_reverse = (char *) "";
-  fields_border = (char *) "id5p";
+  fields_border = (char *) "id5p bb_pos";
   fields_border_vel = (char *) "";
-  fields_exchange = (char *) "id5p";
-  fields_restart = (char *) "id5p";
+  fields_exchange = (char *) "id5p bb_pos";
+  fields_restart = (char *) "id5p bb_pos";
   fields_create = (char *) "";
   fields_data_atom = (char *) "id type x";
   fields_data_vel = (char *) "id v";
@@ -63,16 +68,82 @@ AtomVecOxdna::~AtomVecOxdna() {}
 void AtomVecOxdna::grow_pointers()
 {
   id5p = atom->id5p;
+  bb_pos = atom->bb_pos;
 }
 
 /* ----------------------------------------------------------------------
-   initialize atom quantity 5' partner
+    compute vector COM-sugar-phosphate backbone interaction site in oxDNA
+------------------------------------------------------------------------- */
+
+void AtomVecOxdna::compute_interaction_sites(double e1[3], double /*e2*/[3],
+  double /*e3*/[3], double r[3])
+{
+  double d_cs=-0.4;
+
+  r[0] = d_cs*e1[0];
+  r[1] = d_cs*e1[1];
+  r[2] = d_cs*e1[2];
+
+}
+
+/* ----------------------------------------------------------------------
+   taking advantage of force_clear to calculate backbone positions
+   each timestep
+------------------------------------------------------------------------- */
+
+void AtomVecOxdna::force_clear(int n, size_t nbytes)
+{
+  printf("\n \nFrom atom_vec_oxdna.cpp:");
+  int a,b,i; 
+  // int *ilist;
+  
+   // vectors COM-backbone site in lab frame
+  double rn_cs[3];
+
+  double *qn,nx[3],ny[3],nz[3];
+
+  double **x = atom->x;
+  double **bb_pos = atom->bb_pos;
+  
+  int nlocal = atom->nlocal;
+  // ilist = list->ilist;
+  
+  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
+  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
+  int *ellipsoid = atom->ellipsoid;
+	
+  // loop over nlocal atoms to set backbone positions
+
+  for (i = 0; i < nlocal; i++) {
+
+	// a = ilist[i];
+	
+    qn=bonus[ellipsoid[a]].quat;
+    MathExtra::q_to_exyz(qn,nx,ny,nz);
+
+    compute_interaction_sites(nx,ny,nz,rn_cs);
+	
+	bb_pos[i][0] = x[i][0] + rn_cs[0];
+	bb_pos[i][1] = x[i][1] + rn_cs[1];
+	bb_pos[i][2] = x[i][2] + rn_cs[2];
+	
+	printf("\n \n bb_pos = %f %f %f", bb_pos[i][0], bb_pos[i][1], bb_pos[i][2]);
+	
+  }
+}
+
+/* ----------------------------------------------------------------------
+   initialize atom quantity 5' partner and backbone positions
 ------------------------------------------------------------------------- */
 
 void AtomVecOxdna::data_atom_post(int ilocal)
 {
   tagint *id5p = atom->id5p;
   id5p[ilocal] = -1;
+  double **bb_pos = atom->bb_pos;
+  bb_pos[0][ilocal] = -1;
+  bb_pos[1][ilocal] = -1;
+  bb_pos[2][ilocal] = -1;
 }
 
 /* ----------------------------------------------------------------------

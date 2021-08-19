@@ -56,6 +56,7 @@ BondOxdnaFene::~BondOxdnaFene()
 /* ----------------------------------------------------------------------
     compute vector COM-sugar-phosphate backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
+
 void BondOxdnaFene::compute_interaction_sites(double e1[3], double /*e2*/[3],
   double /*e3*/[3], double r[3])
 {
@@ -157,7 +158,9 @@ void BondOxdnaFene::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
 ------------------------------------------------------------------------- */
 void BondOxdnaFene::compute(int eflag, int vflag)
 {
+  printf("\n \nFrom bond_oxdna_fene.cpp:");
   int a,b,in,type;
+  double bb_sum[6];
   double delf[3],delta[3],deltb[3]; // force, torque increment;;
   double delr[3],ebond,fbond;
   double rsq,Deltasq,rlogarg;
@@ -170,6 +173,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
 
   double **x = atom->x;
   double **f = atom->f;
+  double **bb_pos = atom->bb_pos;
   double **torque = atom->torque;
 
   AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
@@ -202,6 +206,18 @@ void BondOxdnaFene::compute(int eflag, int vflag)
     compute_interaction_sites(bx,by,bz,rb_cs);
 
     // vector backbone site b to a
+	
+	printf("\n \n bb_pos_a = %f %f %f", bb_pos[a][0], bb_pos[a][1], bb_pos[a][2]);
+	printf("\n bb_pos_b = %f %f %f", bb_pos[b][0], bb_pos[b][1], bb_pos[b][2]);
+	bb_sum[0] = x[a][0] + ra_cs[0];
+	bb_sum[1] = x[a][1] + ra_cs[1];
+	bb_sum[2] = x[a][2] + ra_cs[2];
+	bb_sum[3] = x[b][0] + rb_cs[0];
+	bb_sum[4] = x[b][1] + rb_cs[1];
+	bb_sum[5] = x[b][2] + rb_cs[2];
+ 	printf("\n bb_pos_a = %f %f %f", bb_sum[0], bb_sum[1], bb_sum[2]);
+	printf("\n bb_pos_b = %f %f %f", bb_sum[3], bb_sum[4], bb_sum[5]);
+	
     delr[0] = x[a][0] + ra_cs[0] - x[b][0] - rb_cs[0];
     delr[1] = x[a][1] + ra_cs[1] - x[b][1] - rb_cs[1];
     delr[2] = x[a][2] + ra_cs[2] - x[b][2] - rb_cs[2];
