@@ -19,7 +19,6 @@
 #include "force.h"
 
 #include "math_extra.h"
-// #include "neighbor.h"
 #include "atom_vec_ellipsoid.h"
 
 using namespace LAMMPS_NS;
@@ -94,8 +93,7 @@ void AtomVecOxdna::compute_interaction_sites(double e1[3], double /*e2*/[3],
 void AtomVecOxdna::force_clear(int n, size_t nbytes)
 {
   printf("\n \nFrom atom_vec_oxdna.cpp:");
-  int a,b,i; 
-  // int *ilist;
+  int a,b,i;
   
    // vectors COM-backbone site in lab frame
   double rn_cs[3];
@@ -106,7 +104,6 @@ void AtomVecOxdna::force_clear(int n, size_t nbytes)
   double **bb_pos = atom->bb_pos;
   
   int nlocal = atom->nlocal;
-  // ilist = list->ilist;
   
   AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
   AtomVecEllipsoid::Bonus *bonus = avec->bonus;
@@ -115,19 +112,16 @@ void AtomVecOxdna::force_clear(int n, size_t nbytes)
   // loop over nlocal atoms to set backbone positions
 
   for (i = 0; i < nlocal; i++) {
-
-	// a = ilist[i];
 	
-    qn=bonus[ellipsoid[a]].quat;
+    qn=bonus[ellipsoid[i]].quat;
     MathExtra::q_to_exyz(qn,nx,ny,nz);
-
     compute_interaction_sites(nx,ny,nz,rn_cs);
 	
-	bb_pos[i][0] = x[i][0] + rn_cs[0];
-	bb_pos[i][1] = x[i][1] + rn_cs[1];
-	bb_pos[i][2] = x[i][2] + rn_cs[2];
+	  bb_pos[i][0] = x[i][0] + rn_cs[0];
+	  bb_pos[i][1] = x[i][1] + rn_cs[1];
+	  bb_pos[i][2] = x[i][2] + rn_cs[2];
 	
-	printf("\n \n bb_pos = %f %f %f", bb_pos[i][0], bb_pos[i][1], bb_pos[i][2]);
+	  printf("\n \n bb_pos = %f %f %f", bb_pos[i][0], bb_pos[i][1], bb_pos[i][2]);
 	
   }
 }
