@@ -26,6 +26,8 @@
 #include "memory.h"
 #include "error.h"
 
+#include "math_extra.h"
+
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
@@ -140,7 +142,6 @@ void BondOxdnaFene::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
 
 void BondOxdnaFene::compute(int eflag, int vflag)
 {
-  printf("\n \nFrom bond_oxdna_fene.cpp:");
   int a,b,in,type;
   double bb_sum[6];
   double delf[3],delta[3],deltb[3]; // force, torque increment;;

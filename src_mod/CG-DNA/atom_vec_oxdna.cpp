@@ -97,7 +97,6 @@ void AtomVecOxdna::compute_interaction_sites(double e1[3], double /*e2*/[3],
 
 void AtomVecOxdna::force_clear(int n, size_t nbytes)
 {
-  printf("\n \nFrom atom_vec_oxdna.cpp:");
   int a,b,i;
   
    // vectors COM-backbone site in lab frame
