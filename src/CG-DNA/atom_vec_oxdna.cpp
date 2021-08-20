@@ -116,13 +116,12 @@ void AtomVecOxdna::force_clear(int n, size_t nbytes)
     qn=bonus[ellipsoid[i]].quat;
     MathExtra::q_to_exyz(qn,nx,ny,nz);
     compute_interaction_sites(nx,ny,nz,rn_cs);
-	printf("\n \n rn_cs = %f %f %f", rn_cs[0], rn_cs[1], rn_cs[2]);
 	
-	bb_pos[i][0] = x[i][0] + rn_cs[0];
-	bb_pos[i][1] = x[i][1] + rn_cs[1];
-	bb_pos[i][2] = x[i][2] + rn_cs[2];
+	  bb_pos[i][0] = x[i][0] + rn_cs[0];
+	  bb_pos[i][1] = x[i][1] + rn_cs[1];
+	  bb_pos[i][2] = x[i][2] + rn_cs[2];
 	
-	printf("\n bb_pos = %f %f %f, i = %d", bb_pos[i][0], bb_pos[i][1], bb_pos[i][2], i);
+	  printf("\n \n bb_pos = %f %f %f", bb_pos[i][0], bb_pos[i][1], bb_pos[i][2]);
 	
   }
 }

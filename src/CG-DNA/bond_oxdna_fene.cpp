@@ -210,8 +210,9 @@ void BondOxdnaFene::compute(int eflag, int vflag)
 
     // vector backbone site b to a
 	
-	printf("\n bb_pos_a = %f %f %f, \n  a = %d", bb_pos[a][0], bb_pos[a][1], bb_pos[a][2], a);
-	printf("\n bb_pos_b = %f %f %f, \n  b = %d", bb_pos[b][0], bb_pos[b][1], bb_pos[b][2], b);
+	printf("\n \n bb_pos_a = %f %f %f", bb_pos[a][0], bb_pos[a][1], bb_pos[a][2]);
+	printf("\n bb_pos_b = %f %f %f", bb_pos[b][0], bb_pos[b][1], bb_pos[b][2]);
+
 	bb_sum[0] = x[a][0] + ra_cs[0];
 	bb_sum[1] = x[a][1] + ra_cs[1];
 	bb_sum[2] = x[a][2] + ra_cs[2];
