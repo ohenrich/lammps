@@ -202,7 +202,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
     compute_interaction_sites(bx,by,bz,rb_cs);
 
     // vector backbone site b to a
-	
+
     delr[0] = x[a][0] + ra_cs[0] - x[b][0] - rb_cs[0];
     delr[1] = x[a][1] + ra_cs[1] - x[b][1] - rb_cs[1];
     delr[2] = x[a][2] + ra_cs[2] - x[b][2] - rb_cs[2];
