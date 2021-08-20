@@ -30,14 +30,11 @@ class AtomVecOxdna : public AtomVec {
   ~AtomVecOxdna();
 
   void grow_pointers();
-  virtual void compute_interaction_sites(double *, double *, double *, double *);
-  void force_clear(int, size_t);
   void data_atom_post(int);
   void data_bonds_post(int, int, tagint, tagint, tagint);
 
  private:
   tagint *id5p;
-  double **bb_pos;
 };
 
 }    // namespace LAMMPS_NS

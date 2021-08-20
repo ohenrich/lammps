@@ -172,7 +172,6 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   // CG-DNA package
 
   id5p = nullptr;
-  bb_pos = nullptr;
 
   // DPD-REACT package
 
@@ -480,7 +479,6 @@ void Atom::peratom_create()
   // CG-DNA package
 
   add_peratom("id5p",&id5p,tagintsize,0);
-  add_peratom("bb_pos",&bb_pos,DOUBLE,3);
 
   // DPD-REACT package
 
