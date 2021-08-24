@@ -11,37 +11,24 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#ifdef BOND_CLASS
+#ifdef ATOM_CLASS
 // clang-format off
-BondStyle(oxdna/fene,BondOxdnaFene);
+AtomStyle(oxrna2,AtomVecOxrna2);
 // clang-format on
 #else
 
-#ifndef LMP_BOND_OXDNA_FENE_H
-#define LMP_BOND_OXDNA_FENE_H
+#ifndef LMP_ATOM_VEC_OXRNA2_H
+#define LMP_ATOM_VEC_OXRNA2_H
 
-#include "bond.h"
+#include "atom_vec_oxdna.h"
 
 namespace LAMMPS_NS {
 
-class BondOxdnaFene : public Bond {
+class AtomVecOxrna2 : public AtomVecOxrna {
  public:
-  BondOxdnaFene(class LAMMPS *);
-  virtual ~BondOxdnaFene();
-  virtual void compute(int, int);
-  void coeff(int, char **);
-  void init_style();
-  double equilibrium_distance(int);
-  void write_restart(FILE *);
-  void read_restart(FILE *);
-  void write_data(FILE *);
-  double single(int, double, int, int, double &);
-
- protected:
-  double *k, *Delta, *r0;    // FENE
-
-  void allocate();
-  void ev_tally_xyz(int, int, int, int, double, double, double, double, double, double, double);
+  AtomVecOxrna2(class LAMMPS *);
+  virtual ~AtomVecOxrna2();
+  virtual void compute_interaction_sites(double *, double *, double *, double *);
 };
 
 }    // namespace LAMMPS_NS
@@ -65,7 +52,7 @@ E: Incorrect args for bond coefficients
 
 Self-explanatory.  Check the input script or data file.
 
-W: Use special bonds = 0,1,1 with bond style oxdna
+W: Use special bonds = 0,1,1 with bond style oxrna
 
 Most FENE models need this setting for the special_bonds command.
 

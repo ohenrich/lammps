@@ -26,7 +26,6 @@
 #include "memory.h"
 #include "error.h"
 
-#include "atom_vec_ellipsoid.h"
 #include "math_extra.h"
 
 using namespace LAMMPS_NS;
@@ -50,22 +49,6 @@ BondOxdnaFene::~BondOxdnaFene()
     memory->destroy(r0);
 
   }
-}
-
-
-/* ----------------------------------------------------------------------
-    compute vector COM-sugar-phosphate backbone interaction site in oxDNA
-------------------------------------------------------------------------- */
-
-void BondOxdnaFene::compute_interaction_sites(double e1[3], double /*e2*/[3],
-  double /*e3*/[3], double r[3])
-{
-  double d_cs=-0.4;
-
-  r[0] = d_cs*e1[0];
-  r[1] = d_cs*e1[1];
-  r[2] = d_cs*e1[2];
-
 }
 
 /* ----------------------------------------------------------------------
@@ -156,29 +139,21 @@ void BondOxdnaFene::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
    compute function for oxDNA FENE-bond interaction
    s=sugar-phosphate backbone site, b=base site, st=stacking site
 ------------------------------------------------------------------------- */
+
 void BondOxdnaFene::compute(int eflag, int vflag)
 {
-  printf("\n \nFrom bond_oxdna_fene.cpp:");
   int a,b,in,type;
   double bb_sum[6];
   double delf[3],delta[3],deltb[3]; // force, torque increment;;
   double delr[3],ebond,fbond;
   double rsq,Deltasq,rlogarg;
   double r,rr0,rr0sq;
-  // vectors COM-backbone site in lab frame
-  double ra_cs[3],rb_cs[3];
-
-  double *qa,ax[3],ay[3],az[3];
-  double *qb,bx[3],by[3],bz[3];
 
   double **x = atom->x;
   double **f = atom->f;
   double **bb_pos = atom->bb_pos;
+  double **r_cs = atom->r_cs;
   double **torque = atom->torque;
-
-  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
-  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
-  int *ellipsoid = atom->ellipsoid;
 
   int **bondlist = neighbor->bondlist;
   int nbondlist = neighbor->nbondlist;
@@ -196,35 +171,11 @@ void BondOxdnaFene::compute(int eflag, int vflag)
     b = bondlist[in][0];
     type = bondlist[in][2];
 
-    qa=bonus[ellipsoid[a]].quat;
-    MathExtra::q_to_exyz(qa,ax,ay,az);
-    qb=bonus[ellipsoid[b]].quat;
-    MathExtra::q_to_exyz(qb,bx,by,bz);
-
-    // vector COM-backbone site a and b
-    compute_interaction_sites(ax,ay,az,ra_cs);
-    compute_interaction_sites(bx,by,bz,rb_cs);
-	
-	printf("\n \n ra_cs = %f %f %f", ra_cs[0], ra_cs[1], ra_cs[2]);
-	printf("\n rb_cs = %f %f %f", rb_cs[0], rb_cs[1], rb_cs[2]);
-
     // vector backbone site b to a
 	
-	printf("\n \n bb_pos_a = %f %f %f", bb_pos[a][0], bb_pos[a][1], bb_pos[a][2]);
-	printf("\n bb_pos_b = %f %f %f", bb_pos[b][0], bb_pos[b][1], bb_pos[b][2]);
-
-	bb_sum[0] = x[a][0] + ra_cs[0];
-	bb_sum[1] = x[a][1] + ra_cs[1];
-	bb_sum[2] = x[a][2] + ra_cs[2];
-	bb_sum[3] = x[b][0] + rb_cs[0];
-	bb_sum[4] = x[b][1] + rb_cs[1];
-	bb_sum[5] = x[b][2] + rb_cs[2];
- 	printf("\n bb_pos_a = %f %f %f", bb_sum[0], bb_sum[1], bb_sum[2]);
-	printf("\n bb_pos_b = %f %f %f", bb_sum[3], bb_sum[4], bb_sum[5]);
-	
-    delr[0] = x[a][0] + ra_cs[0] - x[b][0] - rb_cs[0];
-    delr[1] = x[a][1] + ra_cs[1] - x[b][1] - rb_cs[1];
-    delr[2] = x[a][2] + ra_cs[2] - x[b][2] - rb_cs[2];
+    delr[0] = bb_pos[a][0] - bb_pos[b][0];
+    delr[1] = bb_pos[a][1] - bb_pos[b][1];
+    delr[2] = bb_pos[a][2] - bb_pos[b][2];
     rsq = delr[0]*delr[0] + delr[1]*delr[1] + delr[2]*delr[2];
     r = sqrt(rsq);
 
@@ -265,7 +216,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       f[a][1] += delf[1];
       f[a][2] += delf[2];
 
-      MathExtra::cross3(ra_cs,delf,delta);
+      MathExtra::cross3(r_cs[a],delf,delta);
 
       torque[a][0] += delta[0];
       torque[a][1] += delta[1];
@@ -279,7 +230,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       f[b][1] -= delf[1];
       f[b][2] -= delf[2];
 
-      MathExtra::cross3(rb_cs,delf,deltb);
+      MathExtra::cross3(r_cs[b],delf,deltb);
 
       torque[b][0] -= deltb[0];
       torque[b][1] -= deltb[1];
