@@ -16,12 +16,14 @@
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
+
 AtomVecOxdna2::AtomVecOxdna2(LAMMPS *lmp) : AtomVecOxdna(lmp)
 {
 
 }
 
 /* ---------------------------------------------------------------------- */
+
 AtomVecOxdna2::~AtomVecOxdna2() 
 {
 	

@@ -173,6 +173,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
 
   id5p = nullptr;
   bb_pos = nullptr;
+  r_cs = nullptr;
 
   // DPD-REACT package
 
@@ -481,6 +482,7 @@ void Atom::peratom_create()
 
   add_peratom("id5p",&id5p,tagintsize,0);
   add_peratom("bb_pos",&bb_pos,DOUBLE,3);
+  add_peratom("r_cs",&r_cs,DOUBLE,3);
 
   // DPD-REACT package
 
