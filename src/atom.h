@@ -125,6 +125,7 @@ class Atom : protected Pointers {
   // CG-DNA package
 
   tagint *id5p;
+  double **bb_pos;	// backbone position
 
   // DPD-REACT package
 

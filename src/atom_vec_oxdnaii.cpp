@@ -11,7 +11,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#include "atom_vec_oxdna.h"
+#include "atom_vec_oxdnaii.h"
 
 #include "atom.h"
 #include "comm.h"
@@ -25,7 +25,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecOxdna::AtomVecOxdna(LAMMPS *lmp) : AtomVec(lmp)
+AtomVecOxdnaII::AtomVecOxdnaII(LAMMPS *lmp) : AtomVec(lmp)
 {
   molecular = Atom::MOLECULAR;
   bonds_allow = 1;
@@ -59,7 +59,7 @@ AtomVecOxdna::AtomVecOxdna(LAMMPS *lmp) : AtomVec(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecOxdna::~AtomVecOxdna()
+AtomVecOxdnaII::~AtomVecOxdnaII()
 {
 	
 }
@@ -69,7 +69,7 @@ AtomVecOxdna::~AtomVecOxdna()
    needed in replicate when 2 atom classes exist and it calls pack_restart()
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdna::grow_pointers()
+void AtomVecOxdnaII::grow_pointers()
 {
   id5p = atom->id5p;
   bb_pos = atom->bb_pos;
@@ -79,14 +79,14 @@ void AtomVecOxdna::grow_pointers()
     compute vector COM-sugar-phosphate backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdna::compute_interaction_sites(double e1[3], double /*e2*/[3],
+void AtomVecOxdnaII::compute_interaction_sites(double e1[3], double e2[3],
   double /*e3*/[3], double r[3])
 {
-  double d_cs=-0.4;
+  double d_cs_x=-0.34, d_cs_y=+0.3408;
 
-  r[0] = d_cs*e1[0];
-  r[1] = d_cs*e1[1];
-  r[2] = d_cs*e1[2];
+  r[0] = d_cs_x*e1[0] + d_cs_y*e2[0];
+  r[1] = d_cs_x*e1[1] + d_cs_y*e2[1];
+  r[2] = d_cs_x*e1[2] + d_cs_y*e2[2];
 }
 
 /* ----------------------------------------------------------------------
@@ -94,17 +94,16 @@ void AtomVecOxdna::compute_interaction_sites(double e1[3], double /*e2*/[3],
    each timestep
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdna::force_clear(int n, size_t nbytes)
+void AtomVecOxdnaII::force_clear(int n, size_t nbytes)
 {
   int a,b,i;
 
   double *qn,nx[3],ny[3],nz[3];
-  
-  // vectors COM-backbone site in lab frame
-  double r_cs[3];
 
   double **x = atom->x;
   double **bb_pos = atom->bb_pos;
+
+  double r_cs[3];
   
   int nlocal = atom->nlocal;
   
@@ -130,7 +129,7 @@ void AtomVecOxdna::force_clear(int n, size_t nbytes)
    initialize atom quantity 5' partner and backbone positions
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdna::data_atom_post(int ilocal)
+void AtomVecOxdnaII::data_atom_post(int ilocal)
 {
   tagint *id5p = atom->id5p;
   id5p[ilocal] = -1;
@@ -145,7 +144,7 @@ void AtomVecOxdna::data_atom_post(int ilocal)
    store 5' partner to inform 3'->5' bond directionality
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdna::data_bonds_post(int m, int num_bond, tagint atom1, tagint atom2,
+void AtomVecOxdnaII::data_bonds_post(int m, int num_bond, tagint atom1, tagint atom2,
                                    tagint id_offset)
 {
   int n;
