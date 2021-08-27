@@ -1015,8 +1015,8 @@ void PairOxrna2Stk::coeff(int narg, char **arg)
 
 void PairOxrna2Stk::init_style()
 {
-  if (!atom->style_match("oxdna")) {
-    error->all(FLERR,"Must use 'atom_style hybrid bond ellipsoid oxdna' with pair style oxdna/stk, oxdna2/stk or oxrna2/stk");
+  if (!atom->style_match("oxdna") && !atom->style_match("oxdna2") && !atom->style_match("oxrna2")) {
+    error->all(FLERR,"Must use 'atom_style hybrid bond ellipsoid **oxdna/oxdna2/oxrna2**' with pair style oxdna/stk, oxdna2/stk or oxrna2/stk");
   }
 }
 
