@@ -13,22 +13,31 @@
 
 #ifdef ATOM_CLASS
 // clang-format off
-AtomStyle(oxdna2,AtomVecOxdna2);
+AtomStyle(oxdnaII,AtomVecOxdnaII);
 // clang-format on
 #else
 
-#ifndef LMP_ATOM_VEC_OXDNA2_H
-#define LMP_ATOM_VEC_OXDNA2_H
+#ifndef LMP_ATOM_VEC_OXDNAII_H
+#define LMP_ATOM_VEC_OXDNAII_H
 
-#include "atom_vec_oxdna.h"
+#include "atom_vec.h"
 
 namespace LAMMPS_NS {
 
-class AtomVecOxdna2 : public AtomVecOxdna {
+class AtomVecOxdnaII : public AtomVec {
  public:
-  AtomVecOxdna2(class LAMMPS *);
-  virtual ~AtomVecOxdna2();
+  AtomVecOxdnaII(class LAMMPS *);
+  ~AtomVecOxdnaII();
+
+  void grow_pointers();
   virtual void compute_interaction_sites(double *, double *, double *, double *);
+  void force_clear(int, size_t);
+  void data_atom_post(int);
+  void data_bonds_post(int, int, tagint, tagint, tagint);
+
+ private:
+  tagint *id5p;
+  double **bb_pos;
 };
 
 }    // namespace LAMMPS_NS
@@ -37,28 +46,5 @@ class AtomVecOxdna2 : public AtomVecOxdna {
 #endif
 
 /* ERROR/WARNING messages:
-
-W: FENE bond too long: %ld %d %d %g
-
-A FENE bond has stretched dangerously far.  It's interaction strength
-will be truncated to attempt to prevent the bond from blowing up.
-
-E: Bad FENE bond
-
-Two atoms in a FENE bond have become so far apart that the bond cannot
-be computed.
-
-E: Incorrect args for bond coefficients
-
-Self-explanatory.  Check the input script or data file.
-
-W: Use special bonds = 0,1,1 with bond style oxrna
-
-Most FENE models need this setting for the special_bonds command.
-
-W: FENE bond too long: %ld %g
-
-A FENE bond has stretched dangerously far.  It's interaction strength
-will be truncated to attempt to prevent the bond from blowing up.
 
 */

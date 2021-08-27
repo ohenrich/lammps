@@ -38,7 +38,6 @@ class AtomVecOxdna : public AtomVec {
  private:
   tagint *id5p;
   double **bb_pos;
-  double **r_cs;
 };
 
 }    // namespace LAMMPS_NS

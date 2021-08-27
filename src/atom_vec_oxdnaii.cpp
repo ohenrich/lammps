@@ -102,6 +102,8 @@ void AtomVecOxdnaII::force_clear(int n, size_t nbytes)
 
   double **x = atom->x;
   double **bb_pos = atom->bb_pos;
+
+  double r_cs[3];
   
   int nlocal = atom->nlocal;
   
@@ -115,11 +117,11 @@ void AtomVecOxdnaII::force_clear(int n, size_t nbytes)
 	
     qn=bonus[ellipsoid[i]].quat;
     MathExtra::q_to_exyz(qn,nx,ny,nz);
-    compute_interaction_sites(nx,ny,nz,r_cs[i]);
+    compute_interaction_sites(nx,ny,nz,r_cs);
 	
-	bb_pos[i][0] = x[i][0] + r_cs[i][0];
-	bb_pos[i][1] = x[i][1] + r_cs[i][1];
-	bb_pos[i][2] = x[i][2] + r_cs[i][2];
+	bb_pos[i][0] = x[i][0] + r_cs[0];
+	bb_pos[i][1] = x[i][1] + r_cs[1];
+	bb_pos[i][2] = x[i][2] + r_cs[2];
   }
 }
 

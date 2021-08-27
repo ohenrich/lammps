@@ -13,21 +13,21 @@
 
 #ifdef ATOM_CLASS
 // clang-format off
-AtomStyle(oxrna2,AtomVecOxrna2);
+AtomStyle(oxdnaii,AtomVecOxdnaII);
 // clang-format on
 #else
 
-#ifndef LMP_ATOM_VEC_OXRNA2_H
-#define LMP_ATOM_VEC_OXRNA2_H
+#ifndef LMP_ATOM_VEC_OXDNAII_H
+#define LMP_ATOM_VEC_OXDNAII_H
 
 #include "atom_vec.h"
 
 namespace LAMMPS_NS {
 
-class AtomVecOxrna2 : public AtomVec {
+class AtomVecOxdnaII : public AtomVec {
  public:
-  AtomVecOxrna2(class LAMMPS *);
-  ~AtomVecOxrna2();
+  AtomVecOxdnaII(class LAMMPS *);
+  ~AtomVecOxdnaII();
 
   void grow_pointers();
   virtual void compute_interaction_sites(double *, double *, double *, double *);

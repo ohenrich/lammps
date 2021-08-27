@@ -11,7 +11,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#include "atom_vec_oxdnaii.h"
+#include "atom_vec_oxrna2.h"
 
 #include "atom.h"
 #include "comm.h"
@@ -25,7 +25,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecOxdnaII::AtomVecOxdnaII(LAMMPS *lmp) : AtomVec(lmp)
+AtomVecOxrna2::AtomVecOxrna2(LAMMPS *lmp) : AtomVec(lmp)
 {
   molecular = Atom::MOLECULAR;
   bonds_allow = 1;
@@ -59,7 +59,7 @@ AtomVecOxdnaII::AtomVecOxdnaII(LAMMPS *lmp) : AtomVec(lmp)
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecOxdnaII::~AtomVecOxdnaII()
+AtomVecOxrna2::~AtomVecOxrna2()
 {
 	
 }
@@ -69,24 +69,24 @@ AtomVecOxdnaII::~AtomVecOxdnaII()
    needed in replicate when 2 atom classes exist and it calls pack_restart()
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdnaII::grow_pointers()
+void AtomVecOxrna2::grow_pointers()
 {
   id5p = atom->id5p;
   bb_pos = atom->bb_pos;
 }
 
 /* ----------------------------------------------------------------------
-    compute vector COM-sugar-phosphate backbone interaction site in oxDNA
+    compute vector COM-sugar-phosphate backbone interaction site in oxRNA2
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdnaII::compute_interaction_sites(double e1[3], double e2[3],
-  double /*e3*/[3], double r[3])
+void AtomVecOxrna2::compute_interaction_sites(double e1[3], double /*e2*/[3],
+  double e3[3], double r[3])
 {
-  double d_cs_x=-0.34, d_cs_y=+0.3408;
+  double d_cs_x=-0.4, d_cs_z=+0.2;
 
-  r[0] = d_cs_x*e1[0] + d_cs_y*e2[0];
-  r[1] = d_cs_x*e1[1] + d_cs_y*e2[1];
-  r[2] = d_cs_x*e1[2] + d_cs_y*e2[2];
+  r[0] = d_cs_x*e1[0] + d_cs_z*e3[0];
+  r[1] = d_cs_x*e1[1] + d_cs_z*e3[1];
+  r[2] = d_cs_x*e1[2] + d_cs_z*e3[2];
 }
 
 /* ----------------------------------------------------------------------
@@ -94,7 +94,7 @@ void AtomVecOxdnaII::compute_interaction_sites(double e1[3], double e2[3],
    each timestep
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdnaII::force_clear(int n, size_t nbytes)
+void AtomVecOxrna2::force_clear(int n, size_t nbytes)
 {
   int a,b,i;
 
@@ -127,7 +127,7 @@ void AtomVecOxdnaII::force_clear(int n, size_t nbytes)
    initialize atom quantity 5' partner and backbone positions
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdnaII::data_atom_post(int ilocal)
+void AtomVecOxrna2::data_atom_post(int ilocal)
 {
   tagint *id5p = atom->id5p;
   id5p[ilocal] = -1;
@@ -142,7 +142,7 @@ void AtomVecOxdnaII::data_atom_post(int ilocal)
    store 5' partner to inform 3'->5' bond directionality
 ------------------------------------------------------------------------- */
 
-void AtomVecOxdnaII::data_bonds_post(int m, int num_bond, tagint atom1, tagint atom2,
+void AtomVecOxrna2::data_bonds_post(int m, int num_bond, tagint atom1, tagint atom2,
                                    tagint id_offset)
 {
   int n;
