@@ -24,7 +24,7 @@ AtomStyle(oxrna2,AtomVecOxrna2);
 
 namespace LAMMPS_NS {
 
-class AtomVecOxrna2 : public AtomVecOxrna {
+class AtomVecOxrna2 : public AtomVecOxdna {
  public:
   AtomVecOxrna2(class LAMMPS *);
   virtual ~AtomVecOxrna2();

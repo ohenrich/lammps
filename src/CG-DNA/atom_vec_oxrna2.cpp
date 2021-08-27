@@ -17,7 +17,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-AtomVecOxrna2::AtomVecOxrna2(LAMMPS *lmp) : AtomVecOxrna(lmp)
+AtomVecOxrna2::AtomVecOxrna2(LAMMPS *lmp) : AtomVecOxdna(lmp)
 {
 
 }
