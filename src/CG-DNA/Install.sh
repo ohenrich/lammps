@@ -47,6 +47,8 @@ action  atom_vec_oxdna.cpp
 action  atom_vec_oxdna.h
 action  atom_vec_oxdna2.cpp
 action  atom_vec_oxdna2.h
+action  atom_vec_oxrna2.cpp
+action  atom_vec_oxrna2.h
 action  bond_oxdna_fene.cpp bond_fene.h
 action  bond_oxdna2_fene.cpp bond_fene.h
 action  bond_oxrna2_fene.cpp bond_fene.h
