@@ -148,11 +148,13 @@ void BondOxdnaFene::compute(int eflag, int vflag)
   double delr[3],ebond,fbond;
   double rsq,Deltasq,rlogarg;
   double r,rr0,rr0sq;
+  
+  // vectors COM-backbone site in lab frame
+  double ra_cs[3],rb_cs[3];
 
   double **x = atom->x;
   double **f = atom->f;
   double **bb_pos = atom->bb_pos;
-  double **r_cs = atom->r_cs;
   double **torque = atom->torque;
 
   int **bondlist = neighbor->bondlist;
@@ -178,6 +180,8 @@ void BondOxdnaFene::compute(int eflag, int vflag)
     delr[2] = bb_pos[a][2] - bb_pos[b][2];
     rsq = delr[0]*delr[0] + delr[1]*delr[1] + delr[2]*delr[2];
     r = sqrt(rsq);
+	printf("\n \nr = %f", r);
+	printf("\nida = %d , idb = %d", atom->tag[a], atom->tag[b]);
 
     rr0 = r - r0[type];
     rr0sq = rr0*rr0;
@@ -208,6 +212,15 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       ebond = -0.5 * k[type]*log(rlogarg);
     }
 
+	// CoM-backbone vectors
+	
+	ra_cs[0] = bb_pos[a][0] - x[a][0];
+	ra_cs[1] = bb_pos[a][1] - x[a][1];
+	ra_cs[2] = bb_pos[a][2] - x[a][2];
+	rb_cs[0] = bb_pos[b][0] - x[b][0];
+	rb_cs[1] = bb_pos[b][1] - x[b][1];
+	rb_cs[2] = bb_pos[b][2] - x[b][2];
+	
     // apply force and torque to each of 2 atoms
 
     if (newton_bond || a < nlocal) {
@@ -216,7 +229,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       f[a][1] += delf[1];
       f[a][2] += delf[2];
 
-      MathExtra::cross3(r_cs[a],delf,delta);
+      MathExtra::cross3(ra_cs,delf,delta);
 
       torque[a][0] += delta[0];
       torque[a][1] += delta[1];
@@ -230,7 +243,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       f[b][1] -= delf[1];
       f[b][2] -= delf[2];
 
-      MathExtra::cross3(r_cs[b],delf,deltb);
+      MathExtra::cross3(rb_cs,delf,deltb);
 
       torque[b][0] -= deltb[0];
       torque[b][1] -= deltb[1];

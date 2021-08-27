@@ -13,6 +13,14 @@
 
 #include "atom_vec_oxrna2.h"
 
+#include "atom.h"
+#include "comm.h"
+#include "error.h"
+#include "force.h"
+
+#include "atom_vec_ellipsoid.h"
+#include "math_extra.h"
+
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
@@ -26,7 +34,7 @@ AtomVecOxrna2::AtomVecOxrna2(LAMMPS *lmp) : AtomVecOxdna(lmp)
 
 AtomVecOxrna2::~AtomVecOxrna2()
 {
-
+	
 }
 
 /* ----------------------------------------------------------------------
@@ -41,5 +49,4 @@ void AtomVecOxrna2::compute_interaction_sites(double e1[3], double /*e2*/[3],
   r[0] = d_cs_x*e1[0] + d_cs_z*e3[0];
   r[1] = d_cs_x*e1[1] + d_cs_z*e3[1];
   r[2] = d_cs_x*e1[2] + d_cs_z*e3[2];
-
 }

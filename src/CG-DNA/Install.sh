@@ -44,17 +44,13 @@ fi
 # list of files with dependcies
 
 action  atom_vec_oxdna.cpp
-action  atom_vec_oxdna.h
 action  atom_vec_oxdna2.cpp
-action  atom_vec_oxdna2.h
 action  atom_vec_oxrna2.cpp
+action  atom_vec_oxdna.h
+action  atom_vec_oxdna2.h
 action  atom_vec_oxrna2.h
 action  bond_oxdna_fene.cpp bond_fene.h
-action  bond_oxdna2_fene.cpp bond_fene.h
-action  bond_oxrna2_fene.cpp bond_fene.h
 action  bond_oxdna_fene.h bond_fene.h
-action  bond_oxdna2_fene.h bond_fene.h
-action  bond_oxrna2_fene.h bond_fene.h
 action  fix_nve_dotc_langevin.cpp atom_vec_ellipsoid.h
 action  fix_nve_dotc_langevin.h atom_vec_ellipsoid.h
 action  fix_nve_dot.cpp atom_vec_ellipsoid.h
