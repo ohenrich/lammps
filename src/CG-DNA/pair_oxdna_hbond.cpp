@@ -62,6 +62,13 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][1] = 1.00000;
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
+  
+  rsq_hb = nullptr;
+  
+  // set comm size needed by this Pair
+
+  comm_forward = 1;
+  comm_reverse = 1;
 
 }
 
@@ -69,6 +76,8 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
+  memory->destroy(rsq_hb);	
+	
   if (allocated) {
 
     memory->destroy(setflag);
@@ -136,22 +145,13 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,finc,tpair,factor_lj;
-  double delr_hb[3],delr_hb_norm[3],rsq_hb,r_hb,rinv_hb;
+  double delr_hb_norm[3],r_hb,rinv_hb;
   double theta1,t1dir[3],cost1;
   double theta2,t2dir[3],cost2;
   double theta3,t3dir[3],cost3;
   double theta4,t4dir[3],cost4;
   double theta7,t7dir[3],cost7;
   double theta8,t8dir[3],cost8;
-
-  // distance COM-hbonding site
-  double d_chb=+0.4;
-  // vectors COM-h-bonding site in lab frame
-  double ra_chb[3],rb_chb[3];
-
-  // quaternions and Cartesian unit vectors in lab frame
-  double *qa,ax[3],ay[3],az[3];
-  double *qb,bx[3],by[3],bz[3];
 
   double **x = atom->x;
   double **f = atom->f;
@@ -162,10 +162,6 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
   int *alist,*blist,*numneigh,**firstneigh;
   double *special_lj = force->special_lj;
-
-  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
-  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
-  int *ellipsoid = atom->ellipsoid;
 
   int a,b,ia,ib,anum,bnum,atype,btype;
 
@@ -179,24 +175,110 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   alist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
+  
+  // REMOVE LATER --------------------------------------------------------
+  // quaternions and Cartesian unit vectors in lab frame
+  double *qa,ax[3],ay[3],az[3];
+  double *qb,bx[3],by[3],bz[3];
+  // vectors COM-h-bonding site in lab frame
+  double ra_chb[3],rb_chb[3];
+  // vector h-bonding site b to a
+  double delr_hb[3];
+  // distance COM-hbonding site
+  double d_chb=+0.4;
+	
+  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
+  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
+  int *ellipsoid = atom->ellipsoid;
+  
+  int tracker=0;
+  
+  // REMOVE LATER --------------------------------------------------------
+  
+  if (rsq_hb == NULL) {
+	  
+	// grow hbond_pos arrays if necessary
+    // need to be atom->nmax in length
+    memory->destroy(rsq_hb);
+    memory->create(rsq_hb,(atom->nmax)-2,"pair:rsq_hb");
+	
+	// distance COM-hbonding site
+    double d_chb=+0.4;
+    // vectors COM-h-bonding site in lab frame
+    double ra_chb[3],rb_chb[3];
+    // quaternions and Cartesian unit vectors in lab frame
+    double *qa,ax[3],ay[3],az[3];
+    double *qb,bx[3],by[3],bz[3];
+	// vector h-bonding site b to a
+	double delr_hb[3];
+	
+	AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
+    AtomVecEllipsoid::Bonus *bonus = avec->bonus;
+    int *ellipsoid = atom->ellipsoid;
+	
+	for (ia = 0; ia < anum; ia++) {
 
+      a = alist[ia];
+      atype = type[a];
+
+      qa=bonus[ellipsoid[a]].quat;
+      MathExtra::q_to_exyz(qa,ax,ay,az);
+
+      ra_chb[0] = d_chb*ax[0];
+      ra_chb[1] = d_chb*ax[1];
+      ra_chb[2] = d_chb*ax[2];
+
+      blist = firstneigh[a];
+      bnum = numneigh[a];
+
+      for (ib = 0; ib < bnum; ib++) {
+
+        b = blist[ib];
+        factor_lj = special_lj[sbmask(b)]; // = 0 for nearest neighbors
+        b &= NEIGHMASK;
+
+        btype = type[b];
+
+        qb=bonus[ellipsoid[b]].quat;
+        MathExtra::q_to_exyz(qb,bx,by,bz);
+
+        rb_chb[0] = d_chb*bx[0];
+        rb_chb[1] = d_chb*bx[1];
+        rb_chb[2] = d_chb*bx[2];
+		
+		delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
+		delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
+		delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
+		
+		rsq_hb[tracker] = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
+	    tracker+=1;
+	  }
+	}
+  }
+
+  if (newton_pair) comm->reverse_comm_pair(this);
+  comm->forward_comm_pair(this);
+  
   // loop over pair interaction neighbors of my atoms
-
+	
+  tracker=0;	
+	
   for (ia = 0; ia < anum; ia++) {
 
     a = alist[ia];
     atype = type[a];
 
-    qa=bonus[ellipsoid[a]].quat;
+    blist = firstneigh[a];
+    bnum = numneigh[a]; 
+	
+	// REMOVE LATER --------------------------------------------------------
+	qa=bonus[ellipsoid[a]].quat;
     MathExtra::q_to_exyz(qa,ax,ay,az);
-
-    ra_chb[0] = d_chb*ax[0];
+	ra_chb[0] = d_chb*ax[0];
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
-
-    blist = firstneigh[a];
-    bnum = numneigh[a];
-
+	// REMOVE LATER --------------------------------------------------------
+	
     for (ib = 0; ib < bnum; ib++) {
 
       b = blist[ib];
@@ -204,22 +286,23 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       b &= NEIGHMASK;
 
       btype = type[b];
-
-      qb=bonus[ellipsoid[b]].quat;
+	  
+	  // REMOVE LATER --------------------------------------------------------
+	  qb=bonus[ellipsoid[b]].quat;
       MathExtra::q_to_exyz(qb,bx,by,bz);
-
-      rb_chb[0] = d_chb*bx[0];
+	  rb_chb[0] = d_chb*bx[0];
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
-
-      // vector h-bonding site b to a
-      delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
-      delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
-      delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
-
-      rsq_hb = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
-      r_hb = sqrt(rsq_hb);
+	  // REMOVE LATER --------------------------------------------------------
+	  
+	  printf("\n rsq_hb = %f, a = %d, b = %d", rsq_hb[tracker], a, b);
+      r_hb = sqrt(rsq_hb[tracker]);
+	  tracker+=1;
       rinv_hb = 1.0/r_hb;
+	  
+	  delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
+	  delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
+	  delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
 
       delr_hb_norm[0] = delr_hb[0] * rinv_hb;
       delr_hb_norm[1] = delr_hb[1] * rinv_hb;
@@ -1182,9 +1265,62 @@ void PairOxdnaHbond::write_data_all(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
+int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
+                               int /*pbc_flag*/, int * /*pbc*/)
+{
+  int i,j,m;
+
+  m = 0;
+  for (i = 0; i < n; i++) {
+    j = list[i];
+    buf[m++] = rsq_hb[j];
+  }
+  return m;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
+{
+  int i,m,last;
+
+  m = 0;
+  last = first + n;
+  for (i = first; i < last; i++) rsq_hb[i] = buf[m++];
+}
+
+/* ---------------------------------------------------------------------- */
+
+int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
+{
+  int i,m,last;
+
+  m = 0;
+  last = first + n;
+  for (i = first; i < last; i++) buf[m++] = rsq_hb[i];
+  return m;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
+{
+  int i,j,m;
+
+  m = 0;
+  for (i = 0; i < n; i++) {
+    j = list[i];
+    rsq_hb[j] += buf[m++];
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
 void *PairOxdnaHbond::extract(const char *str, int &dim)
 {
   dim = 2;
+
+  if (strcmp(str,"rsq_hb") == 0) return (void *) rsq_hb;
 
   if (strcmp(str,"epsilon_hb") == 0) return (void *) epsilon_hb;
   if (strcmp(str,"a_hb") == 0) return (void *) a_hb;
