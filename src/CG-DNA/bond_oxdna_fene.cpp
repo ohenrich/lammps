@@ -256,6 +256,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       ev_tally_xyz(a, b, nlocal, newton_bond, ebond, delf[0], delf[1], delf[2], x[a][0] - x[b][0],
                    x[a][1] - x[b][1], x[a][2] - x[b][2]);
   }
+  atom->exyz_flag = 0;
 }
 
 /* ---------------------------------------------------------------------- */

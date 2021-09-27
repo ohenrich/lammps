@@ -63,7 +63,15 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
   
-  rsq_hb = nullptr;
+  exyz0 = nullptr;
+  exyz1 = nullptr;
+  exyz2 = nullptr;
+  exyz3 = nullptr;
+  exyz4 = nullptr;
+  exyz5 = nullptr;
+  exyz6 = nullptr;
+  exyz7 = nullptr;
+  exyz8 = nullptr;
   
   // set comm size needed by this Pair
 
@@ -76,7 +84,15 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-  memory->destroy(rsq_hb);	
+  memory->destroy(exyz0);	
+  memory->destroy(exyz1);
+  memory->destroy(exyz2);
+  memory->destroy(exyz3);
+  memory->destroy(exyz4);
+  memory->destroy(exyz5);
+  memory->destroy(exyz6);
+  memory->destroy(exyz7);
+  memory->destroy(exyz8);
 	
   if (allocated) {
 
@@ -142,16 +158,49 @@ PairOxdnaHbond::~PairOxdnaHbond()
 
 void PairOxdnaHbond::compute(int eflag, int vflag)
 {
+	
+  if (!atom->exyz_flag) {		
+	  // grow exyz arrays if necessary
+      // need to be atom->nmax in length
+      memory->destroy(exyz0);
+	  memory->destroy(exyz1);
+	  memory->destroy(exyz2);
+	  memory->destroy(exyz3);
+	  memory->destroy(exyz4);
+	  memory->destroy(exyz5);
+	  memory->destroy(exyz6);
+	  memory->destroy(exyz7);
+	  memory->destroy(exyz8);
+      memory->create(exyz0,atom->nmax,"pair:exyz0");
+	  memory->create(exyz1,atom->nmax,"pair:exyz1");
+	  memory->create(exyz2,atom->nmax,"pair:exyz2");
+	  memory->create(exyz3,atom->nmax,"pair:exyz3");
+	  memory->create(exyz4,atom->nmax,"pair:exyz4");
+	  memory->create(exyz5,atom->nmax,"pair:exyz5");
+	  memory->create(exyz6,atom->nmax,"pair:exyz6");
+	  memory->create(exyz7,atom->nmax,"pair:exyz7");
+	  memory->create(exyz8,atom->nmax,"pair:exyz8");
+	  atom->exyz_flag = 1;
+  }	  
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,finc,tpair,factor_lj;
-  double delr_hb_norm[3],r_hb,rinv_hb;
+  double delr_hb[3],delr_hb_norm[3],rsq_hb,r_hb,rinv_hb;
   double theta1,t1dir[3],cost1;
   double theta2,t2dir[3],cost2;
   double theta3,t3dir[3],cost3;
   double theta4,t4dir[3],cost4;
   double theta7,t7dir[3],cost7;
   double theta8,t8dir[3],cost8;
+
+  // distance COM-hbonding site
+  double d_chb=+0.4;
+  // vectors COM-h-bonding site in lab frame
+  double ra_chb[3],rb_chb[3];
+
+  // Cartesian unit vectors in lab frame
+  double ax[3],ay[3],az[3];
+  double bx[3],by[3],bz[3];
 
   double **x = atom->x;
   double **f = atom->f;
@@ -162,6 +211,10 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
   int *alist,*blist,*numneigh,**firstneigh;
   double *special_lj = force->special_lj;
+
+  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
+  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
+  int *ellipsoid = atom->ellipsoid;
 
   int a,b,ia,ib,anum,bnum,atype,btype;
 
@@ -175,110 +228,54 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   alist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
-  
-  // REMOVE LATER --------------------------------------------------------
-  // quaternions and Cartesian unit vectors in lab frame
-  double *qa,ax[3],ay[3],az[3];
-  double *qb,bx[3],by[3],bz[3];
-  // vectors COM-h-bonding site in lab frame
-  double ra_chb[3],rb_chb[3];
-  // vector h-bonding site b to a
-  double delr_hb[3];
-  // distance COM-hbonding site
-  double d_chb=+0.4;
-	
-  AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
-  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
-  int *ellipsoid = atom->ellipsoid;
-  
-  int tracker=0;
-  
-  // REMOVE LATER --------------------------------------------------------
-  
-  if (rsq_hb == NULL) {
-	  
-	// grow hbond_pos arrays if necessary
-    // need to be atom->nmax in length
-    memory->destroy(rsq_hb);
-    memory->create(rsq_hb,(atom->nmax)-2,"pair:rsq_hb");
-	
-	// distance COM-hbonding site
-    double d_chb=+0.4;
-    // vectors COM-h-bonding site in lab frame
-    double ra_chb[3],rb_chb[3];
-    // quaternions and Cartesian unit vectors in lab frame
-    double *qa,ax[3],ay[3],az[3];
-    double *qb,bx[3],by[3],bz[3];
-	// vector h-bonding site b to a
-	double delr_hb[3];
-	
-	AtomVecEllipsoid *avec = (AtomVecEllipsoid *) atom->style_match("ellipsoid");
-    AtomVecEllipsoid::Bonus *bonus = avec->bonus;
-    int *ellipsoid = atom->ellipsoid;
-	
-	for (ia = 0; ia < anum; ia++) {
 
-      a = alist[ia];
-      atype = type[a];
-
-      qa=bonus[ellipsoid[a]].quat;
-      MathExtra::q_to_exyz(qa,ax,ay,az);
-
-      ra_chb[0] = d_chb*ax[0];
-      ra_chb[1] = d_chb*ax[1];
-      ra_chb[2] = d_chb*ax[2];
-
-      blist = firstneigh[a];
-      bnum = numneigh[a];
-
-      for (ib = 0; ib < bnum; ib++) {
-
-        b = blist[ib];
-        factor_lj = special_lj[sbmask(b)]; // = 0 for nearest neighbors
-        b &= NEIGHMASK;
-
-        btype = type[b];
-
-        qb=bonus[ellipsoid[b]].quat;
-        MathExtra::q_to_exyz(qb,bx,by,bz);
-
-        rb_chb[0] = d_chb*bx[0];
-        rb_chb[1] = d_chb*bx[1];
-        rb_chb[2] = d_chb*bx[2];
-		
-		delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
-		delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
-		delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
-		
-		rsq_hb[tracker] = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
-	    tracker+=1;
-	  }
-	}
-  }
-
-  if (newton_pair) comm->reverse_comm_pair(this);
-  comm->forward_comm_pair(this);
-  
   // loop over pair interaction neighbors of my atoms
-	
-  tracker=0;	
-	
+
   for (ia = 0; ia < anum; ia++) {
 
     a = alist[ia];
     atype = type[a];
-
-    blist = firstneigh[a];
-    bnum = numneigh[a]; 
-	
-	// REMOVE LATER --------------------------------------------------------
-	qa=bonus[ellipsoid[a]].quat;
-    MathExtra::q_to_exyz(qa,ax,ay,az);
-	ra_chb[0] = d_chb*ax[0];
+	//
+	//0000000000000000000000000000000000000000
+	//
+	if (atom->exyz_flag) {
+	  
+	  double *qa; // quaternion in lab frame 
+	  qa=bonus[ellipsoid[a]].quat;
+      MathExtra::q_to_exyz(qa,ax,ay,az);
+	  
+	  exyz0[a] = ax[0];
+	  exyz1[a] = ax[1];
+	  exyz2[a] = ax[2];
+	  exyz3[a] = ay[0];
+	  exyz4[a] = ay[1];
+	  exyz5[a] = ay[2];
+	  exyz6[a] = az[0];
+	  exyz7[a] = az[1];
+	  exyz8[a] = az[2];
+	  
+	} else {
+	  ax[0] = exyz0[a];
+	  ax[1] = exyz1[a];
+	  ax[2] = exyz2[a];
+	  ay[0] = exyz3[a];
+	  ay[1] = exyz4[a];
+	  ay[2] = exyz5[a];
+	  az[0] = exyz6[a];
+	  az[1] = exyz7[a];
+	  az[2] = exyz8[a];
+	}
+	printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f", ax[0], ax[1], ax[2]); 
+	//
+	//000000000000000000000000000000000000000
+	//
+    ra_chb[0] = d_chb*ax[0];
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
-	// REMOVE LATER --------------------------------------------------------
-	
+
+    blist = firstneigh[a];
+    bnum = numneigh[a];
+
     for (ib = 0; ib < bnum; ib++) {
 
       b = blist[ib];
@@ -286,23 +283,51 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       b &= NEIGHMASK;
 
       btype = type[b];
-	  
-	  // REMOVE LATER --------------------------------------------------------
-	  qb=bonus[ellipsoid[b]].quat;
-      MathExtra::q_to_exyz(qb,bx,by,bz);
-	  rb_chb[0] = d_chb*bx[0];
+	  //
+	  //0000000000000000000000000000000000000000
+	  //
+      if (atom->exyz_flag) {
+		  
+		double *qb; // quaternion in lab frame 
+        qb=bonus[ellipsoid[b]].quat;
+        MathExtra::q_to_exyz(qb,bx,by,bz);
+		
+	    exyz0[b] = bx[0];
+	    exyz1[b] = bx[1];
+	    exyz2[b] = bx[2];
+	    exyz3[b] = by[0];
+	    exyz4[b] = by[1];
+	    exyz5[b] = by[2];
+	    exyz6[b] = bz[0];
+	    exyz7[b] = bz[1];
+	    exyz8[b] = bz[2];
+	  } else {
+	    bx[0] = exyz0[b];
+	    bx[1] = exyz1[b];
+	    bx[2] = exyz2[b];
+	    by[0] = exyz3[b];
+	    by[1] = exyz4[b];
+	    by[2] = exyz5[b];
+	    bz[0] = exyz6[b];
+	    bz[1] = exyz7[b];
+	    bz[2] = exyz8[b];
+	  }
+	  printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f", bx[0], bx[1], bx[2]); 
+	  //
+	  //000000000000000000000000000000000000000
+	  //
+      rb_chb[0] = d_chb*bx[0];
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
-	  // REMOVE LATER --------------------------------------------------------
-	  
-	  printf("\n rsq_hb = %f, a = %d, b = %d", rsq_hb[tracker], a, b);
-      r_hb = sqrt(rsq_hb[tracker]);
-	  tracker+=1;
+
+      // vector h-bonding site b to a
+      delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
+      delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
+      delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
+
+      rsq_hb = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
+      r_hb = sqrt(rsq_hb);
       rinv_hb = 1.0/r_hb;
-	  
-	  delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
-	  delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
-	  delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
 
       delr_hb_norm[0] = delr_hb[0] * rinv_hb;
       delr_hb_norm[1] = delr_hb[1] * rinv_hb;
@@ -625,6 +650,9 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     }
 
   }
+  
+  if (newton_pair) comm->reverse_comm_pair(this);
+  comm->forward_comm_pair(this);
 
   if (vflag_fdotr) virial_fdotr_compute();
 }
@@ -1273,7 +1301,15 @@ int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-    buf[m++] = rsq_hb[j];
+	buf[m++] = exyz0[j];
+	buf[m++] = exyz1[j];
+	buf[m++] = exyz2[j];
+	buf[m++] = exyz3[j];
+	buf[m++] = exyz4[j];
+	buf[m++] = exyz5[j];
+	buf[m++] = exyz6[j];
+	buf[m++] = exyz7[j];
+	buf[m++] = exyz8[j];
   }
   return m;
 }
@@ -1286,7 +1322,17 @@ void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
 
   m = 0;
   last = first + n;
-  for (i = first; i < last; i++) rsq_hb[i] = buf[m++];
+  for (i = first; i < last; i++) {
+	exyz0[i] = buf[m++];
+	exyz1[i] = buf[m++];
+	exyz2[i] = buf[m++];
+	exyz3[i] = buf[m++];
+	exyz4[i] = buf[m++];
+	exyz5[i] = buf[m++];
+	exyz6[i] = buf[m++];
+	exyz7[i] = buf[m++];
+	exyz8[i] = buf[m++];
+  }	 
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1297,7 +1343,17 @@ int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
 
   m = 0;
   last = first + n;
-  for (i = first; i < last; i++) buf[m++] = rsq_hb[i];
+  for (i = first; i < last; i++) {
+	buf[m++] = exyz0[i];
+	buf[m++] = exyz1[i];
+	buf[m++] = exyz2[i];
+	buf[m++] = exyz3[i];
+	buf[m++] = exyz4[i];
+	buf[m++] = exyz5[i];
+	buf[m++] = exyz6[i];
+	buf[m++] = exyz7[i];
+	buf[m++] = exyz8[i];
+  }
   return m;
 }
 
@@ -1310,7 +1366,15 @@ void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-    rsq_hb[j] += buf[m++];
+	exyz0[j] += buf[m++];
+	exyz1[j] += buf[m++];
+	exyz2[j] += buf[m++];
+	exyz3[j] += buf[m++];
+	exyz4[j] += buf[m++];
+	exyz5[j] += buf[m++];
+	exyz6[j] += buf[m++];
+	exyz7[j] += buf[m++];
+	exyz8[j] += buf[m++];
   }
 }
 
@@ -1320,7 +1384,15 @@ void *PairOxdnaHbond::extract(const char *str, int &dim)
 {
   dim = 2;
 
-  if (strcmp(str,"rsq_hb") == 0) return (void *) rsq_hb;
+  if (strcmp(str,"exyz0") == 0) return (void *) exyz0;
+  if (strcmp(str,"exyz1") == 0) return (void *) exyz1;
+  if (strcmp(str,"exyz2") == 0) return (void *) exyz2;
+  if (strcmp(str,"exyz3") == 0) return (void *) exyz3;
+  if (strcmp(str,"exyz4") == 0) return (void *) exyz4;
+  if (strcmp(str,"exyz5") == 0) return (void *) exyz5;
+  if (strcmp(str,"exyz6") == 0) return (void *) exyz6;
+  if (strcmp(str,"exyz7") == 0) return (void *) exyz7;
+  if (strcmp(str,"exyz8") == 0) return (void *) exyz8;
 
   if (strcmp(str,"epsilon_hb") == 0) return (void *) epsilon_hb;
   if (strcmp(str,"a_hb") == 0) return (void *) a_hb;
