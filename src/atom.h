@@ -193,7 +193,7 @@ class Atom : protected Pointers {
   
   // CG-DNA package
   
-  int exyz_flag;
+  int hbond_pos_flag;
 
   // MACHDYN package
 

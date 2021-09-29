@@ -26,6 +26,7 @@
 #include "memory.h"
 #include "mf_oxdna.h"
 #include "neigh_list.h"
+#include "update.h"
 
 #include <cmath>
 #include <cstring>
@@ -63,20 +64,14 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
   
-  exyz0 = nullptr;
-  exyz1 = nullptr;
-  exyz2 = nullptr;
-  exyz3 = nullptr;
-  exyz4 = nullptr;
-  exyz5 = nullptr;
-  exyz6 = nullptr;
-  exyz7 = nullptr;
-  exyz8 = nullptr;
+  hbond_pos0 = nullptr;
+  hbond_pos1 = nullptr;
+  hbond_pos2 = nullptr;
   
   // set comm size needed by this Pair
 
-  comm_forward = 1;
-  comm_reverse = 1;
+  comm_forward = 3;
+  comm_reverse = 3;
 
 }
 
@@ -84,15 +79,9 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-  memory->destroy(exyz0);	
-  memory->destroy(exyz1);
-  memory->destroy(exyz2);
-  memory->destroy(exyz3);
-  memory->destroy(exyz4);
-  memory->destroy(exyz5);
-  memory->destroy(exyz6);
-  memory->destroy(exyz7);
-  memory->destroy(exyz8);
+  memory->destroy(hbond_pos0);	
+  memory->destroy(hbond_pos1);
+  memory->destroy(hbond_pos2);
 	
   if (allocated) {
 
@@ -159,28 +148,14 @@ PairOxdnaHbond::~PairOxdnaHbond()
 void PairOxdnaHbond::compute(int eflag, int vflag)
 {
 	
-  if (!atom->exyz_flag) {		
-	  // grow exyz arrays if necessary
-      // need to be atom->nmax in length
-      memory->destroy(exyz0);
-	  memory->destroy(exyz1);
-	  memory->destroy(exyz2);
-	  memory->destroy(exyz3);
-	  memory->destroy(exyz4);
-	  memory->destroy(exyz5);
-	  memory->destroy(exyz6);
-	  memory->destroy(exyz7);
-	  memory->destroy(exyz8);
-      memory->create(exyz0,atom->nmax,"pair:exyz0");
-	  memory->create(exyz1,atom->nmax,"pair:exyz1");
-	  memory->create(exyz2,atom->nmax,"pair:exyz2");
-	  memory->create(exyz3,atom->nmax,"pair:exyz3");
-	  memory->create(exyz4,atom->nmax,"pair:exyz4");
-	  memory->create(exyz5,atom->nmax,"pair:exyz5");
-	  memory->create(exyz6,atom->nmax,"pair:exyz6");
-	  memory->create(exyz7,atom->nmax,"pair:exyz7");
-	  memory->create(exyz8,atom->nmax,"pair:exyz8");
-	  atom->exyz_flag = 1;
+  if (update->ntimestep == 0) {		
+	  // grow hbond_pos arrays to be atom->nmax in length
+      memory->destroy(hbond_pos0);
+	  memory->destroy(hbond_pos1);
+	  memory->destroy(hbond_pos2);
+      memory->create(hbond_pos0,atom->nmax,"pair:hbond_pos0");
+	  memory->create(hbond_pos1,atom->nmax,"pair:hbond_pos1");
+	  memory->create(hbond_pos2,atom->nmax,"pair:hbond_pos2");
   }	  
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
@@ -238,40 +213,33 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 	//
 	//0000000000000000000000000000000000000000
 	//
-	if (atom->exyz_flag) {
+	if (!atom->hbond_pos_flag) {
 	  
 	  double *qa; // quaternion in lab frame 
 	  qa=bonus[ellipsoid[a]].quat;
       MathExtra::q_to_exyz(qa,ax,ay,az);
 	  
-	  exyz0[a] = ax[0];
-	  exyz1[a] = ax[1];
-	  exyz2[a] = ax[2];
-	  exyz3[a] = ay[0];
-	  exyz4[a] = ay[1];
-	  exyz5[a] = ay[2];
-	  exyz6[a] = az[0];
-	  exyz7[a] = az[1];
-	  exyz8[a] = az[2];
+	  ra_chb[0] = d_chb*ax[0];
+      ra_chb[1] = d_chb*ax[1];
+      ra_chb[2] = d_chb*ax[2];
+	  
+	  hbond_pos0[a] = x[a][0] + ra_chb[0];
+	  hbond_pos1[a] = x[a][1] + ra_chb[1];
+	  hbond_pos2[a] = x[a][2] + ra_chb[2];
 	  
 	} else {
-	  ax[0] = exyz0[a];
-	  ax[1] = exyz1[a];
-	  ax[2] = exyz2[a];
-	  ay[0] = exyz3[a];
-	  ay[1] = exyz4[a];
-	  ay[2] = exyz5[a];
-	  az[0] = exyz6[a];
-	  az[1] = exyz7[a];
-	  az[2] = exyz8[a];
+	  ax[0] = ((hbond_pos0[a] - x[a][0]) / d_chb);
+	  ax[1] = ((hbond_pos1[a] - x[a][1]) / d_chb);
+	  ax[2] = ((hbond_pos2[a] - x[a][2]) / d_chb);
+	  
+	  ra_chb[0] = (hbond_pos0[a] - x[a][0]);
+      ra_chb[1] = (hbond_pos1[a] - x[a][1]);
+      ra_chb[2] = (hbond_pos2[a] - x[a][2]);
 	}
-	printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f", ax[0], ax[1], ax[2]); 
+	//printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f", ax[0], ax[1], ax[2]); 
 	//
 	//000000000000000000000000000000000000000
 	//
-    ra_chb[0] = d_chb*ax[0];
-    ra_chb[1] = d_chb*ax[1];
-    ra_chb[2] = d_chb*ax[2];
 
     blist = firstneigh[a];
     bnum = numneigh[a];
@@ -286,44 +254,38 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 	  //
 	  //0000000000000000000000000000000000000000
 	  //
-      if (atom->exyz_flag) {
+      if (!atom->hbond_pos_flag) {
 		  
 		double *qb; // quaternion in lab frame 
         qb=bonus[ellipsoid[b]].quat;
         MathExtra::q_to_exyz(qb,bx,by,bz);
 		
-	    exyz0[b] = bx[0];
-	    exyz1[b] = bx[1];
-	    exyz2[b] = bx[2];
-	    exyz3[b] = by[0];
-	    exyz4[b] = by[1];
-	    exyz5[b] = by[2];
-	    exyz6[b] = bz[0];
-	    exyz7[b] = bz[1];
-	    exyz8[b] = bz[2];
+		rb_chb[0] = d_chb*bx[0];
+        rb_chb[1] = d_chb*bx[1];
+        rb_chb[2] = d_chb*bx[2];
+		
+	    hbond_pos0[b] = x[b][0] + rb_chb[0];
+	    hbond_pos1[b] = x[b][1] + rb_chb[1];
+	    hbond_pos2[b] = x[b][2] + rb_chb[2];
+		
 	  } else {
-	    bx[0] = exyz0[b];
-	    bx[1] = exyz1[b];
-	    bx[2] = exyz2[b];
-	    by[0] = exyz3[b];
-	    by[1] = exyz4[b];
-	    by[2] = exyz5[b];
-	    bz[0] = exyz6[b];
-	    bz[1] = exyz7[b];
-	    bz[2] = exyz8[b];
+	    bx[0] = ((hbond_pos0[b] - x[b][0]) / d_chb);
+	    bx[1] = ((hbond_pos1[b] - x[b][1]) / d_chb);
+	    bx[2] = ((hbond_pos2[b] - x[b][2]) / d_chb);
+		
+		rb_chb[0] = (hbond_pos0[b] - x[b][0]);
+        rb_chb[1] = (hbond_pos1[b] - x[b][1]);
+        rb_chb[2] = (hbond_pos2[b] - x[b][2]);
 	  }
-	  printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f", bx[0], bx[1], bx[2]); 
+	  //printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f", bx[0], bx[1], bx[2]); 
 	  //
 	  //000000000000000000000000000000000000000
 	  //
-      rb_chb[0] = d_chb*bx[0];
-      rb_chb[1] = d_chb*bx[1];
-      rb_chb[2] = d_chb*bx[2];
 
       // vector h-bonding site b to a
-      delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
-      delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
-      delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
+      delr_hb[0] = hbond_pos0[a] - hbond_pos0[b];
+      delr_hb[1] = hbond_pos1[a] - hbond_pos1[b];
+      delr_hb[2] = hbond_pos2[a] - hbond_pos2[b];
 
       rsq_hb = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
       r_hb = sqrt(rsq_hb);
@@ -651,6 +613,8 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
   }
   
+  atom->hbond_pos_flag = 1;
+ 
   if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
@@ -1301,15 +1265,9 @@ int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-	buf[m++] = exyz0[j];
-	buf[m++] = exyz1[j];
-	buf[m++] = exyz2[j];
-	buf[m++] = exyz3[j];
-	buf[m++] = exyz4[j];
-	buf[m++] = exyz5[j];
-	buf[m++] = exyz6[j];
-	buf[m++] = exyz7[j];
-	buf[m++] = exyz8[j];
+	buf[m++] = hbond_pos0[j];
+	buf[m++] = hbond_pos1[j];
+	buf[m++] = hbond_pos2[j];
   }
   return m;
 }
@@ -1323,15 +1281,9 @@ void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-	exyz0[i] = buf[m++];
-	exyz1[i] = buf[m++];
-	exyz2[i] = buf[m++];
-	exyz3[i] = buf[m++];
-	exyz4[i] = buf[m++];
-	exyz5[i] = buf[m++];
-	exyz6[i] = buf[m++];
-	exyz7[i] = buf[m++];
-	exyz8[i] = buf[m++];
+	hbond_pos0[i] = buf[m++];
+	hbond_pos1[i] = buf[m++];
+	hbond_pos2[i] = buf[m++];
   }	 
 }
 
@@ -1344,15 +1296,9 @@ int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-	buf[m++] = exyz0[i];
-	buf[m++] = exyz1[i];
-	buf[m++] = exyz2[i];
-	buf[m++] = exyz3[i];
-	buf[m++] = exyz4[i];
-	buf[m++] = exyz5[i];
-	buf[m++] = exyz6[i];
-	buf[m++] = exyz7[i];
-	buf[m++] = exyz8[i];
+	buf[m++] = hbond_pos0[i];
+	buf[m++] = hbond_pos1[i];
+	buf[m++] = hbond_pos2[i];
   }
   return m;
 }
@@ -1366,15 +1312,9 @@ void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-	exyz0[j] += buf[m++];
-	exyz1[j] += buf[m++];
-	exyz2[j] += buf[m++];
-	exyz3[j] += buf[m++];
-	exyz4[j] += buf[m++];
-	exyz5[j] += buf[m++];
-	exyz6[j] += buf[m++];
-	exyz7[j] += buf[m++];
-	exyz8[j] += buf[m++];
+	hbond_pos0[j] += buf[m++];
+	hbond_pos1[j] += buf[m++];
+	hbond_pos2[j] += buf[m++];
   }
 }
 
@@ -1384,15 +1324,9 @@ void *PairOxdnaHbond::extract(const char *str, int &dim)
 {
   dim = 2;
 
-  if (strcmp(str,"exyz0") == 0) return (void *) exyz0;
-  if (strcmp(str,"exyz1") == 0) return (void *) exyz1;
-  if (strcmp(str,"exyz2") == 0) return (void *) exyz2;
-  if (strcmp(str,"exyz3") == 0) return (void *) exyz3;
-  if (strcmp(str,"exyz4") == 0) return (void *) exyz4;
-  if (strcmp(str,"exyz5") == 0) return (void *) exyz5;
-  if (strcmp(str,"exyz6") == 0) return (void *) exyz6;
-  if (strcmp(str,"exyz7") == 0) return (void *) exyz7;
-  if (strcmp(str,"exyz8") == 0) return (void *) exyz8;
+  if (strcmp(str,"hbond_pos0") == 0) return (void *) hbond_pos0;
+  if (strcmp(str,"hbond_pos1") == 0) return (void *) hbond_pos1;
+  if (strcmp(str,"hbond_pos2") == 0) return (void *) hbond_pos2;
 
   if (strcmp(str,"epsilon_hb") == 0) return (void *) epsilon_hb;
   if (strcmp(str,"a_hb") == 0) return (void *) a_hb;
