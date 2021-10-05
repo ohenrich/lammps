@@ -149,7 +149,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 {
 	
   if (update->ntimestep == 0) {		
-	  // grow hbond_pos arrays to be atom->nmax in length
+	  // grow intpos arrays to be atom->nmax in length
       memory->destroy(hbond_pos0);
 	  memory->destroy(hbond_pos1);
 	  memory->destroy(hbond_pos2);
@@ -174,8 +174,8 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   double ra_chb[3],rb_chb[3];
 
   // Cartesian unit vectors in lab frame
-  double ax[3],ay[3],az[3];
-  double bx[3],by[3],bz[3];
+  double ax[3];
+  double bx[3];
 
   double **x = atom->x;
   double **f = atom->f;
@@ -191,7 +191,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   AtomVecEllipsoid::Bonus *bonus = avec->bonus;
   int *ellipsoid = atom->ellipsoid;
 
-  int a,b,ia,ib,anum,bnum,atype,btype;
+  int n,a,b,in,ia,ib,nlocal,anum,bnum,atype,btype;
 
   double f1,f4t1,f4t4,f4t2,f4t3,f4t7,f4t8;
   double df1,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8;
@@ -199,10 +199,31 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   evdwl = 0.0;
   ev_init(eflag,vflag);
 
+  nlocal = atom->nlocal;
   anum = list->inum;
   alist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
+  
+  // loop over all local atoms, handle calculation or 
+  // call for all interaction sites
+  
+  if (!atom->intpos_flag) {  
+	for (in = 0; in < nlocal; in++) {
+	  
+	  double *qn,nx[3],ny[3],nz[3];; // quaternion and Cartesian unit vectors in lab frame 
+	  qn=bonus[ellipsoid[n]].quat;
+      MathExtra::q_to_exyz(qn,nx,ny,nz);
+	  
+	  hbond_pos0[n] = x[n][0] + d_chb*nx[0];
+	  hbond_pos1[n] = x[n][1] + d_chb*nx[1];
+	  hbond_pos2[n] = x[n][2] + d_chb*nx[2];  
+	}
+    atom->intpos_flag = 1;
+  }
+ 
+  if (newton_pair) comm->reverse_comm_pair(this);
+  comm->forward_comm_pair(this);
 
   // loop over pair interaction neighbors of my atoms
 
@@ -210,36 +231,16 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
     a = alist[ia];
     atype = type[a];
-	//
-	//0000000000000000000000000000000000000000
-	//
-	if (!atom->hbond_pos_flag) {
+
+    ax[0] = ((hbond_pos0[a] - x[a][0]) / d_chb);
+	ax[1] = ((hbond_pos1[a] - x[a][1]) / d_chb);
+	ax[2] = ((hbond_pos2[a] - x[a][2]) / d_chb);
 	  
-	  double *qa; // quaternion in lab frame 
-	  qa=bonus[ellipsoid[a]].quat;
-      MathExtra::q_to_exyz(qa,ax,ay,az);
-	  
-	  ra_chb[0] = d_chb*ax[0];
-      ra_chb[1] = d_chb*ax[1];
-      ra_chb[2] = d_chb*ax[2];
-	  
-	  hbond_pos0[a] = x[a][0] + ra_chb[0];
-	  hbond_pos1[a] = x[a][1] + ra_chb[1];
-	  hbond_pos2[a] = x[a][2] + ra_chb[2];
-	  
-	} else {
-	  ax[0] = ((hbond_pos0[a] - x[a][0]) / d_chb);
-	  ax[1] = ((hbond_pos1[a] - x[a][1]) / d_chb);
-	  ax[2] = ((hbond_pos2[a] - x[a][2]) / d_chb);
-	  
-	  ra_chb[0] = (hbond_pos0[a] - x[a][0]);
-      ra_chb[1] = (hbond_pos1[a] - x[a][1]);
-      ra_chb[2] = (hbond_pos2[a] - x[a][2]);
-	}
+	ra_chb[0] = (hbond_pos0[a] - x[a][0]);
+    ra_chb[1] = (hbond_pos1[a] - x[a][1]);
+    ra_chb[2] = (hbond_pos2[a] - x[a][2]);
+	
 	//printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f", ax[0], ax[1], ax[2]); 
-	//
-	//000000000000000000000000000000000000000
-	//
 
     blist = firstneigh[a];
     bnum = numneigh[a];
@@ -251,36 +252,16 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       b &= NEIGHMASK;
 
       btype = type[b];
-	  //
-	  //0000000000000000000000000000000000000000
-	  //
-      if (!atom->hbond_pos_flag) {
-		  
-		double *qb; // quaternion in lab frame 
-        qb=bonus[ellipsoid[b]].quat;
-        MathExtra::q_to_exyz(qb,bx,by,bz);
+
+	  bx[0] = ((hbond_pos0[b] - x[b][0]) / d_chb);
+	  bx[1] = ((hbond_pos1[b] - x[b][1]) / d_chb);
+	  bx[2] = ((hbond_pos2[b] - x[b][2]) / d_chb);
 		
-		rb_chb[0] = d_chb*bx[0];
-        rb_chb[1] = d_chb*bx[1];
-        rb_chb[2] = d_chb*bx[2];
-		
-	    hbond_pos0[b] = x[b][0] + rb_chb[0];
-	    hbond_pos1[b] = x[b][1] + rb_chb[1];
-	    hbond_pos2[b] = x[b][2] + rb_chb[2];
-		
-	  } else {
-	    bx[0] = ((hbond_pos0[b] - x[b][0]) / d_chb);
-	    bx[1] = ((hbond_pos1[b] - x[b][1]) / d_chb);
-	    bx[2] = ((hbond_pos2[b] - x[b][2]) / d_chb);
-		
-		rb_chb[0] = (hbond_pos0[b] - x[b][0]);
-        rb_chb[1] = (hbond_pos1[b] - x[b][1]);
-        rb_chb[2] = (hbond_pos2[b] - x[b][2]);
-	  }
-	  //printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f", bx[0], bx[1], bx[2]); 
-	  //
-	  //000000000000000000000000000000000000000
-	  //
+	  rb_chb[0] = (hbond_pos0[b] - x[b][0]);
+      rb_chb[1] = (hbond_pos1[b] - x[b][1]);
+      rb_chb[2] = (hbond_pos2[b] - x[b][2]);
+	  
+	  printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f", bx[0], bx[1], bx[2]); 
 
       // vector h-bonding site b to a
       delr_hb[0] = hbond_pos0[a] - hbond_pos0[b];
@@ -612,11 +593,6 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     }
 
   }
-  
-  atom->hbond_pos_flag = 1;
- 
-  if (newton_pair) comm->reverse_comm_pair(this);
-  comm->forward_comm_pair(this);
 
   if (vflag_fdotr) virial_fdotr_compute();
 }
