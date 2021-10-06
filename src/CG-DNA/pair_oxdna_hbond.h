@@ -73,9 +73,9 @@ class PairOxdnaHbond : public Pair {
   double **b_hb8, **dtheta_hb8_c;
 
   // per-atom arrays for q_to_exyz storage
-  double *hbond_pos0;
-  double *hbond_pos1;
-  double *hbond_pos2;
+  double *x0, *x1, *x2;
+  double *y0, *y1, *y2;
+  double *z0, *z1, *z2;
   
   int seqdepflag;
 

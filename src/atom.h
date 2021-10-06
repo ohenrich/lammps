@@ -193,7 +193,7 @@ class Atom : protected Pointers {
   
   // CG-DNA package
   
-  int intpos_flag;
+  int lrefpos_flag;
 
   // MACHDYN package
 
