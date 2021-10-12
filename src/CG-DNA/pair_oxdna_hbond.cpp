@@ -26,7 +26,6 @@
 #include "memory.h"
 #include "mf_oxdna.h"
 #include "neigh_list.h"
-#include "update.h"
 
 #include <cmath>
 #include <cstring>
@@ -63,8 +62,6 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][1] = 1.00000;
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
-  
-  nx = ny =nz = nullptr;
   
   // set comm size needed by this Pair
 
@@ -146,16 +143,6 @@ PairOxdnaHbond::~PairOxdnaHbond()
 
 void PairOxdnaHbond::compute(int eflag, int vflag)
 {
-	
-/*   if (update->ntimestep == 0) {		
-	  // grow local reference position arrays to be atom->nmax in length
-	  memory->destroy(nx);	
-	  memory->destroy(ny);
-	  memory->destroy(nz);
-      memory->create(nx,atom->nmax,3,"pair:nx");
-	  memory->create(ny,atom->nmax,3,"pair:ny");
-	  memory->create(nz,atom->nmax,3,"pair:nz");
-  }	   */
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,finc,tpair,factor_lj;
@@ -173,9 +160,9 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   double ra_chb[3],rb_chb[3];
 
   // Cartesian unit vectors in lab frame
-  // Only (a/b)x required initially
-  double ax[3],az[3];
-  double bx[3],bz[3];
+  // Only (a/b)x required here
+  double ax[3];
+  double bx[3];
 
   double **x = atom->x;
   double **f = atom->f;
@@ -205,27 +192,31 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
   
-  // loop over all local atoms, handle calculation or 
-  // call for all interaction sites
+  // loop over all local atoms, handle calculation of local reference frame
   
-  if (!atom->lrefpos_flag) {  
-	for (in = 0; in < nlocal; in++) {
-	  
+  if (atom->lrefpos_flag < atom->nmax) {  
+	for (in = 0; in < atom->nlocal; in++) {
+	 
+	  int n = alist[in];
+	 
 	  double *qn,nx_temp[3],ny_temp[3],nz_temp[3]; // quaternion and Cartesian unit vectors in lab frame 
-	  qn=bonus[ellipsoid[in]].quat;
+	  qn=bonus[ellipsoid[n]].quat;
       MathExtra::q_to_exyz(qn,nx_temp,ny_temp,nz_temp);
 	  
- 	  nx[in][0] = nx_temp[0];
-	  nx[in][1] = nx_temp[1];
-	  nx[in][2] = nx_temp[2];
-	  ny[in][0] = ny_temp[0];
-	  ny[in][1] = ny_temp[1];
-	  ny[in][2] = ny_temp[2];
-	  nz[in][0] = nz_temp[0];
-	  nz[in][1] = nz_temp[1];
-	  nz[in][2] = nz_temp[2];
+ 	  nx[n][0] = nx_temp[0];
+	  nx[n][1] = nx_temp[1];
+	  nx[n][2] = nx_temp[2];
+	  ny[n][0] = ny_temp[0];
+	  ny[n][1] = ny_temp[1];
+	  ny[n][2] = ny_temp[2];
+	  nz[n][0] = nz_temp[0];
+	  nz[n][1] = nz_temp[1];
+	  nz[n][2] = nz_temp[2];
+	  
+	  printf("\n In top:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[n][0], nx[n][1], nx[n][2], atom->tag[n]); 
+	  
+	  atom->lrefpos_flag += 1;
 	}
-    atom->lrefpos_flag = 1;
   }
  
   if (newton_pair) comm->reverse_comm_pair(this);
@@ -238,6 +229,8 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
+    printf("\n In A loop:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[a][0], nx[a][1], nx[a][2], atom->tag[a]); 
+
     ax[0] = nx[a][0];
 	ax[1] = nx[a][1];
 	ax[2] = nx[a][2];
@@ -246,7 +239,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
 	
-	printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f, id = %d", ax[0], ax[1], ax[2], atom->tag[a]); 
+	//printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f, id = %d", ax[0], ax[1], ax[2], atom->tag[a]); 
 
     blist = firstneigh[a];
     bnum = numneigh[a];
@@ -267,7 +260,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
 	  
-	  printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f, id = %d", bx[0], bx[1], bx[2], atom->tag[b]); 
+	  //printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f, id = %d", bx[0], bx[1], bx[2], atom->tag[b]); 
 
       // vector h-bonding site b to a
       delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
@@ -323,7 +316,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       if (f4t3) {
 		  
 	  double az[3];
-	  double bz[3];
+	  double bz[3];	  
 		  
 	  az[0] = nz[a][0];
 	  az[1] = nz[a][1];
@@ -630,12 +623,6 @@ void PairOxdnaHbond::allocate()
   memory->create(nx,atom->nmax,3,"pair:nx");
   memory->create(ny,atom->nmax,3,"pair:ny");
   memory->create(nz,atom->nmax,3,"pair:nz");
-  int i,j;
-  for (i = 0; i < atom->nmax; i++)
-    for (j = 0; j < 3; j++)
-      nx[i][j] = NULL;
-	  ny[i][j] = NULL;
-	  nz[i][j] = NULL;
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
