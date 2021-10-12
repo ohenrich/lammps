@@ -64,9 +64,7 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
   
-  nx[0] = nx[1] = nx[2] = nullptr;
-  ny[0] = ny[1] = ny[2] = nullptr;
-  nz[0] = nz[1] = ny[2] = nullptr;
+  nx = ny =nz = nullptr;
   
   // set comm size needed by this Pair
 
@@ -79,11 +77,12 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-  memory->destroy(nx);	
-  memory->destroy(ny);
-  memory->destroy(nz);
 	
   if (allocated) {
+
+	memory->destroy(nx);	
+	memory->destroy(ny);
+	memory->destroy(nz);
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -148,7 +147,7 @@ PairOxdnaHbond::~PairOxdnaHbond()
 void PairOxdnaHbond::compute(int eflag, int vflag)
 {
 	
-  if (update->ntimestep == 0) {		
+/*   if (update->ntimestep == 0) {		
 	  // grow local reference position arrays to be atom->nmax in length
 	  memory->destroy(nx);	
 	  memory->destroy(ny);
@@ -156,7 +155,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       memory->create(nx,atom->nmax,3,"pair:nx");
 	  memory->create(ny,atom->nmax,3,"pair:ny");
 	  memory->create(nz,atom->nmax,3,"pair:nz");
-  }	  
+  }	   */
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,finc,tpair,factor_lj;
@@ -627,6 +626,16 @@ void PairOxdnaHbond::allocate()
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
+
+  memory->create(nx,atom->nmax,3,"pair:nx");
+  memory->create(ny,atom->nmax,3,"pair:ny");
+  memory->create(nz,atom->nmax,3,"pair:nz");
+  int i,j;
+  for (i = 0; i < atom->nmax; i++)
+    for (j = 0; j < 3; j++)
+      nx[i][j] = NULL;
+	  ny[i][j] = NULL;
+	  nz[i][j] = NULL;
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
@@ -1258,9 +1267,15 @@ int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-	buf[3*m++] = nx[j][0];
-	buf[3*m++] = ny[j][0];
-	buf[3*m++] = nz[j][0];
+	buf[m++] = nx[j][0];
+	buf[m++] = nx[j][1];
+	buf[m++] = nx[j][2];
+	buf[m++] = ny[j][0];
+	buf[m++] = ny[j][1];
+	buf[m++] = ny[j][2];
+	buf[m++] = nz[j][0];
+	buf[m++] = nz[j][1];
+	buf[m++] = nz[j][2];
   }
   return m;
 }
@@ -1274,9 +1289,15 @@ void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-	nx[i][0] = buf[3*m++];
-	ny[i][0] = buf[3*m++];
-	nz[i][0] = buf[3*m++];
+	nx[i][0] = buf[m++];
+	nx[i][1] = buf[m++];
+	nx[i][2] = buf[m++];
+	ny[i][0] = buf[m++];
+	ny[i][1] = buf[m++];
+	ny[i][2] = buf[m++];
+	nz[i][0] = buf[m++];
+	nz[i][1] = buf[m++];
+	nz[i][2] = buf[m++];
   }	 
 }
 
@@ -1289,9 +1310,15 @@ int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-	buf[3*m++] = nx[i][0];
-	buf[3*m++] = ny[i][0];
-	buf[3*m++] = nz[i][0];
+	buf[m++] = nx[i][0];
+	buf[m++] = nx[i][1];
+	buf[m++] = nx[i][2];
+	buf[m++] = ny[i][0];
+	buf[m++] = ny[i][1];
+	buf[m++] = ny[i][2];
+	buf[m++] = nz[i][0];
+	buf[m++] = nz[i][1];
+	buf[m++] = nz[i][2];
   }
   return m;
 }
@@ -1305,9 +1332,16 @@ void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-	nx[j][0] += buf[3*m++];
-	ny[j][0] += buf[3*m++];
-	nz[j][0] += buf[3*m++];
+	nx[j][0] += buf[m++];
+	nx[j][1] += buf[m++];
+	nx[j][2] += buf[m++];
+	ny[j][0] += buf[m++];
+	ny[j][1] += buf[m++];
+	ny[j][2] += buf[m++];
+	nz[j][0] += buf[m++];
+	nz[j][1] += buf[m++];
+	nz[j][2] += buf[m++];
+	
   }
 }
 
