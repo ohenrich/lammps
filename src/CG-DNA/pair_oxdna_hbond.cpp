@@ -74,12 +74,12 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-	
-  if (allocated) {
 
-	memory->destroy(nx);	
-	memory->destroy(ny);
-	memory->destroy(nz);
+  if (allocated) {
+	  
+	memory->destroy(nx);
+    memory->destroy(ny);
+    memory->destroy(nz);
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -192,7 +192,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
   
-  // loop over all local atoms, handle calculation of local reference frame
+  // loop over all local atoms, handle calculation of local reference frame 
   
   if (atom->lrefpos_flag < atom->nmax) {  
 	for (in = 0; in < atom->nlocal; in++) {
@@ -213,13 +213,13 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 	  nz[n][1] = nz_temp[1];
 	  nz[n][2] = nz_temp[2];
 	  
-	  printf("\n In top:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[n][0], nx[n][1], nx[n][2], atom->tag[n]); 
+	  //printf("\n In top:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[n][0], nx[n][1], nx[n][2], atom->tag[n]); 
 	  
 	  atom->lrefpos_flag += 1;
 	}
   }
  
-  if (newton_pair) comm->reverse_comm_pair(this);
+  //if (newton_pair) comm->reverse_comm_pair(this);
   comm->forward_comm_pair(this);
 
   // loop over pair interaction neighbors of my atoms
@@ -229,7 +229,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
-    printf("\n In A loop:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[a][0], nx[a][1], nx[a][2], atom->tag[a]); 
+    //printf("\n In A loop:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[a][0], nx[a][1], nx[a][2], atom->tag[a]); 
 
     ax[0] = nx[a][0];
 	ax[1] = nx[a][1];
