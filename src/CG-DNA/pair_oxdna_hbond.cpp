@@ -62,6 +62,11 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][1] = 1.00000;
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
+  
+  // set comm size needed by this Pair
+
+  comm_forward = 9;
+  comm_reverse = 9;
 
 }
 
@@ -69,7 +74,12 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
+
   if (allocated) {
+	  
+	memory->destroy(nx);
+    memory->destroy(ny);
+    memory->destroy(nz);
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -168,7 +178,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   AtomVecEllipsoid::Bonus *bonus = avec->bonus;
   int *ellipsoid = atom->ellipsoid;
 
-  int a,b,ia,ib,anum,bnum,atype,btype;
+  int n,a,b,in,ia,ib,anum,bnum,atype,btype;
 
   double f1,f4t1,f4t4,f4t2,f4t3,f4t7,f4t8;
   double df1,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8;
@@ -176,6 +186,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   evdwl = 0.0;
   ev_init(eflag,vflag);
 
+  nlocal = atom->nlocal;
   anum = list->inum;
   alist = list->ilist;
   numneigh = list->numneigh;
@@ -197,10 +208,10 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     //printf("\n In A loop:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[a][0], nx[a][1], nx[a][2], atom->tag[a]); 
 
     ax[0] = nx_xtrct[a][0];
-	ax[1] = nx_xtrct[a][1];
-	ax[2] = nx_xtrct[a][2];
+	  ax[1] = nx_xtrct[a][1];
+	  ax[2] = nx_xtrct[a][2];
 	  
-	ra_chb[0] = d_chb*ax[0];
+	  ra_chb[0] = d_chb*ax[0];
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
 	
@@ -217,11 +228,11 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       btype = type[b];
 
-	  bx[0] = nx_xtrct[b][0];
-	  bx[1] = nx_xtrct[b][1];
-	  bx[2] = nx_xtrct[b][2];
+	    bx[0] = nx_xtrct[b][0];
+	    bx[1] = nx_xtrct[b][1];
+	    bx[2] = nx_xtrct[b][2];
 		
-	  rb_chb[0] = d_chb*bx[0];
+	    rb_chb[0] = d_chb*bx[0];
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
 	  
@@ -280,15 +291,15 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       // early rejection criterium
       if (f4t3) {
 		  
-	  double az[3];
-	  double bz[3];	  
+	    double az[3];
+	    double bz[3];	  
 		  
-	  az[0] = nz_xtrct[a][0];
-	  az[1] = nz_xtrct[a][1];
-	  az[2] = nz_xtrct[a][2];
-	  bz[0] = nz_xtrct[b][0];
-	  bz[1] = nz_xtrct[b][1];
-	  bz[2] = nz_xtrct[b][2];
+	    az[0] = nz_xtrct[a][0];
+	    az[1] = nz_xtrct[a][1];
+	    az[2] = nz_xtrct[a][2];
+	    bz[0] = nz_xtrct[b][0];
+  	  bz[1] = nz_xtrct[b][1];
+  	  bz[2] = nz_xtrct[b][2];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
@@ -584,6 +595,10 @@ void PairOxdnaHbond::allocate()
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
+
+  memory->create(nx,atom->nmax,3,"pair:nx");
+  memory->create(ny,atom->nmax,3,"pair:ny");
+  memory->create(nz,atom->nmax,3,"pair:nz");
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
@@ -1207,9 +1222,101 @@ void PairOxdnaHbond::write_data_all(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
+int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
+                               int /*pbc_flag*/, int * /*pbc*/)
+{
+  int i,j,m;
+
+  m = 0;
+  for (i = 0; i < n; i++) {
+    j = list[i];
+	buf[m++] = nx[j][0];
+	buf[m++] = nx[j][1];
+	buf[m++] = nx[j][2];
+	buf[m++] = ny[j][0];
+	buf[m++] = ny[j][1];
+	buf[m++] = ny[j][2];
+	buf[m++] = nz[j][0];
+	buf[m++] = nz[j][1];
+	buf[m++] = nz[j][2];
+  }
+  return m;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
+{
+  int i,m,last;
+
+  m = 0;
+  last = first + n;
+  for (i = first; i < last; i++) {
+	nx[i][0] = buf[m++];
+	nx[i][1] = buf[m++];
+	nx[i][2] = buf[m++];
+	ny[i][0] = buf[m++];
+	ny[i][1] = buf[m++];
+	ny[i][2] = buf[m++];
+	nz[i][0] = buf[m++];
+	nz[i][1] = buf[m++];
+	nz[i][2] = buf[m++];
+  }	 
+}
+
+/* ---------------------------------------------------------------------- */
+
+int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
+{
+  int i,m,last;
+
+  m = 0;
+  last = first + n;
+  for (i = first; i < last; i++) {
+	buf[m++] = nx[i][0];
+	buf[m++] = nx[i][1];
+	buf[m++] = nx[i][2];
+	buf[m++] = ny[i][0];
+	buf[m++] = ny[i][1];
+	buf[m++] = ny[i][2];
+	buf[m++] = nz[i][0];
+	buf[m++] = nz[i][1];
+	buf[m++] = nz[i][2];
+  }
+  return m;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
+{
+  int i,j,m;
+
+  m = 0;
+  for (i = 0; i < n; i++) {
+    j = list[i];
+	nx[j][0] += buf[m++];
+	nx[j][1] += buf[m++];
+	nx[j][2] += buf[m++];
+	ny[j][0] += buf[m++];
+	ny[j][1] += buf[m++];
+	ny[j][2] += buf[m++];
+	nz[j][0] += buf[m++];
+	nz[j][1] += buf[m++];
+	nz[j][2] += buf[m++];
+	
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
 void *PairOxdnaHbond::extract(const char *str, int &dim)
 {
   dim = 2;
+
+  if (strcmp(str,"nx") == 0) return (void *) nx;
+  if (strcmp(str,"ny") == 0) return (void *) ny;
+  if (strcmp(str,"nz") == 0) return (void *) nz;
 
   if (strcmp(str,"epsilon_hb") == 0) return (void *) epsilon_hb;
   if (strcmp(str,"a_hb") == 0) return (void *) a_hb;
