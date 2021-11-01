@@ -63,23 +63,13 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
 
-  // set comm size needed by this Pair
-
-  comm_forward = 9;
-  comm_reverse = 9;
-
 }
 
 /* ---------------------------------------------------------------------- */
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-
   if (allocated) {
-
-	memory->destroy(nx);
-    memory->destroy(ny);
-    memory->destroy(nz);
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -146,7 +136,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,finc,tpair,factor_lj;
-  double delr_hb_norm[3],r_hb,rinv_hb;
+  double delr_hb[3],delr_hb_norm[3],rsq_hb,r_hb,rinv_hb;
   double theta1,t1dir[3],cost1;
   double theta2,t2dir[3],cost2;
   double theta3,t3dir[3],cost3;
@@ -158,11 +148,9 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   double d_chb=+0.4;
   // vectors COM-h-bonding site in lab frame
   double ra_chb[3],rb_chb[3];
-
   // Cartesian unit vectors in lab frame
-  // Only (a/b)x required here
-  double ax[3];
-  double bx[3];
+  double ax[3],ay[3],az[3];
+  double bx[3],by[3],bz[3];
 
   double **x = atom->x;
   double **f = atom->f;
@@ -178,7 +166,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   AtomVecEllipsoid::Bonus *bonus = avec->bonus;
   int *ellipsoid = atom->ellipsoid;
 
-  int n,a,b,in,ia,ib,anum,bnum,atype,btype;
+  int a,b,ia,ib,anum,bnum,atype,btype;
 
   double f1,f4t1,f4t4,f4t2,f4t3,f4t7,f4t8;
   double df1,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8;
@@ -186,41 +174,31 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   evdwl = 0.0;
   ev_init(eflag,vflag);
 
-  nlocal = atom->nlocal;
   anum = list->inum;
   alist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
-
-  // n(x/y/z)_xtrct = extracted q_to_exyz from oxdna_excv
+  
+  // n(x/y/z)_xtrct = extracted q_to_exyz from oxdna_excv 
   int dim;
   nx_xtrct = (double **) force->pair->extract("nx",dim);
   ny_xtrct = (double **) force->pair->extract("ny",dim);
   nz_xtrct = (double **) force->pair->extract("nz",dim);
 
-  if (newton_pair) comm->reverse_comm_pair(this);
-  comm->forward_comm_pair(this);
-
   // loop over pair interaction neighbors of my atoms
-
-  tracker=0;
 
   for (ia = 0; ia < anum; ia++) {
 
     a = alist[ia];
     atype = type[a];
 
-    //printf("\n In A loop:	nx[0] = %f, nx[1] = %f, nx[2] = %f, id = %d", nx[a][0], nx[a][1], nx[a][2], atom->tag[a]);
-
     ax[0] = nx_xtrct[a][0];
-	  ax[1] = nx_xtrct[a][1];
-	  ax[2] = nx_xtrct[a][2];
-
-	  ra_chb[0] = d_chb*ax[0];
+	ax[1] = nx_xtrct[a][1];
+	ax[2] = nx_xtrct[a][2];
+	  
+	ra_chb[0] = d_chb*ax[0];
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
-
-	//printf("\n ax[0] = %f, ax[1] = %f, ax[2] = %f, id = %d", ax[0], ax[1], ax[2], atom->tag[a]);
 
     blist = firstneigh[a];
     bnum = numneigh[a];
@@ -233,16 +211,14 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       btype = type[b];
 
-	    bx[0] = nx_xtrct[b][0];
-	    bx[1] = nx_xtrct[b][1];
-	    bx[2] = nx_xtrct[b][2];
-
-	    rb_chb[0] = d_chb*bx[0];
+	  bx[0] = nx_xtrct[b][0];
+	  bx[1] = nx_xtrct[b][1];
+	  bx[2] = nx_xtrct[b][2];
+		
+	  rb_chb[0] = d_chb*bx[0];
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
-
-	  //printf("\n bx[0] = %f, bx[1] = %f, bx[2] = %f, id = %d", bx[0], bx[1], bx[2], atom->tag[b]);
-
+	  
       // vector h-bonding site b to a
       delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
       delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
@@ -251,10 +227,6 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       rsq_hb = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
       r_hb = sqrt(rsq_hb);
       rinv_hb = 1.0/r_hb;
-
-	  delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
-	  delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
-	  delr_hb[2] = x[a][2] + ra_chb[2] - x[b][2] - rb_chb[2];
 
       delr_hb_norm[0] = delr_hb[0] * rinv_hb;
       delr_hb_norm[1] = delr_hb[1] * rinv_hb;
@@ -298,17 +270,14 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
             b_hb3[atype][btype], dtheta_hb3_c[atype][btype]);
 
       // early rejection criterium
-      if (f4t3) {
-
-	    double az[3];
-	    double bz[3];
-
-	    az[0] = nz_xtrct[a][0];
-	    az[1] = nz_xtrct[a][1];
-	    az[2] = nz_xtrct[a][2];
-	    bz[0] = nz_xtrct[b][0];
-  	  bz[1] = nz_xtrct[b][1];
-  	  bz[2] = nz_xtrct[b][2];
+      if (f4t3) { 
+		  
+	  az[0] = nz_xtrct[a][0];
+	  az[1] = nz_xtrct[a][1];
+	  az[2] = nz_xtrct[a][2];
+	  bz[0] = nz_xtrct[b][0];
+	  bz[1] = nz_xtrct[b][1];
+	  bz[2] = nz_xtrct[b][2];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
@@ -604,10 +573,6 @@ void PairOxdnaHbond::allocate()
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
-
-  memory->create(nx,atom->nmax,3,"pair:nx");
-  memory->create(ny,atom->nmax,3,"pair:ny");
-  memory->create(nz,atom->nmax,3,"pair:nz");
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
@@ -1231,101 +1196,9 @@ void PairOxdnaHbond::write_data_all(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-int PairOxdnaHbond::pack_forward_comm(int n, int *list, double *buf,
-                               int /*pbc_flag*/, int * /*pbc*/)
-{
-  int i,j,m;
-
-  m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
-	buf[m++] = nx[j][0];
-	buf[m++] = nx[j][1];
-	buf[m++] = nx[j][2];
-	buf[m++] = ny[j][0];
-	buf[m++] = ny[j][1];
-	buf[m++] = ny[j][2];
-	buf[m++] = nz[j][0];
-	buf[m++] = nz[j][1];
-	buf[m++] = nz[j][2];
-  }
-  return m;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void PairOxdnaHbond::unpack_forward_comm(int n, int first, double *buf)
-{
-  int i,m,last;
-
-  m = 0;
-  last = first + n;
-  for (i = first; i < last; i++) {
-	nx[i][0] = buf[m++];
-	nx[i][1] = buf[m++];
-	nx[i][2] = buf[m++];
-	ny[i][0] = buf[m++];
-	ny[i][1] = buf[m++];
-	ny[i][2] = buf[m++];
-	nz[i][0] = buf[m++];
-	nz[i][1] = buf[m++];
-	nz[i][2] = buf[m++];
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
-int PairOxdnaHbond::pack_reverse_comm(int n, int first, double *buf)
-{
-  int i,m,last;
-
-  m = 0;
-  last = first + n;
-  for (i = first; i < last; i++) {
-	buf[m++] = nx[i][0];
-	buf[m++] = nx[i][1];
-	buf[m++] = nx[i][2];
-	buf[m++] = ny[i][0];
-	buf[m++] = ny[i][1];
-	buf[m++] = ny[i][2];
-	buf[m++] = nz[i][0];
-	buf[m++] = nz[i][1];
-	buf[m++] = nz[i][2];
-  }
-  return m;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void PairOxdnaHbond::unpack_reverse_comm(int n, int *list, double *buf)
-{
-  int i,j,m;
-
-  m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
-	nx[j][0] += buf[m++];
-	nx[j][1] += buf[m++];
-	nx[j][2] += buf[m++];
-	ny[j][0] += buf[m++];
-	ny[j][1] += buf[m++];
-	ny[j][2] += buf[m++];
-	nz[j][0] += buf[m++];
-	nz[j][1] += buf[m++];
-	nz[j][2] += buf[m++];
-
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
 void *PairOxdnaHbond::extract(const char *str, int &dim)
 {
   dim = 2;
-
-  if (strcmp(str,"nx") == 0) return (void *) nx;
-  if (strcmp(str,"ny") == 0) return (void *) ny;
-  if (strcmp(str,"nz") == 0) return (void *) nz;
 
   if (strcmp(str,"epsilon_hb") == 0) return (void *) epsilon_hb;
   if (strcmp(str,"a_hb") == 0) return (void *) a_hb;
