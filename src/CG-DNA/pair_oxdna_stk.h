@@ -60,8 +60,8 @@ class PairOxdnaStk : public Pair {
   double **a_st1, **cosphi_st1_ast, **b_st1, **cosphi_st1_c;
   double **a_st2, **cosphi_st2_ast, **b_st2, **cosphi_st2_c;
   
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct; // per-atom arrays for q_to_exyz storage
-
+  // per-atom arrays for q_to_exyz storage
+  double **nx_xtrct, **ny_xtrct, **nz_xtrct;
 
   int seqdepflag;
 
