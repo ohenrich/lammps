@@ -63,7 +63,7 @@ class PairOxrna2Xstk : public Pair {
   double **b_xst8, **dtheta_xst8_c;
 
   // per-atom arrays for local unit vectors
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;
+  double **nx_xtrct, **nz_xtrct;
 
   virtual void allocate();
 };
