@@ -60,8 +60,8 @@ class PairOxdna2Coaxstk : public Pair {
   double **b_cxst6, **dtheta_cxst6_c;
 
   double **AA_cxst1, **BB_cxst1;
-  
-  // per-atom arrays for q_to_exyz storage
+
+  // per-atom arrays for local unit vectors
   double **nx_xtrct, **nz_xtrct;
 
   virtual void allocate();
