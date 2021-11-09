@@ -178,8 +178,8 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   alist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
-  
-  // n(x/y/z)_xtrct = extracted q_to_exyz from oxdna_excv 
+
+  // n(x/y/z)_xtrct = extracted local unit vectors from oxdna_excv
   int dim;
   nx_xtrct = (double **) force->pair->extract("nx",dim);
   ny_xtrct = (double **) force->pair->extract("ny",dim);
@@ -193,10 +193,10 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     atype = type[a];
 
     ax[0] = nx_xtrct[a][0];
-	ax[1] = nx_xtrct[a][1];
-	ax[2] = nx_xtrct[a][2];
-	  
-	ra_chb[0] = d_chb*ax[0];
+    ax[1] = nx_xtrct[a][1];
+    ax[2] = nx_xtrct[a][2];
+
+    ra_chb[0] = d_chb*ax[0];
     ra_chb[1] = d_chb*ax[1];
     ra_chb[2] = d_chb*ax[2];
 
@@ -211,14 +211,14 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       btype = type[b];
 
-	  bx[0] = nx_xtrct[b][0];
-	  bx[1] = nx_xtrct[b][1];
-	  bx[2] = nx_xtrct[b][2];
-		
-	  rb_chb[0] = d_chb*bx[0];
+      bx[0] = nx_xtrct[b][0];
+      bx[1] = nx_xtrct[b][1];
+      bx[2] = nx_xtrct[b][2];
+
+      rb_chb[0] = d_chb*bx[0];
       rb_chb[1] = d_chb*bx[1];
       rb_chb[2] = d_chb*bx[2];
-	  
+
       // vector h-bonding site b to a
       delr_hb[0] = x[a][0] + ra_chb[0] - x[b][0] - rb_chb[0];
       delr_hb[1] = x[a][1] + ra_chb[1] - x[b][1] - rb_chb[1];
@@ -270,14 +270,14 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
             b_hb3[atype][btype], dtheta_hb3_c[atype][btype]);
 
       // early rejection criterium
-      if (f4t3) { 
-		  
-	  az[0] = nz_xtrct[a][0];
-	  az[1] = nz_xtrct[a][1];
-	  az[2] = nz_xtrct[a][2];
-	  bz[0] = nz_xtrct[b][0];
-	  bz[1] = nz_xtrct[b][1];
-	  bz[2] = nz_xtrct[b][2];
+      if (f4t3) {
+
+      az[0] = nz_xtrct[a][0];
+      az[1] = nz_xtrct[a][1];
+      az[2] = nz_xtrct[a][2];
+      bz[0] = nz_xtrct[b][0];
+      bz[1] = nz_xtrct[b][1];
+      bz[2] = nz_xtrct[b][2];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
