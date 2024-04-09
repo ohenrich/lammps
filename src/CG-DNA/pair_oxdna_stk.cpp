@@ -777,7 +777,7 @@ void PairOxdnaStk::coeff(int narg, char **arg)
 {
   int count;
 
-  if (narg != 3 && narg != 24) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/stk");
+  if (narg != 5 && narg != 24) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/stk");
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi,imod4,jmod4;
@@ -803,14 +803,15 @@ void PairOxdnaStk::coeff(int narg, char **arg)
   double a_st1_one, cosphi_st1_ast_one, b_st1_one, cosphi_st1_c_one;
   double a_st2_one, cosphi_st2_ast_one, b_st2_one, cosphi_st2_c_one;
 
-  if (narg == 24) {
-    if (strcmp(arg[2], "seqav") != 0 && strcmp(arg[2], "seqdep") != 0) {
-      error->all(FLERR,"Incorrect setting, select seqav or seqdep in oxdna/stk");
-    }
-    if (strcmp(arg[2],"seqav")  == 0) seqdepflag = 0;
-    if (strcmp(arg[2],"seqdep") == 0) seqdepflag = 1;
+  if (strcmp(arg[2], "seqav") != 0 && strcmp(arg[2], "seqdep") != 0) {
+    error->all(FLERR,"Incorrect setting, select seqav or seqdep in oxdna/stk");
+  }
+  if (strcmp(arg[2],"seqav")  == 0) seqdepflag = 0;
+  if (strcmp(arg[2],"seqdep") == 0) seqdepflag = 1;
 
-    T = utils::numeric(FLERR,arg[3],false,lmp);
+  T = utils::numeric(FLERR,arg[3],false,lmp);
+
+  if (narg == 24) { // values are listed in input
     xi_st_one = utils::numeric(FLERR,arg[4],false,lmp);
     kappa_st_one = utils::numeric(FLERR,arg[5],false,lmp);
     epsilon_st_one = stacking_strength(xi_st_one, kappa_st_one, T);
@@ -834,13 +835,13 @@ void PairOxdnaStk::coeff(int narg, char **arg)
     cosphi_st1_ast_one = utils::numeric(FLERR,arg[21],false,lmp);
     a_st2_one = utils::numeric(FLERR,arg[22],false,lmp);
     cosphi_st2_ast_one = utils::numeric(FLERR,arg[23],false,lmp);
-  } else {
+  } else { // read values from potential file
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (oxdna/stk)");
+      PotentialFileReader reader(lmp, arg[4], "oxdna potential", " (oxdna/stk)");
       char * line;
       std::string iloc, jloc, potential_name;
 
-      while(line = reader.next_line(narg)) {
+      while(line = reader.next_line()) {
         try {
           ValueTokenizer values(line);
           iloc = values.next_string();
@@ -848,14 +849,6 @@ void PairOxdnaStk::coeff(int narg, char **arg)
           potential_name = values.next_string();
           if (iloc == arg[0] && jloc == arg[1] && potential_name == "stk") {
 
-            std::string seqstr = values.next_string();
-            if (seqstr != "seqav" && seqstr != "seqdep") {
-              error->one(FLERR,"Incorrect setting in potential file {}, select seqav or seqdep in oxdna/stk", arg[2]);
-            }
-            if (seqstr == "seqav") seqdepflag = 0;
-            if (seqstr == "seqdep") seqdepflag = 1;
-
-            T = values.next_double();
             xi_st_one = values.next_double();
             kappa_st_one = values.next_double();
             epsilon_st_one = stacking_strength(xi_st_one, kappa_st_one, T);
@@ -886,12 +879,9 @@ void PairOxdnaStk::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "stk") error->one(FLERR, "No oxDNA/stk potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "stk") error->one(FLERR, "No oxdna/stk potential found in file {} for pair type {} {}", arg[4], arg[0], arg[1]);
     }
-
-    MPI_Bcast(&seqdepflag, 1, MPI_INT, 0, world);
     
-    MPI_Bcast(&T, 1, MPI_DOUBLE, 0, world);
     MPI_Bcast(&xi_st_one, 1, MPI_DOUBLE, 0, world);
     MPI_Bcast(&kappa_st_one, 1, MPI_DOUBLE, 0, world);
     MPI_Bcast(&epsilon_st_one, 1, MPI_DOUBLE, 0, world);

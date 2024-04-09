@@ -635,7 +635,7 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
 {
   int count;
 
-  if (narg != 3 && narg != 27) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/hbond");
+  if (narg != 4 && narg != 27) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/hbond");
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi,imod4,jmod4;
@@ -666,13 +666,13 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
   double a_hb8_one, theta_hb8_0_one, dtheta_hb8_ast_one;
   double b_hb8_one, dtheta_hb8_c_one;
 
-  if (narg == 27) {
-    if (strcmp(arg[2], "seqav") != 0 && strcmp(arg[2], "seqdep") != 0) {
-      error->all(FLERR,"Incorrect setting, select seqav or seqdep in oxdna/hbond");
-    }
-    if (strcmp(arg[2],"seqav")  == 0) seqdepflag = 0;
-    if (strcmp(arg[2],"seqdep") == 0) seqdepflag = 1;
+  if (strcmp(arg[2], "seqav") != 0 && strcmp(arg[2], "seqdep") != 0) {
+    error->all(FLERR,"Incorrect setting, select seqav or seqdep in oxdna/hbond");
+  }
+  if (strcmp(arg[2],"seqav")  == 0) seqdepflag = 0;
+  if (strcmp(arg[2],"seqdep") == 0) seqdepflag = 1;
 
+  if (narg == 27) {
     epsilon_hb_one = utils::numeric(FLERR,arg[3],false,lmp);
     a_hb_one = utils::numeric(FLERR,arg[4],false,lmp);
     cut_hb_0_one = utils::numeric(FLERR,arg[5],false,lmp);
@@ -703,26 +703,19 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
     a_hb8_one = utils::numeric(FLERR,arg[24],false,lmp);
     theta_hb8_0_one = utils::numeric(FLERR,arg[25],false,lmp);
     dtheta_hb8_ast_one = utils::numeric(FLERR,arg[26],false,lmp);
-  } else {
+  } else { // read values from potential file
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (oxdna/hbond)");
+      PotentialFileReader reader(lmp, arg[3], "oxdna potential", " (oxdna/hbond)");
       char * line;
       std::string iloc, jloc, potential_name;
 
-      while(line = reader.next_line(narg)) {
+      while(line = reader.next_line()) {
         try {
           ValueTokenizer values(line);
           iloc = values.next_string();
           jloc = values.next_string();
           potential_name = values.next_string();
           if (iloc == arg[0] && jloc == arg[1] && potential_name == "hbond") {
-
-            std::string seqstr = values.next_string();
-            if (seqstr != "seqav" && seqstr != "seqdep") {
-              error->one(FLERR,"Incorrect setting in potential file {}, select seqav or seqdep in oxdna/hbond", arg[2]);
-            }
-            if (seqstr == "seqav") seqdepflag = 0;
-            if (seqstr == "seqdep") seqdepflag = 1;
 
             epsilon_hb_one = values.next_double();
             a_hb_one = values.next_double();
@@ -761,10 +754,8 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "hbond") error->one(FLERR, "No oxDNA/hbond potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "hbond") error->one(FLERR, "No oxdna/hbond potential found in file {} for pair type {} {}", arg[3], arg[0], arg[1]);
     }
-
-    MPI_Bcast(&seqdepflag, 1, MPI_INT, 0, world);
 
     MPI_Bcast(&epsilon_hb_one, 1, MPI_DOUBLE, 0, world);
     MPI_Bcast(&a_hb_one, 1, MPI_DOUBLE, 0, world);
