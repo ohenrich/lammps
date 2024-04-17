@@ -19,28 +19,31 @@ ConstantsOxdna::ConstantsOxdna(class LAMMPS *lmp) : Pointers(lmp)
 {
   // set oxDNA units
   units = update->unit_style;
-  lj_flag = (strcmp(units.c_str(), "lj") == 0);
-  set_oxdna_units();
+  real_flag = utils::strmatch(units.c_str(), "^real");
+  if (real_flag) set_real_units();
 }
 
-double ConstantsOxdna::d_cs = 0;
-double ConstantsOxdna::d_cst = 0;
-double ConstantsOxdna::d_chb = 0;
-double ConstantsOxdna::d_cb = 0;
+// default to lj units
+double ConstantsOxdna::d_cs = -0.4;
+double ConstantsOxdna::d_cst = +0.34;
+double ConstantsOxdna::d_chb = +0.4;
+double ConstantsOxdna::d_cb = +0.4;
+double ConstantsOxdna::d_cs_x = -0.34;
+double ConstantsOxdna::d_cs_y = +0.3408;
+double ConstantsOxdna::lambda_dh_one_prefactor = 0.3616455075438555; // = C1
+double ConstantsOxdna::qeff_dh_pf_one_prefactor = 0.08173808693529228; // = C2
 
-void ConstantsOxdna::set_oxdna_units()
+void ConstantsOxdna::set_real_units()
 {
-  if (lj_flag) {
-    // oxDNA 1 parameters in lj units
-    d_cs = -0.4;
-    d_cst = +0.34;
-    d_chb = d_cb = +0.4;
-  } else {
-    // oxDNA 1 parameters in real units
-    d_cs = -3.4072;
-    d_cst = +2.89612;
-    d_chb = d_cb = +3.4072;
-  }
+  // oxDNA 1 parameters in real units
+  d_cs = -3.4072;
+  d_cst = +2.89612;
+  d_chb = d_cb = +3.4072;
+  // oxDNA 2 parameters in real units
+  d_cs_x = -2.89612;
+  d_cs_y = +2.9029344;
+  lambda_dh_one_prefactor = 0.05624154892; // = C1 * 8.518 * sqrt(k_B/4.142e-20)
+  qeff_dh_pf_one_prefactor = 3.896883402; // = C2 * 5.597 * 8.518
 };
 
 }    // namespace LAMMPS_NS

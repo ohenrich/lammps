@@ -29,13 +29,23 @@ class ConstantsOxdna : protected Pointers {
   static double get_d_chb() { return d_chb; }
   static double get_d_cb() { return d_cb; }
 
+  // oxDNA 2 getters
+  static double get_d_cs_x() { return d_cs_x; }
+  static double get_d_cs_y() { return d_cs_y; }
+  static double get_lambda_dh_one_prefactor() { return lambda_dh_one_prefactor; }
+  static double get_qeff_dh_pf_one_prefactor() { return qeff_dh_pf_one_prefactor; }
+
  private:
   std::string units;
-  bool lj_flag;
-  void set_oxdna_units();
+  bool real_flag;
+  void set_real_units();
 
   // oxDNA 1 parameters
   static double d_cs, d_cst, d_chb, d_cb;
+
+  // oxDNA 2 parameters
+  static double d_cs_x, d_cs_y;
+  static double lambda_dh_one_prefactor, qeff_dh_pf_one_prefactor;
 };
 
 }    // namespace LAMMPS_NS
