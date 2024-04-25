@@ -35,6 +35,13 @@ class ConstantsOxdna : protected Pointers {
   static double get_lambda_dh_one_prefactor() { return lambda_dh_one_prefactor; }
   static double get_qeff_dh_pf_one_prefactor() { return qeff_dh_pf_one_prefactor; }
 
+  // oxRNA 2 getters
+  static double get_d_cs_z() { return d_cs_z; }
+  static double get_d_cst_x_3p() { return d_cst_x_3p; }
+  static double get_d_cst_y_3p() { return d_cst_y_3p; }
+  static double get_d_cst_x_5p() { return d_cst_x_5p; }
+  static double get_d_cst_y_5p() { return d_cst_y_5p; }
+
  private:
   std::string units;
   bool real_flag;
@@ -46,6 +53,11 @@ class ConstantsOxdna : protected Pointers {
   // oxDNA 2 parameters
   static double d_cs_x, d_cs_y;
   static double lambda_dh_one_prefactor, qeff_dh_pf_one_prefactor;
+
+  // oxRNA 2 parameters
+  static double d_cs_z;
+  static double d_cst_x_3p, d_cst_y_3p;
+  static double d_cst_x_5p, d_cst_y_5p;
 };
 
 }    // namespace LAMMPS_NS
