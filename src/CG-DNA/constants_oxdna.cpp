@@ -56,7 +56,7 @@ void ConstantsOxdna::set_real_units()
   d_cs_x = -2.89612;
   d_cs_y = +2.9029344;
   lambda_dh_one_prefactor = +0.05624154892; // = C1 * 8.518 * sqrt(k_B/4.142e-20)
-  qeff_dh_pf_one_prefactor = +3.896883402; // = C2 * 5.597 * 8.518
+  qeff_dh_pf_one_prefactor = +4.15079634587587; // = C2 * 5.961689060210325 * 8.518
   // oxRNA 2 parameters in real units
   // d_cs_x = -3.4072 = d_cs for RNA
   d_cs_z = +1.7036;
