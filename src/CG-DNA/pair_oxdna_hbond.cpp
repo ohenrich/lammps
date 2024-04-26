@@ -705,7 +705,7 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
     dtheta_hb8_ast_one = utils::numeric(FLERR,arg[26],false,lmp);
   } else { // read values from potential file
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[3], "oxdna potential", " (oxdna/hbond)");
+      PotentialFileReader reader(lmp, arg[3], "oxdna potential", " (hbond)");
       char * line;
       std::string iloc, jloc, potential_name;
 
@@ -754,7 +754,7 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "hbond") error->one(FLERR, "No oxdna/hbond potential found in file {} for pair type {} {}", arg[3], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "hbond") error->one(FLERR, "No corresponding hbond potential found in file {} for pair type {} {}", arg[3], arg[0], arg[1]);
     }
 
     MPI_Bcast(&epsilon_hb_one, 1, MPI_DOUBLE, 0, world);

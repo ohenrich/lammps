@@ -538,7 +538,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
     cut_bb_ast_one = utils::numeric(FLERR,arg[10],false,lmp);
   } else {
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (oxdna/excv)");
+      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (excv)");
       char * line;
       std::string iloc, jloc, potential_name;
 
@@ -571,7 +571,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "excv") error->one(FLERR, "No oxdna/excv potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "excv") error->one(FLERR, "No corresponding excv potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
     }
     
     MPI_Bcast(&epsilon_ss_one, 1, MPI_DOUBLE, 0, world);

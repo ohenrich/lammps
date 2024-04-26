@@ -308,7 +308,7 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
   
   if (utils::strmatch(arg[4], "^[a-zA-Z0-9]*\\.[a-zA-Z]+$") == true) { // if last arg is a potential file
     if (comm->me == 0) { // read value from potential file
-      PotentialFileReader reader(lmp, arg[4], "oxdna2 potential", " (oxdna2/dh)");
+      PotentialFileReader reader(lmp, arg[4], "oxdna potential", " (dh)");
       char * line;
       std::string iloc, jloc, potential_name;
       while(line = reader.next_line()) {
@@ -325,7 +325,7 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA2 potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "dh") error->one(FLERR, "No oxdna2/dh potential found in file {} for pair type {} {}", arg[4], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "dh") error->one(FLERR, "No corresponding dh potential found in file {} for pair type {} {}", arg[4], arg[0], arg[1]);
     }
     MPI_Bcast(&qeff_dh_one, 1, MPI_DOUBLE, 0, world);
   } else qeff_dh_one = utils::numeric(FLERR,arg[4],false,lmp); // else, it is effective charge
@@ -364,7 +364,7 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
       The numerical factor is
       qeff_dh_pf = e^2/(4 * pi * eps_0 * eps_r)
                     * 1/(oxDNA_energy_unit * oxDNA_length_unit) for LJ units, or;
-                    * [(5.957 * 8.518)/(oxDNA_energy_unit * oxDNA_length_unit)] for real units
+                    * [(~5.96169* 8.518)/(oxDNA_energy_unit * oxDNA_length_unit)] for real units
       (see B. Snodin et al., J. Chem. Phys. 142, 234901 (2015).)
 
     In addition to the above units we use

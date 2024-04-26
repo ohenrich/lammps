@@ -313,7 +313,7 @@ void BondOxdnaFene::coeff(int narg, char **arg)
     r0_one = utils::numeric(FLERR, arg[3], false, lmp);
   } else {
     if (comm->me == 0) { // read values from potential file
-      PotentialFileReader reader(lmp, arg[1], "oxdna potential", " (oxdna/fene)");
+      PotentialFileReader reader(lmp, arg[1], "oxdna potential", " (fene)");
       char * line;
       std::string iloc, potential_name;
 
@@ -333,7 +333,7 @@ void BondOxdnaFene::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || potential_name != "fene") error->one(FLERR, "No oxdna/fene potential found in file {} for bond type {}", arg[1], arg[0]);
+      if (iloc != arg[0] || potential_name != "fene") error->one(FLERR, "No corresponding fene potential found in file {} for bond type {}", arg[1], arg[0]);
     }
     
     MPI_Bcast(&k_one, 1, MPI_DOUBLE, 0, world);

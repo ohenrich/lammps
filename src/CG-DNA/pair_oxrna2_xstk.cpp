@@ -638,7 +638,7 @@ void PairOxrna2Xstk::coeff(int narg, char **arg)
     dtheta_xst8_ast_one = utils::numeric(FLERR,arg[21],false,lmp);
   } else {
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (oxrna2/xstk)");
+      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (xstk)");
       char * line;
       std::string iloc, jloc, potential_name;
 
@@ -681,7 +681,7 @@ void PairOxrna2Xstk::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "xstk") error->one(FLERR, "No oxrna2/xstk potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "xstk") error->one(FLERR, "No corresponding xstk potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
     }
 
     MPI_Bcast(&k_xst_one, 1, MPI_DOUBLE, 0, world);

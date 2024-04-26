@@ -837,7 +837,7 @@ void PairOxdnaStk::coeff(int narg, char **arg)
     cosphi_st2_ast_one = utils::numeric(FLERR,arg[23],false,lmp);
   } else { // read values from potential file
     if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[4], "oxdna potential", " (oxdna/stk)");
+      PotentialFileReader reader(lmp, arg[4], "oxdna potential", " (stk)");
       char * line;
       std::string iloc, jloc, potential_name;
 
@@ -879,7 +879,7 @@ void PairOxdnaStk::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "stk") error->one(FLERR, "No oxdna/stk potential found in file {} for pair type {} {}", arg[4], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "stk") error->one(FLERR, "No corresponding stk potential found in file {} for pair type {} {}", arg[4], arg[0], arg[1]);
     }
     
     MPI_Bcast(&xi_st_one, 1, MPI_DOUBLE, 0, world);

@@ -613,7 +613,7 @@ void PairOxdna2Coaxstk::coeff(int narg, char **arg)
     BB_cxst1_one = utils::numeric(FLERR,arg[20],false,lmp);
   } else {
     if (comm->me == 0) { // read values from potential file
-      PotentialFileReader reader(lmp, arg[2], "oxdna2 potential", " (oxdna2/coaxstk)");
+      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (coaxstk)");
       char * line;
       std::string iloc, jloc, potential_name;
 
@@ -655,7 +655,7 @@ void PairOxdna2Coaxstk::coeff(int narg, char **arg)
           error->one(FLERR, "Problem parsing oxDNA2 potential file: {}", e.what());
         }
       }
-      if (iloc != arg[0] || jloc != arg[1] || potential_name != "coaxstk") error->one(FLERR, "No oxdna2/coaxstk potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
+      if (iloc != arg[0] || jloc != arg[1] || potential_name != "coaxstk") error->one(FLERR, "No corresponding coaxstk potential found in file {} for pair type {} {}", arg[2], arg[0], arg[1]);
     }
 
     MPI_Bcast(&k_cxst_one, 1, MPI_DOUBLE, 0, world);
