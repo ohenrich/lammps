@@ -24,7 +24,9 @@ $$ python lj2real.py <datafile> <inputfile> [-i]
 $$ [-i] flag is optional and is used to convert real -> LJ units.
 
 Requirements:
-LAMMPS data file and input file
+LAMMPS data file and input file. 
+
+This script assumes a input and data file structure similar to those found in examples/PACKAGES/cgdna/examples/.
 """
 
 import datetime
@@ -57,6 +59,8 @@ class ConversionFactors:
     def __init__(self, invert: bool = False):
         self.inverted = False
         self.temp_conv_factor = 3000.038822
+        self.energy_conv_factor = 5.961689060210325
+        self.kT_conv_factor = 0.001987204155
         self.mass_conv_factor = 100.0277580236
         self.length_conv_factor = 8.518
         self.time_conv_factor = 1706.0
@@ -66,7 +70,7 @@ class ConversionFactors:
 
         self.oxdna_fene_string = "11.92337812042065 2.1295 6.409795"
         self.oxdna_excv_string = "11.92337812042065 5.9626 5.74965 11.92337812042065 4.38677 4.259 11.92337812042065 2.81094 2.72576"
-        self.oxdna_stk_string = "8.01727944817084 0.005279604 0.70439070204273 3.4072 7.6662 2.72576 6.3885 1.3 0.0 0.8 0.9 0.0 0.95 0.9 0.0 0.95 2.0 0.65 2.0 0.65"
+        self.oxdna_stk_string = "0.70439070204273 3.4072 7.6662 2.72576 6.3885 1.3 0.0 0.8 0.9 0.0 0.95 0.9 0.0 0.95 2.0 0.65 2.0 0.65"
         self.oxdna_hbond_string = "0.0 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0.0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592654 0.7 4.0 1.570796327 0.45 4.0 1.570796327 0.45"
         self.oxdna_hbond_1_4_2_3_string = "6.42073911784652 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0 0.7 1.5 0.0 0.7 1.5 0 0.7 0.46 3.141592654 0.7 4.0 1.570796327 0.45 4.0 1.570796327 0.45"
         self.oxdna_xstk_string = "3.9029021145006 4.89785 5.74965 4.21641 5.57929 2.25 0.791592654 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68"
@@ -74,15 +78,15 @@ class ConversionFactors:
 
         self.oxdna2_fene_string = "11.92337812042065 2.1295 6.4430152"
         self.oxdna2_excv_string = "11.92337812042065 5.9626 5.74965 11.92337812042065 4.38677 4.259 11.92337812042065 2.81094 2.72576"
-        self.oxdna2_stk_string = "8.06199211612242 0.00530921334192 0.70439070204273 3.4072 7.6662 2.72576 6.3885 1.3 0.0 0.8 0.9 0.0 0.95 0.9 0.0 0.95 2.0 0.65 2.0 0.65"
+        self.oxdna2_stk_string = "0.70439070204273 3.4072 7.6662 2.72576 6.3885 1.3 0.0 0.8 0.9 0.0 0.95 0.9 0.0 0.95 2.0 0.65 2.0 0.65"
         self.oxdna2_hbond_string = "0.0 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0.0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592654 0.7 4.0 1.570796327 0.45 4.0 1.570796327 0.45"
         self.oxdna2_hbond_1_4_2_3_string = "6.36589157849259 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0 0.7 1.5 0.0 0.7 1.5 0 0.7 0.46 3.141592654 0.7 4.0 1.570796327 0.45 4.0 1.570796327 0.45"
         self.oxdna2_xstk_string = "3.9029021145006 4.89785 5.74965 4.21641 5.57929 2.25 0.791592654 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68"
         self.oxdna2_coaxstk_string = "4.80673207785863 3.4072 5.1108 1.87396 4.94044 2.0 2.891592653589793 0.65 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 40.0 3.116592653589793"
 
-        self.oxrna2_fene_string = "11.92337812042065 2.1295 6.48280091299242"
+        self.oxrna2_fene_string = "11.92337812042065 2.1295 6.482800913"
         self.oxrna2_excv_string = "11.92337812042065 5.9626 5.74965 11.92337812042065 4.38677 4.259 11.92337812042065 2.81094 2.72576"
-        self.oxrna2_stk_string = "8.35864576375849 0.00550455551039 0.70439070204273 3.66274 7.92174 2.9813 6.64404 0.9 0.0 0.95 0.9 0.0 0.95 1.3 0.0 0.8 1.3 0.0 0.8 2.0 0.65 2.0 0.65"
+        self.oxrna2_stk_string = "0.70439070204273 3.66274 7.92174 2.9813 6.64404 0.9 0.0 0.95 0.9 0.0 0.95 1.3 0.0 0.8 1.3 0.0 0.8 2.0 0.65 2.0 0.65"
         self.oxrna2_hbond_string = "0.0 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0.0 0.7 1.5 0.0 0.7 1.5 0.0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxrna2_hbond_1_4_2_3_3_4_string = "5.18928666388042 0.93918760272364 3.4072 6.3885 2.89612 5.9626 1.5 0.0 0.7 1.5 0.0 0.7 1.5 0.0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxrna2_xstk_string = "4.92690859644113 4.259 5.1108 3.57756 4.94044 2.25 0.505 0.58 1.7 1.266 0.68 1.7 1.266 0.68 1.7 0.309 0.68 1.7 0.309 0.68"
@@ -95,6 +99,8 @@ class ConversionFactors:
         """Inverts the conversion factors for real -> LJ"""
         self.inverted = True
         self.temp_conv_factor = 1.0 / self.temp_conv_factor
+        self.energy_conv_factor = 1.0 / self.energy_conv_factor
+        self.kT_conv_factor = 1.0 / self.kT_conv_factor
         self.mass_conv_factor = 1.0 / self.mass_conv_factor
         self.length_conv_factor = 1.0 / self.length_conv_factor
         self.time_conv_factor = 1.0 / self.time_conv_factor
@@ -104,7 +110,9 @@ class ConversionFactors:
 
         self.oxdna_fene_string = "2.0 0.25 0.7525"
         self.oxdna_excv_string = "2.0 0.7 0.675 2.0 0.515 0.5 2.0 0.33 0.32"
-        self.oxdna_stk_string = "1.3448 2.6568 6.0 0.4 0.9 0.32 0.75 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 0.65 2.0 0.65"
+        self.oxdna_stk_string = (
+            "6.0 0.4 0.9 0.32 0.75 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 0.65 2.0 0.65"
+        )
         self.oxdna_hbond_string = "0.0 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxdna_hbond_1_4_2_3_string = "1.077 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxdna_xstk_string = "47.5 0.575 0.675 0.495 0.655 2.25 0.791592653589793 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68"
@@ -112,7 +120,9 @@ class ConversionFactors:
 
         self.oxdna2_fene_string = "2.0 0.25 0.7564"
         self.oxdna2_excv_string = "2.0 0.7 0.675 2.0 0.515 0.5 2.0 0.33 0.32"
-        self.oxdna2_stk_string = "1.3523 2.6717 6.0 0.4 0.9 0.32 0.75 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 0.65 2.0 0.65"
+        self.oxdna2_stk_string = (
+            "6.0 0.4 0.9 0.32 0.75 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 0.65 2.0 0.65"
+        )
         self.oxdna2_hbond_string = "0.0 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxdna2_hbond_1_4_2_3_string = "1.0678 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxdna2_xstk_string = "47.5 0.575 0.675 0.495 0.655 2.25 0.791592653589793 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68"
@@ -120,7 +130,7 @@ class ConversionFactors:
 
         self.oxrna2_fene_string = "2.0 0.25 0.761070781051"
         self.oxrna2_excv_string = "2.0 0.7 0.675 2.0 0.515 0.5 2.0 0.33 0.32"
-        self.oxrna2_stk_string = "1.40206 2.77 6.0 0.43 0.93 0.35 0.78 0.9 0 0.95 0.9 0 0.95 1.3 0 0.8 1.3 0 0.8 2.0 0.65 2.0 0.65"
+        self.oxrna2_stk_string = "6.0 0.43 0.93 0.35 0.78 0.9 0 0.95 0.9 0 0.95 1.3 0 0.8 1.3 0 0.8 2.0 0.65 2.0 0.65"
         self.oxrna2_hbond_string = "0.0 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxrna2_hbond_1_4_2_3_3_4_string = "0.870439 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45"
         self.oxrna2_xstk_string = "59.9626 0.5 0.6 0.42 0.58 2.25 0.505 0.58 1.7 1.266 0.68 1.7 1.266 0.68 1.7 0.309 0.68 1.7 0.309 0.68"
@@ -360,6 +370,19 @@ def modify_inputfile(inputfile_path: str, conversion_factors: ConversionFactors)
                 lines[i] = line
                 lines_changed += 1
 
+                if "stk" in line and "xstk" not in line and "coaxstk" not in line:
+                    elements = line.split()
+                    elements[6] = str(  # convert xi
+                        round(
+                            float(elements[6]) * conversion_factors.energy_conv_factor,
+                            14,
+                        )
+                    )
+                    elements[7] = str(  # convert kappa
+                        round(float(elements[7]) * conversion_factors.kT_conv_factor, 9)
+                    )
+                    lines[i] = " ".join(elements) + "\n"
+
             else:
                 elements = line.split()
 
@@ -404,12 +427,25 @@ def modify_inputfile(inputfile_path: str, conversion_factors: ConversionFactors)
                             elements[4:] = conversion_factors.oxdna_xstk_string.split()
 
                     else:  # stk
+                        elements[6] = str(  # convert xi
+                            round(
+                                float(elements[6])
+                                * conversion_factors.energy_conv_factor,
+                                14,
+                            )
+                        )
+                        elements[7] = str(  # convert kappa
+                            round(
+                                float(elements[7]) * conversion_factors.kT_conv_factor,
+                                9,
+                            )
+                        )
                         if oxdna2_flag:
-                            elements[6:] = conversion_factors.oxdna2_stk_string.split()
+                            elements[8:] = conversion_factors.oxdna2_stk_string.split()
                         elif oxrna2_flag:
-                            elements[6:] = conversion_factors.oxrna2_stk_string.split()
+                            elements[8:] = conversion_factors.oxrna2_stk_string.split()
                         else:
-                            elements[6:] = conversion_factors.oxdna_stk_string.split()
+                            elements[8:] = conversion_factors.oxdna_stk_string.split()
 
                 elif "hbond" in line:
                     if elements[1] == "*" and elements[2] == "*":
@@ -499,7 +535,9 @@ def main():
     """Main function"""
 
     print(
-        "\nLAMMPS data and input file conversion to real units via oxdna convert_data.py"
+        "\nLAMMPS data and input file conversion to real units via oxdna convert_data.py\n"
+        "Note: This script assumes a input and data file structure similar to those found in examples/PACKAGES/cgdna/examples/.\n"
+        "Ensure output is checked for correctness."
     )
 
     if len(sys.argv) > 2:
@@ -510,6 +548,11 @@ def main():
             if sys.argv[3] == "-i":
                 invert = True
                 print("Performing real -> LJ conversion.")
+            else:
+                print(
+                    "Invalid flag. Usage: python lj2real.py <datafile> <inputfile> [-i]"
+                )
+                sys.exit(1)
 
         if invert:
             conversion_factors = ConversionFactors(invert=True)
@@ -530,6 +573,7 @@ def main():
 
     conversion_factors_string = (
         f"Temperature T\t≈ {round(conversion_factors.temp_conv_factor, 6)} T* (K)\n"
+        f"Energy ε\t≈ {round(conversion_factors.energy_conv_factor, 6)} ε* (kcal/mol)\n"
         f"Mass m\t\t≈ {round(conversion_factors.mass_conv_factor, 6)} m* (g/mol)\n"
         f"Length l\t≈ {round(conversion_factors.length_conv_factor, 6)} l* (Å)\n"
         f"Time t\t\t≈ {round(conversion_factors.time_conv_factor, 6)} t* (fs)\n"
