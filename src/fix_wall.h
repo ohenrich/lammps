@@ -57,10 +57,6 @@ class FixWall : public Fix {
   int eflag;      // per-wall flag for energy summation
   int ilevel_respa;
   int fldflag;
-
- private:
-  friend class FixLangevinWall;
-
 };
 
 }    // namespace LAMMPS_NS
