@@ -167,10 +167,13 @@ Atom::Atom(LAMMPS *_lmp) : Pointers(_lmp), atom_style(nullptr), avec(nullptr), a
 
   sp = fm = fm_long = nullptr;
 
-  // EFF package
+  // EFF and AWPMD packages
 
   spin = nullptr;
   eradius = ervel = erforce = nullptr;
+  ervelforce = nullptr;
+  cs = csforce = vforce = nullptr;
+  etag = nullptr;
 
   // CG-DNA package
 
@@ -508,6 +511,14 @@ void Atom::peratom_create()
   add_peratom("ervel",&ervel,DOUBLE,0);
   add_peratom("erforce",&erforce,DOUBLE,0,1);     // set per-thread flag
 
+  // AWPMD package
+
+  add_peratom("cs",&cs,DOUBLE,2);
+  add_peratom("csforce",&csforce,DOUBLE,2);
+  add_peratom("vforce",&vforce,DOUBLE,3);
+  add_peratom("ervelforce",&ervelforce,DOUBLE,0);
+  add_peratom("etag",&etag,INT,0);
+
   // CG-DNA package
 
   add_peratom("id5p",&id5p,tagintsize,0);
@@ -647,12 +658,14 @@ void Atom::set_atomflag_defaults()
   labelmapflag = 0;
   ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
   quat_flag = 0;
-  peri_flag = electron_flag = sph_flag = 0;
+  peri_flag = electron_flag = 0;
+  wavepacket_flag = sph_flag = 0;
   molecule_flag = molindex_flag = molatom_flag = 0;
   q_flag = mu_flag = 0;
   rmass_flag = radius_flag = omega_flag = torque_flag = angmom_flag = 0;
   temperature_flag = heatflow_flag = 0;
   vfrac_flag = spin_flag = eradius_flag = ervel_flag = erforce_flag = 0;
+  cs_flag = csforce_flag = vforce_flag = ervelforce_flag = etag_flag = 0;
   rheo_status_flag = conductivity_flag = pressure_flag = viscosity_flag = 0;
   rho_flag = esph_flag = cv_flag = vest_flag = 0;
   dpd_flag = edpd_flag = tdpd_flag = 0;
@@ -3129,13 +3142,18 @@ void *Atom::extract(const char *name)
 
   if (strcmp(name,"sp") == 0) return (void *) sp;
 
-  // EFF package
+  // EFF and AWPMD packages
 
   if (strcmp(name,"espin") == 0) return (void *) spin;
   if (strcmp(name,"spin") == 0) return (void *) spin;  // backward compatibility
   if (strcmp(name,"eradius") == 0) return (void *) eradius;
   if (strcmp(name,"ervel") == 0) return (void *) ervel;
   if (strcmp(name,"erforce") == 0) return (void *) erforce;
+  if (strcmp(name,"ervelforce") == 0) return (void *) ervelforce;
+  if (strcmp(name,"cs") == 0) return (void *) cs;
+  if (strcmp(name,"csforce") == 0) return (void *) csforce;
+  if (strcmp(name,"vforce") == 0) return (void *) vforce;
+  if (strcmp(name,"etag") == 0) return (void *) etag;
 
   // RHEO package
 
@@ -3296,12 +3314,18 @@ int Atom::extract_datatype(const char *name)
   if (strcmp(name,"s0") == 0) return LAMMPS_DOUBLE;
   if (strcmp(name,"x0") == 0) return LAMMPS_DOUBLE_2D;
 
-  // EFF and in part ELECTRODE package
+  // AWPMD package (and in part EFF and ELECTRODE)
 
   if (strcmp(name,"espin") == 0) return LAMMPS_INT;
+  if (strcmp(name,"spin") == 0) return LAMMPS_INT;   // backwards compatibility
   if (strcmp(name,"eradius") == 0) return LAMMPS_DOUBLE;
   if (strcmp(name,"ervel") == 0) return LAMMPS_DOUBLE;
   if (strcmp(name,"erforce") == 0) return LAMMPS_DOUBLE;
+  if (strcmp(name,"ervelforce") == 0) return LAMMPS_DOUBLE;
+  if (strcmp(name,"cs") == 0) return LAMMPS_DOUBLE_2D;
+  if (strcmp(name,"csforce") == 0) return LAMMPS_DOUBLE_2D;
+  if (strcmp(name,"vforce") == 0) return LAMMPS_DOUBLE_2D;
+  if (strcmp(name,"etag") == 0) return LAMMPS_INT;
 
   // RHEO package
 
@@ -3439,6 +3463,15 @@ int Atom::extract_size(const char *name, int type)
       if (strcmp(name,"fm") == 0) return nlocal;
       if (strcmp(name,"fm_long") == 0) return nlocal;
 
+      // AWPMD package
+
+      if (strcmp(name,"cs") == 0) {
+        if (ghost_vel) return nall;
+        else return nlocal;
+      }
+      if (strcmp(name,"csforce") == 0) return nlocal;
+      if (strcmp(name,"vforce") == 0) return nlocal;
+
       // SPH package
 
       if (strcmp(name,"vest") == 0) return nall;
@@ -3468,6 +3501,12 @@ int Atom::extract_size(const char *name, int type)
       if (strcmp(name,"sp") == 0) return 4;
       if (strcmp(name,"fm") == 0) return 3;
       if (strcmp(name,"fm_long") == 0) return 3;
+
+      // AWPMD package
+
+      if (strcmp(name,"cs") == 0) return 2;
+      if (strcmp(name,"csforce") == 0) return 2;
+      if (strcmp(name,"vforce") == 0) return 3;
 
       // SPH package
 
@@ -3540,12 +3579,15 @@ int Atom::extract_size(const char *name, int type)
     if (strcmp(name,"vfrac") == 0) return nall;
     if (strcmp(name,"s0") == 0) return nall;
 
-    // EFF and in part ELECTRODE package
+    // AWPMD package (and in part EFF and ELECTRODE)
 
     if (strcmp(name,"espin") == 0) return nall;
+    if (strcmp(name,"spin") == 0) return nall;   // backwards compatibility
     if (strcmp(name,"eradius") == 0) return nall;
     if (strcmp(name,"ervel") == 0) return nlocal;
     if (strcmp(name,"erforce") == 0) return nlocal;
+    if (strcmp(name,"ervelforce") == 0) return nlocal;
+    if (strcmp(name,"etag") == 0) return nall;
 
     // CG-DNA package
 

@@ -44,6 +44,7 @@ class PairLJSPICAKokkos : public PairLJSPICA {
 
   void compute(int, int) override;
 
+  void settings(int, char **) override;
   void init_style() override;
   double init_one(int, int) override;
 

@@ -20,7 +20,6 @@
 #include "style_kspace.h"      // IWYU pragma: keep
 #include "style_pair.h"        // IWYU pragma: keep
 
-#include "accelerator_kokkos.h"
 #include "angle_hybrid.h"
 #include "bond_hybrid.h"
 #include "dihedral_hybrid.h"
@@ -237,9 +236,6 @@ void Force::create_pair(const std::string &style, int trysuffix)
   int sflag;
   pair = new_pair(style, trysuffix, sflag);
   pair_style = store_style(style, sflag);
-
-  if (pair && pair->kokkosable && (!lmp->kokkos || !lmp->kokkos->kokkos_exists))
-    error->all(FLERR, Error::NOLASTLINE, "Cannot use KOKKOS styles without enabling KOKKOS");
 }
 
 /* ----------------------------------------------------------------------
@@ -346,9 +342,6 @@ void Force::create_bond(const std::string &style, int trysuffix)
   int sflag;
   bond = new_bond(style, trysuffix, sflag);
   bond_style = store_style(style, sflag);
-
-  if (bond && bond->kokkosable && (!lmp->kokkos || !lmp->kokkos->kokkos_exists))
-    error->all(FLERR, Error::NOLASTLINE, "Cannot use KOKKOS styles without enabling KOKKOS");
 }
 
 /* ----------------------------------------------------------------------
@@ -419,9 +412,6 @@ void Force::create_angle(const std::string &style, int trysuffix)
   int sflag;
   angle = new_angle(style, trysuffix, sflag);
   angle_style = store_style(style, sflag);
-
-  if (angle && angle->kokkosable && (!lmp->kokkos || !lmp->kokkos->kokkos_exists))
-    error->all(FLERR, Error::NOLASTLINE, "Cannot use KOKKOS styles without enabling KOKKOS");
 }
 
 /* ----------------------------------------------------------------------
@@ -492,9 +482,6 @@ void Force::create_dihedral(const std::string &style, int trysuffix)
   int sflag;
   dihedral = new_dihedral(style, trysuffix, sflag);
   dihedral_style = store_style(style, sflag);
-
-  if (dihedral && dihedral->kokkosable && (!lmp->kokkos || !lmp->kokkos->kokkos_exists))
-    error->all(FLERR, Error::NOLASTLINE, "Cannot use KOKKOS styles without enabling KOKKOS");
 }
 
 /* ----------------------------------------------------------------------
@@ -565,9 +552,6 @@ void Force::create_improper(const std::string &style, int trysuffix)
   int sflag;
   improper = new_improper(style, trysuffix, sflag);
   improper_style = store_style(style, sflag);
-
-  if (improper && improper->kokkosable && (!lmp->kokkos || !lmp->kokkos->kokkos_exists))
-    error->all(FLERR, Error::NOLASTLINE, "Cannot use KOKKOS styles without enabling KOKKOS");
 }
 
 /* ----------------------------------------------------------------------

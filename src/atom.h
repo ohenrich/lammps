@@ -121,10 +121,13 @@ class Atom : protected Pointers {
 
   double **sp, **fm, **fm_long;
 
-  // EFF package
+  // EFF and AWPMD packages
 
   int *spin;
   double *eradius, *ervel, *erforce;
+  double *ervelforce;
+  double **cs, **csforce, **vforce;
+  int *etag;
 
   // CG-DNA package
 
@@ -192,13 +195,15 @@ class Atom : protected Pointers {
 
   int labelmapflag, types_style;
   int ellipsoid_flag, line_flag, tri_flag, body_flag;
-  int peri_flag, electron_flag, sph_flag;
+  int peri_flag, electron_flag;
+  int wavepacket_flag, sph_flag;
 
   int molecule_flag, molindex_flag, molatom_flag;
   int q_flag, mu_flag;
   int rmass_flag, radius_flag, omega_flag, torque_flag, angmom_flag, quat_flag;
   int temperature_flag, heatflow_flag;
   int vfrac_flag, spin_flag, eradius_flag, ervel_flag, erforce_flag;
+  int cs_flag, csforce_flag, vforce_flag, ervelforce_flag, etag_flag;
   int rheo_status_flag, conductivity_flag, pressure_flag, viscosity_flag;
   int rho_flag, esph_flag, cv_flag, vest_flag;
   int dpd_flag, edpd_flag, tdpd_flag;

@@ -6,7 +6,6 @@ This section documents the following functions:
 - :cpp:func:`lammps_version`
 - :cpp:func:`lammps_get_os_info`
 - :cpp:func:`lammps_config_has_mpi_support`
-- :cpp:func:`lammps_config_has_omp_support`
 - :cpp:func:`lammps_config_has_gzip_support`
 - :cpp:func:`lammps_config_has_png_support`
 - :cpp:func:`lammps_config_has_jpeg_support`
@@ -86,11 +85,6 @@ approach.
 -----------------------
 
 .. doxygenfunction:: lammps_config_has_mpi_support
-   :project: progguide
-
------------------------
-
-.. doxygenfunction:: lammps_config_has_omp_support
    :project: progguide
 
 -----------------------

@@ -53,7 +53,9 @@ PACKAGE = \
 	kspace \
 	adios \
 	amoeba \
+	apip \
 	asphere \
+	awpmd \
 	bocs \
 	body \
 	bpm \
@@ -62,6 +64,8 @@ PACKAGE = \
 	cg-spica \
 	class2 \
 	colloid \
+	colvars \
+	compress \
 	coreshell \
 	diffraction \
 	dipole \
@@ -78,33 +82,52 @@ PACKAGE = \
 	extra-molecule \
 	extra-pair \
 	fep \
+	gpu \
 	granular \
+	h5md \
 	intel \
 	interlayer \
+	kim \
 	kokkos \
 	latboltz \
+	lepton \
+	machdyn \
 	manifold \
 	manybody \
 	mc \
+	mdi \
 	meam \
 	mesont \
 	mgpt \
 	misc \
+	ml-hdnnp \
+	ml-pace \
+	ml-pod \
+	ml-quip \
 	ml-rann \
 	ml-snap \
 	ml-uf3 \
 	mofff \
+	molfile \
+	netcdf \
 	openmp \
 	opt \
 	orient \
 	peri \
+	plugin \
+	plumed \
+	poems \
 	ptm \
+	python \
 	qeq \
+	qmmm \
 	qtb \
 	reaction \
 	reaxff \
 	replica \
+	rheo \
 	rigid \
+	scafacos \
 	shock \
 	smtbq \
 	sph \
@@ -112,8 +135,12 @@ PACKAGE = \
 	srd \
 	tally \
 	uef \
+	voronoi \
+	vtk \
 	yaff \
+	atc \
 	dielectric \
+	electrode \
 	ml-iap \
 	phonon
 
@@ -183,13 +210,59 @@ PACKMOST = \
 # NOTE ^^^^^: the last three packages must remain at the end since
 # they depend on other packages to be installed first.
 
-PACKLIB = kokkos adios latboltz
+PACKLIB = \
+	compress \
+	gpu \
+	kim \
+	kokkos \
+	lepton \
+	poems \
+	python \
+	voronoi \
+	adios \
+	apip \
+	atc \
+	awpmd \
+	colvars \
+	h5md \
+	ml-hdnnp \
+	latboltz \
+	lepton \
+	mdi \
+	molfile \
+	netcdf \
+	ml-pace \
+	ml-pod \
+	plumed \
+	qmmm \
+	ml-quip \
+	rheo \
+	scafacos \
+	machdyn \
+	vtk \
+	electrode
 
-PACKSYS = latboltz
+PACKSYS = compress latboltz python
 
-PACKINT = kokkos
+PACKINT = atc awpmd colvars electrode gpu kokkos lepton ml-pod poems
 
-PACKEXT = adios
+PACKEXT = \
+	adios \
+	apip \
+	h5md \
+	kim \
+	machdyn \
+	ml-hdnnp \
+	ml-pace \
+	ml-quip \
+	molfile \
+	netcdf \
+	plumed \
+	qmmm \
+	rheo \
+	scafacos \
+	voronoi \
+	vtk \
 
 # Helper GNU make function for conversion to upper case without using shell commands
 uppercase_TABLE:=a,A b,B c,C d,D e,E f,F g,G h,H i,I j,J k,K l,L m,M n,N o,O p,P q,Q r,R s,S t,T u,U v,V w,W x,X y,Y z,Z
@@ -224,11 +297,17 @@ help:
 	@echo 'make no-basic                remove a few commonly used pkgs'
 	@echo 'make yes-most                install most pkgs w/o libs'
 	@echo 'make no-most                 remove most pkgs w/o libs'
+	@echo 'make yes-lib       install all pkgs with libs (included or ext)'
+	@echo 'make no-lib        remove all pkgs with libs (included or ext)'
+	@echo 'make yes-ext                 install all pkgs with external libs'
+	@echo 'make no-ext                  remove all pkgs with external libs'
 	@echo ''
 	@echo 'make package-update (pu) replace src files with updated package files'
 	@echo 'make package-overwrite   replace package files with src files'
 	@echo 'make package-diff (pd)   diff src files against package files'
 	@echo ''
+	@echo 'make lib-package         help for download/build/install a package library'
+	@echo 'make lib-package args="..."    download/build/install a package library'
 	@echo 'make purge               purge obsolete copies of source files'
 	@echo ''
 	@echo 'make machine             build LAMMPS for machine with static library'
@@ -565,8 +644,10 @@ lib-%:
 	  echo "Installing lib $(@:lib-%=%)"; \
 	  ( cd ../lib/$(LIBDIR); $(PYTHON) Install.py $(args) ); \
 	else \
-	  echo "Install script for lib $(@:lib-%=%) does not exist. Please use CMake."; \
+	  echo "Install script for lib $(@:lib-%=%) does not exist"; \
 	fi; touch main.cpp
+
+lib-colvars: lib-lepton
 
 # status = list src files that differ from package files
 # installed = list of installed packages

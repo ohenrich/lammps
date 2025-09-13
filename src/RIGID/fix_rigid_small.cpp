@@ -23,6 +23,7 @@
 #include "error.h"
 #include "force.h"
 #include "group.h"
+#include "hashlittle.h"
 #include "input.h"
 #include "math_const.h"
 #include "math_eigen.h"
@@ -41,7 +42,7 @@
 
 #include <cmath>
 #include <cstring>
-#include <unordered_map>
+#include <map>
 #include <utility>
 
 using namespace LAMMPS_NS;
@@ -1600,7 +1601,7 @@ void FixRigidSmall::create_bodies(tagint *bodyID)
   m = 0;
   for (i = 0; i < nlocal; i++) {
     if (!(mask[i] & groupbit)) continue;
-    proclist[m] = std::hash<tagint>{}(bodyID[i]) % nprocs;
+    proclist[m] = hashlittle(&bodyID[i],sizeof(tagint),0) % nprocs;
     inbuf[m].me = me;
     inbuf[m].ilocal = i;
     inbuf[m].atomID = tag[i];
@@ -1667,14 +1668,14 @@ int FixRigidSmall::rendezvous_body(int n, char *inbuf,
   MPI_Comm world = frsptr->world;
 
   // setup hash
-  // use STL unordered_map instead of atom->map
+  // use STL map instead of atom->map
   //   b/c know nothing about body ID values specified by user
   // ncount = number of bodies assigned to me
   // key = body ID
   // value = index into Ncount-length data structure
 
   auto *in = (InRvous *) inbuf;
-  std::unordered_map<tagint,int> hash;
+  std::map<tagint,int> hash;
   tagint id;
 
   int ncount = 0;
@@ -2505,7 +2506,7 @@ void FixRigidSmall::readfile(int which, double **array, int *inbody)
 
   int nlocal = atom->nlocal;
 
-  std::unordered_map<tagint,int> hash;
+  std::map<tagint,int> hash;
   for (int i = 0; i < nlocal; i++)
     if (bodyown[i] >= 0) hash[atom->molecule[i]] = bodyown[i];
 

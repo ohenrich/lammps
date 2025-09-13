@@ -266,11 +266,7 @@ class CudaInternal {
       cudaGraph_t graph, const cudaGraphNode_t* from, const cudaGraphNode_t* to,
       size_t numDependencies) const {
     if constexpr (setCudaDevice) set_cuda_device();
-#if CUDART_VERSION >= 13000
-    return cudaGraphAddDependencies(graph, from, to, NULL, numDependencies);
-#else
     return cudaGraphAddDependencies(graph, from, to, numDependencies);
-#endif
   }
 
   template <bool setCudaDevice = true>
@@ -350,12 +346,7 @@ class CudaInternal {
                                       cudaMemoryAdvise advice,
                                       int device) const {
     if constexpr (setCudaDevice) set_cuda_device();
-#if CUDART_VERSION >= 13000
-    cudaMemLocation loc = {cudaMemLocationTypeDevice, device};
-    return cudaMemAdvise(devPtr, count, advice, loc);
-#else
     return cudaMemAdvise(devPtr, count, advice, device);
-#endif
   }
 
   template <bool setCudaDevice = true>
@@ -363,14 +354,8 @@ class CudaInternal {
       const void* devPtr, size_t count, int dstDevice,
       cudaStream_t stream = nullptr) const {
     if constexpr (setCudaDevice) set_cuda_device();
-#if CUDART_VERSION >= 13000
-    cudaMemLocation loc = {cudaMemLocationTypeDevice, dstDevice};
-    return cudaMemPrefetchAsync(devPtr, count, loc, 0,
-                                get_input_stream(stream));
-#else
     return cudaMemPrefetchAsync(devPtr, count, dstDevice,
                                 get_input_stream(stream));
-#endif
   }
 
   template <bool setCudaDevice = true>

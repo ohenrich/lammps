@@ -92,7 +92,7 @@ void ComputeEfieldWolfAtom::init()
   if (atom->mu_flag && (comm->me == 0))
     error->warning(FLERR, "Compute efield/wolf/atom does not support per-atom dipoles");
 
-  if (neighbor->style == Neighbor::MULTI)
+  if ((neighbor->style == Neighbor::MULTI) || (neighbor->style == Neighbor::MULTI_OLD))
     error->all(FLERR, "Compute efield/wolf/atom requires neighbor style 'bin' or 'nsq'");
 
   // request an occasional full neighbor list

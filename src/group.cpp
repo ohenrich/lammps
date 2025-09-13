@@ -34,7 +34,7 @@
 
 #include <cmath>
 #include <cstring>
-#include <set>
+#include <map>
 #include <utility>
 
 using namespace LAMMPS_NS;
@@ -671,7 +671,7 @@ void Group::add_molecules(int /*igroup*/, int bit)
 {
   // hash = unique molecule IDs of atoms already in group
 
-  std::set<tagint> hash;
+  hash = new std::map<tagint, int>();
 
   tagint *molecule = atom->molecule;
   int *mask = atom->mask;
@@ -679,22 +679,25 @@ void Group::add_molecules(int /*igroup*/, int bit)
 
   for (int i = 0; i < nlocal; i++)
     if (mask[i] & bit) {
-      if (molecule[i] != 0) hash.insert(molecule[i]);
+      if (molecule[i] == 0) continue;
+      if (hash->find(molecule[i]) == hash->end()) (*hash)[molecule[i]] = 1;
     }
 
   // list = set of unique molecule IDs for atoms to add
   // pass list to all other procs via comm->ring()
 
-  auto n = hash.size();
+  int n = hash->size();
   tagint *list;
   memory->create(list, n, "group:list");
 
   n = 0;
-  for(const auto pos : hash) list[n++] = pos;
+  std::map<tagint, int>::iterator pos;
+  for (pos = hash->begin(); pos != hash->end(); ++pos) list[n++] = pos->first;
 
   molbit = bit;
   comm->ring(n, sizeof(tagint), list, 1, molring, nullptr, (void *) this);
 
+  delete hash;
   memory->destroy(list);
 }
 
@@ -709,15 +712,17 @@ void Group::molring(int n, char *cbuf, void *ptr)
 {
   auto *gptr = (Group *) ptr;
   auto *list = (tagint *) cbuf;
+  std::map<tagint, int> *hash = gptr->hash;
   int nlocal = gptr->atom->nlocal;
   tagint *molecule = gptr->atom->molecule;
   int *mask = gptr->atom->mask;
   int molbit = gptr->molbit;
 
-  std::set<tagint> hash(list, list + n);
+  hash->clear();
+  for (int i = 0; i < n; i++) (*hash)[list[i]] = 1;
 
   for (int i = 0; i < nlocal; i++)
-    if (hash.find(molecule[i]) != hash.end()) mask[i] |= molbit;
+    if (hash->find(molecule[i]) != hash->end()) mask[i] |= molbit;
 }
 
 /* ----------------------------------------------------------------------

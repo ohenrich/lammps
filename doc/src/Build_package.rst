@@ -36,7 +36,8 @@ packages:
    :columns: 6
 
    * :ref:`ADIOS <adios>`
-   * :ref:`APIP <apip>`
+   * :ref:`ATC <atc>`
+   * :ref:`AWPMD <awpmd>`
    * :ref:`COLVARS <colvar>`
    * :ref:`COMPRESS <compress>`
    * :ref:`ELECTRODE <electrode>`
@@ -59,6 +60,7 @@ packages:
    * :ref:`OPENMP <openmp>`
    * :ref:`OPT <opt>`
    * :ref:`PLUMED <plumed>`
+   * :ref:`POEMS <poems>`
    * :ref:`PYTHON <python>`
    * :ref:`QMMM <qmmm>`
    * :ref:`RHEO <rheo>`
@@ -66,8 +68,8 @@ packages:
    * :ref:`VORONOI <voronoi>`
    * :ref:`VTK <vtk>`
 
-The mechanism for including packages is simple but different for the CMake
-build system in comparison to the traditional make build.
+The mechanism for including packages is simple but different for CMake
+versus make.
 
 .. tabs::
 
@@ -144,14 +146,11 @@ other files dependent on that package are also excluded.
 
 .. note::
 
-   By default **no** packages are installed.  Prior to August 2018,
-   however, if you downloaded a tarball, 3 packages (KSPACE, MANYBODY,
-   MOLECULE) were pre-installed via the traditional make procedure in
-   the ``src`` directory.  That is no longer the case, so that CMake
-   will build as-is without needing to first uninstall those
-   packages. You can quickly include those packages (plus RIGID) by
-   using the "basic" preset with CMake or ``make yes-basic`` with
-   traditional make as discussed below.
+   By default no packages are installed.  Prior to August 2018, however,
+   if you downloaded a tarball, 3 packages (KSPACE, MANYBODY, MOLECULE)
+   were pre-installed via the traditional make procedure in the ``src``
+   directory.  That is no longer the case, so that CMake will build
+   as-is without needing to uninstall those packages.
 
 ----------
 
@@ -264,6 +263,10 @@ These commands install/uninstall sets of packages:
     make no-basic                       # remove a few commonly used packages'
     make yes-most                       # install most packages w/o libs'
     make no-most                        # remove most packages w/o libs'
+    make yes-lib                        # install packages that require extra libraries
+    make no-lib                         # uninstall packages that require extra libraries
+    make yes-ext                        # install packages that require external libraries
+    make no-ext                         # uninstall packages that require external libraries
 
 which install/uninstall various sets of packages.  Typing ``make
 package`` will list all the these commands.
@@ -273,7 +276,7 @@ package`` will list all the these commands.
    Installing or uninstalling a package for the make based build process
    works by simply copying files back and forth between the main source
    directory src and the subdirectories with the package name (e.g.
-   src/KSPACE, src/MANYBODY), so that the files are included or excluded
+   src/KSPACE, src/ATC), so that the files are included or excluded
    when LAMMPS is built.  Only source files in the src folder will be
    compiled.
 

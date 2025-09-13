@@ -2415,7 +2415,7 @@ void Set::process_spin_electron(int &iarg, int narg, char **arg, Action *action)
   else {
     action->ivalue1 = utils::inumeric(FLERR,arg[iarg+1],false,lmp);
     if (action->ivalue1 < -1 || action->ivalue1 > 3)
-      error->all(FLERR,"Invalid electron spin {} in set command", action->ivalue1);
+      error->one(FLERR,"Invalid electron spin {} in set command", action->ivalue1);
   }
 
   iarg += 2;
@@ -2447,13 +2447,12 @@ void Set::process_temperature(int &iarg, int narg, char **arg, Action *action)
 {
   if (!atom->temperature_flag)
     error->all(FLERR,"Cannot set this attribute for this atom style");
-  if (iarg+2 > narg) utils::missing_cmd_args(FLERR,"set temperature", error);
+  if (iarg+2 > narg) error->all(FLERR,"Illegal set command");
 
   if (utils::strmatch(arg[iarg+1],"^v_")) varparse(arg[iarg+1],1,action);
   else {
     action->dvalue1 = utils::numeric(FLERR,arg[iarg+1],false,lmp);
-    if (action->dvalue1 < 0.0)
-      error->all(FLERR,"Invalid temperature {} in set command", action->dvalue1);
+    if (action->dvalue1 < 0.0) error->one(FLERR,"Invalid temperature in set command");
   }
 
   iarg += 2;
@@ -2944,7 +2943,7 @@ void Set::process_custom(int &iarg, int narg, char **arg, Action *action)
                    "out-of-range",pname);
       action->ivalue3 = icol_custom;
       action->keyword = IARRAY;
-    } else error->all(FLERR,"Illegal set command for custom integer property");
+    } else error->all(FLERR,"Illegal set command");
     break;
 
   case ArgInfo::DNAME:
@@ -2965,11 +2964,11 @@ void Set::process_custom(int &iarg, int narg, char **arg, Action *action)
                    "accessed out-of-range",pname);
       action->ivalue3 = icol_custom;
       action->keyword = DARRAY;
-    } else error->all(FLERR,"Illegal set command for custom double property");
+    } else error->all(FLERR,"Illegal set command");
     break;
 
   default:
-    error->all(FLERR,"Illegal set command for custom property");
+    error->all(FLERR,"Illegal set command");
     break;
   }
 

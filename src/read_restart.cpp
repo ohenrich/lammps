@@ -36,7 +36,6 @@
 #include "update.h"
 
 #include <cstring>
-#include <filesystem>
 
 #include "lmprestart.h"
 
@@ -536,7 +535,7 @@ std::string ReadRestart::file_search(const std::string &inpfile)
     // convert pattern to equivalent regexp
     pattern.replace(loc,1,"\\d+");
 
-    if (!std::filesystem::is_directory(dirname))
+    if (!platform::path_is_directory(dirname))
       error->one(FLERR,"Cannot open directory {} to search for restart file: {}",dirname);
 
     for (const auto &candidate : platform::list_directory(dirname)) {

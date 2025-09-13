@@ -96,13 +96,14 @@ User Guide
    Install
    Build
    Run_head
-   Errors
    Commands
-   Speed
    Packages
-   Tools
+   Speed
    Howto
    Examples
+   Tools
+   Errors
+
 
 .. _programmer_documentation:
 
@@ -141,6 +142,7 @@ Command Reference
    dihedrals
    impropers
    dumps
+   fix_modify_atc_commands
    Bibliography
 
 ******************

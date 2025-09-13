@@ -5,8 +5,10 @@ Using LAMMPS-GUI
    :align: center
    :scale: 75%
 
-.. versionchanged:: 10Sep2025
+.. versionchanged:: TBD
 
 This page used to contain the documentation for LAMMPS-GUI.  LAMMPS-GUI,
-however, is no longer bundled with LAMMPS and its documentation has
-moved to https://lammps-gui.lammps.org/
+however, is no longer bundled with LAMMPS and has now its own git
+repository at https://github.com/akohlmey/lammps-gui/
+
+The documentation for LAMMPS-GUI has moved to https://lammps-gui.lammps.org/

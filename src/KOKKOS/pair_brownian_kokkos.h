@@ -47,6 +47,7 @@ class PairBrownianKokkos : public PairBrownian, public KokkosBase {
   ~PairBrownianKokkos() override;
   void compute(int, int) override;
   void coeff(int, char **) override;
+  void settings(int, char **) override;
   void init_style() override;
   double init_one(int, int) override;
 
