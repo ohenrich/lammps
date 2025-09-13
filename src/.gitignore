@@ -1103,6 +1103,11 @@
 /fix_tune_kspace.h
 /fix_viscous_sphere.cpp
 /fix_viscous_sphere.h
+/fix_vmmc.cpp
+/fix_vmmc.h
+/VMMC.cpp
+/VMMC.h
+/MersenneTwister.h
 /fix_wall_body_polygon.cpp
 /fix_wall_body_polygon.h
 /fix_wall_body_polyhedron.cpp

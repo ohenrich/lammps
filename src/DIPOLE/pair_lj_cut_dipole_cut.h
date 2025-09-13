@@ -38,6 +38,7 @@ class PairLJCutDipoleCut : public Pair {
   void write_restart_settings(FILE *) override;
   void read_restart_settings(FILE *) override;
   void *extract(const char *, int &) override;
+  double pair_energy_vmmc(int, int, int, int, double*, const double*, const double*);
 
  protected:
   double cut_lj_global, cut_coul_global;
@@ -45,6 +46,7 @@ class PairLJCutDipoleCut : public Pair {
   double **cut_coul, **cut_coulsq;
   double **epsilon, **sigma;
   double **lj1, **lj2, **lj3, **lj4, **offset;
+  double zeta;
 
   virtual void allocate();
 };

@@ -65,3 +65,8 @@ action fix_widom.cpp
 action fix_widom.h
 action pair_dsmc.cpp
 action pair_dsmc.h
+action fix_vmmc.cpp
+action fix_vmmc.h
+action VMMC.cpp
+action VMMC.h
+action MersenneTwister.h

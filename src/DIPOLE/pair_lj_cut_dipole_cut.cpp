@@ -16,6 +16,7 @@
 
 #include "atom.h"
 #include "comm.h"
+#include "domain.h"
 #include "error.h"
 #include "force.h"
 #include "memory.h"
@@ -32,7 +33,7 @@ using namespace LAMMPS_NS;
 
 PairLJCutDipoleCut::PairLJCutDipoleCut(LAMMPS *lmp) : Pair(lmp)
 {
-  single_enable = 0;
+  single_enable = 1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -324,7 +325,7 @@ void PairLJCutDipoleCut::settings(int narg, char **arg)
 
 void PairLJCutDipoleCut::coeff(int narg, char **arg)
 {
-  if (narg < 4 || narg > 6)
+  if (narg < 4 || narg > 7)
     error->all(FLERR,"Incorrect args for pair coefficients" + utils::errorurl(21));
   if (!allocated) allocate();
 
@@ -334,11 +335,12 @@ void PairLJCutDipoleCut::coeff(int narg, char **arg)
 
   double epsilon_one = utils::numeric(FLERR,arg[2],false,lmp);
   double sigma_one = utils::numeric(FLERR,arg[3],false,lmp);
+  zeta = utils::numeric(FLERR,arg[4],false,lmp);
 
   double cut_lj_one = cut_lj_global;
   double cut_coul_one = cut_coul_global;
-  if (narg >= 5) cut_coul_one = cut_lj_one = utils::numeric(FLERR,arg[4],false,lmp);
-  if (narg == 6) cut_coul_one = utils::numeric(FLERR,arg[5],false,lmp);
+  if (narg >= 6) cut_coul_one = cut_lj_one = utils::numeric(FLERR,arg[5],false,lmp);
+  if (narg == 7) cut_coul_one = utils::numeric(FLERR,arg[6],false,lmp);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
@@ -361,6 +363,7 @@ void PairLJCutDipoleCut::coeff(int narg, char **arg)
 
 void PairLJCutDipoleCut::init_style()
 {
+
   if (!atom->q_flag || !atom->mu_flag || !atom->torque_flag)
     error->all(FLERR,"Pair dipole/cut requires atom attributes q, mu, torque");
 
@@ -497,4 +500,37 @@ void *PairLJCutDipoleCut::extract(const char *str, int &dim)
   if (strcmp(str,"epsilon") == 0) return (void *) epsilon;
   if (strcmp(str,"sigma") == 0) return (void *) sigma;
   return nullptr;
+}
+
+/* ---------------------------------------------------------------------- */
+
+double PairLJCutDipoleCut::pair_energy_vmmc(int i, int j, int itype, int jtype,
+      double* delr, const double* ni, const double*nj)
+{
+
+  double rsq, r, r2inv, r3inv, r5inv, r6inv;
+  double pdotp, pidotr, pjdotr;
+  double ecoul=0.0, evdwl=0.0, etot = 0.0;
+
+  rsq = delr[0]*delr[0] + delr[1]*delr[1] + delr[2]*delr[2];
+
+  r = sqrt(rsq);
+  r2inv = 1.0 / rsq;
+  r3inv = r2inv / r;
+  r5inv = r2inv * r3inv;
+  r6inv = r3inv * r3inv;
+
+  pdotp  = ni[0]*nj[0] + ni[1]*nj[1] + ni[2]*nj[2];
+  pidotr = ni[0]*delr[0]  + ni[1]*delr[1]  + ni[2]*delr[2];
+  pjdotr = nj[0]*delr[0]  + nj[1]*delr[1]  + nj[2]*delr[2];
+
+  ecoul = r3inv*pdotp - 3.0*r5inv*pidotr*pjdotr;
+  ecoul *= zeta*zeta;
+
+  evdwl = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) - offset[itype][jtype];
+
+  etot = ecoul + evdwl;
+
+  return etot;
+
 }
