@@ -107,6 +107,10 @@ KokkosLMP::KokkosLMP(LAMMPS *lmp, int narg, char **arg) : Pointers(lmp)
   int device = 0;
   nthreads = 1;
 
+  kk_fp32 = 0;
+  if (sizeof(KK_FLOAT) != sizeof(double))
+    kk_fp32 = 1;
+
   threads_per_atom = 1;
   threads_per_atom_set = 0;
   pair_team_size = 128;

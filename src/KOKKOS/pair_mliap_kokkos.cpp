@@ -86,7 +86,7 @@ void PairMLIAPKokkos<DeviceType>::compute(int eflag, int vflag)
 
   ev_init(eflag, vflag, 0);
   if (eflag_atom) {
-    if ((int)k_eatom.h_view.extent(0) < maxeatom) {
+    if ((int)k_eatom.view_host().extent(0) < maxeatom) {
       memoryKK->destroy_kokkos(k_eatom,eatom);
       memoryKK->create_kokkos(k_eatom,eatom,maxeatom,"pair:eatom");
     } else {
@@ -97,7 +97,7 @@ void PairMLIAPKokkos<DeviceType>::compute(int eflag, int vflag)
   }
 
   if (vflag_atom) {
-    if ((int)k_vatom.h_view.extent(0) < maxeatom) {
+    if ((int)k_vatom.view_host().extent(0) < maxeatom) {
       memoryKK->destroy_kokkos(k_vatom,vatom);
       memoryKK->create_kokkos(k_vatom,vatom,maxeatom,6,"pair:eatom");
     } else {
@@ -285,7 +285,7 @@ void PairMLIAPKokkos<DeviceType>::coeff(int narg, char **arg) {
   model->init();
   descriptor->init();
 
-  auto h_cutsq=k_cutsq.h_view;
+  auto h_cutsq=k_cutsq.view_host();
   for (int itype=1; itype <= atom->ntypes; ++itype)
     for (int jtype=1; jtype <= atom->ntypes; ++jtype)
       // do not set cuts for NULL atoms

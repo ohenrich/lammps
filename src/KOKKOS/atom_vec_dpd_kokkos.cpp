@@ -87,53 +87,53 @@ void AtomVecDPDKokkos::grow(int n)
 void AtomVecDPDKokkos::grow_pointers()
 {
   tag = atomKK->tag;
-  d_tag = atomKK->k_tag.d_view;
-  h_tag = atomKK->k_tag.h_view;
+  d_tag = atomKK->k_tag.view_device();
+  h_tag = atomKK->k_tag.view_host();
 
   type = atomKK->type;
-  d_type = atomKK->k_type.d_view;
-  h_type = atomKK->k_type.h_view;
+  d_type = atomKK->k_type.view_device();
+  h_type = atomKK->k_type.view_host();
   mask = atomKK->mask;
-  d_mask = atomKK->k_mask.d_view;
-  h_mask = atomKK->k_mask.h_view;
+  d_mask = atomKK->k_mask.view_device();
+  h_mask = atomKK->k_mask.view_host();
   image = atomKK->image;
-  d_image = atomKK->k_image.d_view;
-  h_image = atomKK->k_image.h_view;
+  d_image = atomKK->k_image.view_device();
+  h_image = atomKK->k_image.view_host();
 
   x = atomKK->x;
-  d_x = atomKK->k_x.d_view;
-  h_x = atomKK->k_x.h_viewkk;
+  d_x = atomKK->k_x.view_device();
+  h_x = atomKK->k_x.view_hostkk();
   v = atomKK->v;
-  d_v = atomKK->k_v.d_view;
-  h_v = atomKK->k_v.h_viewkk;
+  d_v = atomKK->k_v.view_device();
+  h_v = atomKK->k_v.view_hostkk();
   f = atomKK->f;
-  d_f = atomKK->k_f.d_view;
-  h_f = atomKK->k_f.h_viewkk;
+  d_f = atomKK->k_f.view_device();
+  h_f = atomKK->k_f.view_hostkk();
 
   rho = atomKK->rho;
-  d_rho = atomKK->k_rho.d_view;
-  h_rho = atomKK->k_rho.h_viewkk;
+  d_rho = atomKK->k_rho.view_device();
+  h_rho = atomKK->k_rho.view_hostkk();
   dpdTheta = atomKK->dpdTheta;
-  d_dpdTheta = atomKK->k_dpdTheta.d_view;
-  h_dpdTheta = atomKK->k_dpdTheta.h_viewkk;
+  d_dpdTheta = atomKK->k_dpdTheta.view_device();
+  h_dpdTheta = atomKK->k_dpdTheta.view_hostkk();
   uCond = atomKK->uCond;
-  d_uCond = atomKK->k_uCond.d_view;
-  h_uCond = atomKK->k_uCond.h_viewkk;
+  d_uCond = atomKK->k_uCond.view_device();
+  h_uCond = atomKK->k_uCond.view_hostkk();
   uMech = atomKK->uMech;
-  d_uMech = atomKK->k_uMech.d_view;
-  h_uMech = atomKK->k_uMech.h_viewkk;
+  d_uMech = atomKK->k_uMech.view_device();
+  h_uMech = atomKK->k_uMech.view_hostkk();
   uChem = atomKK->uChem;
-  d_uChem = atomKK->k_uChem.d_view;
-  h_uChem = atomKK->k_uChem.h_viewkk;
+  d_uChem = atomKK->k_uChem.view_device();
+  h_uChem = atomKK->k_uChem.view_hostkk();
   uCG = atomKK->uCG;
-  d_uCG = atomKK->k_uCG.d_view;
-  h_uCG = atomKK->k_uCG.h_viewkk;
+  d_uCG = atomKK->k_uCG.view_device();
+  h_uCG = atomKK->k_uCG.view_hostkk();
   uCGnew = atomKK->uCGnew;
-  d_uCGnew = atomKK->k_uCGnew.d_view;
-  h_uCGnew = atomKK->k_uCGnew.h_viewkk;
+  d_uCGnew = atomKK->k_uCGnew.view_device();
+  h_uCGnew = atomKK->k_uCGnew.view_hostkk();
   duChem = atomKK->duChem;
-  d_duChem = atomKK->k_duChem.d_view;
-  h_duChem = atomKK->k_duChem.h_viewkk;
+  d_duChem = atomKK->k_duChem.view_device();
+  h_duChem = atomKK->k_duChem.view_hostkk();
 }
 
 /* ----------------------------------------------------------------------
@@ -597,14 +597,14 @@ int AtomVecDPDKokkos::pack_border_kokkos(int n, DAT::tdual_int_1d k_sendlist, DA
     }
     if (space==Host) {
       AtomVecDPDKokkos_PackBorder<LMPHostType,1> f(
-        buf.h_view, k_sendlist.h_view,
+        buf.view_host(), k_sendlist.view_host(),
         h_x,h_tag,h_type,h_mask,
         h_dpdTheta,h_uCond,h_uMech,h_uChem,h_uCG,h_uCGnew,
         dx,dy,dz);
       Kokkos::parallel_for(n,f);
     } else {
       AtomVecDPDKokkos_PackBorder<LMPDeviceType,1> f(
-        buf.d_view, k_sendlist.d_view,
+        buf.view_device(), k_sendlist.view_device(),
         d_x,d_tag,d_type,d_mask,
         d_dpdTheta,d_uCond,d_uMech,d_uChem,d_uCG,d_uCGnew,
         dx,dy,dz);
@@ -615,14 +615,14 @@ int AtomVecDPDKokkos::pack_border_kokkos(int n, DAT::tdual_int_1d k_sendlist, DA
     dx = dy = dz = 0;
     if (space==Host) {
       AtomVecDPDKokkos_PackBorder<LMPHostType,0> f(
-        buf.h_view, k_sendlist.h_view,
+        buf.view_host(), k_sendlist.view_host(),
         h_x,h_tag,h_type,h_mask,
         h_dpdTheta,h_uCond,h_uMech,h_uChem,h_uCG,h_uCGnew,
         dx,dy,dz);
       Kokkos::parallel_for(n,f);
     } else {
       AtomVecDPDKokkos_PackBorder<LMPDeviceType,0> f(
-        buf.d_view, k_sendlist.d_view,
+        buf.view_device(), k_sendlist.view_device(),
         d_x,d_tag,d_type,d_mask,
         d_dpdTheta,d_uCond,d_uMech,d_uChem,d_uCG,d_uCGnew,
         dx,dy,dz);
@@ -700,13 +700,13 @@ void AtomVecDPDKokkos::unpack_border_kokkos(const int &n, const int &first,
                  DPDTHETA_MASK|UCOND_MASK|UMECH_MASK|UCHEM_MASK|
                  UCG_MASK|UCGNEW_MASK|DVECTOR_MASK);
   if (space==Host) {
-    struct AtomVecDPDKokkos_UnpackBorder<LMPHostType> f(buf.h_view,
+    struct AtomVecDPDKokkos_UnpackBorder<LMPHostType> f(buf.view_host(),
       h_x,h_tag,h_type,h_mask,
       h_dpdTheta,h_uCond,h_uMech,h_uChem,h_uCG,h_uCGnew,
       first);
     Kokkos::parallel_for(n,f);
   } else {
-    struct AtomVecDPDKokkos_UnpackBorder<LMPDeviceType> f(buf.d_view,
+    struct AtomVecDPDKokkos_UnpackBorder<LMPDeviceType> f(buf.view_device(),
       d_x,d_tag,d_type,d_mask,
       d_dpdTheta,d_uCond,d_uMech,d_uChem,d_uCG,d_uCGnew,
       first);
@@ -826,9 +826,9 @@ int AtomVecDPDKokkos::pack_exchange_kokkos(const int &nsend,DAT::tdual_double_2d
 {
   size_exchange = 17;
 
-  if (nsend > (int) (k_buf.h_view.extent(0)*k_buf.h_view.extent(1))/size_exchange) {
-    int newsize = nsend*size_exchange/k_buf.h_view.extent(1)+1;
-    k_buf.resize(newsize,k_buf.h_view.extent(1));
+  if (nsend > (int) (k_buf.view_host().extent(0)*k_buf.view_host().extent(1))/size_exchange) {
+    int newsize = nsend*size_exchange/k_buf.view_host().extent(1)+1;
+    k_buf.resize(newsize,k_buf.view_host().extent(1));
   }
   atomKK->sync(space,X_MASK | V_MASK | TAG_MASK | TYPE_MASK |
              MASK_MASK | IMAGE_MASK| DPDTHETA_MASK | UCOND_MASK |
@@ -920,11 +920,11 @@ int AtomVecDPDKokkos::unpack_exchange_kokkos(DAT::tdual_double_2d_lr &k_buf, int
   while (nlocal + nrecv/size_exchange >= nmax) grow(0);
 
   if (space == HostKK) {
-    k_count.h_view(0) = nlocal;
+    k_count.view_host()(0) = nlocal;
     AtomVecDPDKokkos_UnpackExchangeFunctor<LMPHostType> f(atomKK,k_buf,k_count,dim,lo,hi);
     Kokkos::parallel_for(nrecv/size_exchange,f);
   } else {
-    k_count.h_view(0) = nlocal;
+    k_count.view_host()(0) = nlocal;
     k_count.modify_host();
     k_count.sync_device();
     AtomVecDPDKokkos_UnpackExchangeFunctor<LMPDeviceType> f(atomKK,k_buf,k_count,dim,lo,hi);
@@ -938,7 +938,7 @@ int AtomVecDPDKokkos::unpack_exchange_kokkos(DAT::tdual_double_2d_lr &k_buf, int
                  UMECH_MASK | UCHEM_MASK | UCG_MASK | UCGNEW_MASK |
                  DVECTOR_MASK);
 
-  return k_count.h_view(0);
+  return k_count.view_host()(0);
 }
 
 /* ---------------------------------------------------------------------- */

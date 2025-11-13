@@ -146,16 +146,16 @@ class AtomVecKokkos : virtual public AtomVec {
        buffer = Kokkos::kokkos_realloc<LMPPinnedHostType>(buffer,buffer_size);
     }
 
-    mirror_type tmp_view((typename ViewType::value_type*)buffer, src.d_view.layout());
+    mirror_type tmp_view((typename ViewType::value_type*)buffer, src.view_device().layout());
 
-    if (src.d_view.data() && space == Device) {
-      Kokkos::deep_copy(LMPHostType(),tmp_view,src.h_view),
-      Kokkos::deep_copy(LMPHostType(),src.d_view,tmp_view);
+    if (src.view_device().data() && space == Device) {
+      Kokkos::deep_copy(LMPHostType(),tmp_view,src.view_host()),
+      Kokkos::deep_copy(LMPHostType(),src.view_device(),tmp_view);
       src.clear_sync_state();
       if (!async_flag) Kokkos::fence(); // change to less agressive fence?
-    } else if (src.h_view.data()) {
-      Kokkos::deep_copy(LMPHostType(),tmp_view,src.d_view),
-      Kokkos::deep_copy(LMPHostType(),src.h_view,tmp_view);
+    } else if (src.view_host().data()) {
+      Kokkos::deep_copy(LMPHostType(),tmp_view,src.view_device()),
+      Kokkos::deep_copy(LMPHostType(),src.view_host(),tmp_view);
       src.clear_sync_state();
       if (!async_flag) Kokkos::fence(); // change to less agressive fence?
     }
@@ -181,10 +181,10 @@ class AtomVecKokkos : virtual public AtomVec {
                    LMPPinnedHostType,typename ViewType::memory_space>::type,
                  Kokkos::MemoryTraits<Kokkos::Unmanaged> > mirror_type;
     if (buffer_size == 0) {
-       buffer_size = src.d_view.span()*sizeof(typename ViewType::value_type);
+       buffer_size = src.view_device().span()*sizeof(typename ViewType::value_type);
        buffer = Kokkos::kokkos_malloc<LMPPinnedHostType>(buffer_size);
-    } else if (buffer_size < src.d_view.span()*sizeof(typename ViewType::value_type)) {
-       buffer_size = src.d_view.span()*sizeof(typename ViewType::value_type);
+    } else if (buffer_size < src.view_device().span()*sizeof(typename ViewType::value_type)) {
+       buffer_size = src.view_device().span()*sizeof(typename ViewType::value_type);
        buffer = Kokkos::kokkos_realloc<LMPPinnedHostType>(buffer,buffer_size);
     }
 

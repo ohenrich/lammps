@@ -1068,3 +1068,22 @@ also increase the value for the "page" parameter to maintain the ratio
 between "one" and "page" to reduce waste of memory.  For some more
 details, please check out the documentation for the :doc:`neigh_modify
 command <neigh_modify>`.
+
+.. _err0037:
+
+Variable ...: Compute/Fix ... does not compute requested property
+-----------------------------------------------------------------
+
+Compute and fix styles can compute different kinds of properties: for
+example, global scalars, vectors, or arrays, or per-atom vectors or
+arrays.  In equal-style or similar variable, only scalar properties can
+be used, so to access a particular element in a vector one has to use
+square brackets with a suitable index to select it.  However, not all
+fixes and computes provide all types of properties.  So this error
+message will be shown if there is a mismatch, of if there are not
+enough or too many square brackets.  To differentiate between
+accessing an element of a global array or a per-atom array element of
+a specific atom, one has to use a reference with a lower case 'c'
+(e.g. 'c_name') for the former and upper case 'C' (e.g. 'C_name') for
+the latter. The same applies to fix styles.  The full details are
+in the documentation for the :doc:`variable command <variable>`.

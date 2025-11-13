@@ -84,40 +84,40 @@ void AtomVecSphereKokkos::grow(int n)
 void AtomVecSphereKokkos::grow_pointers()
 {
   tag = atomKK->tag;
-  d_tag = atomKK->k_tag.d_view;
-  h_tag = atomKK->k_tag.h_view;
+  d_tag = atomKK->k_tag.view_device();
+  h_tag = atomKK->k_tag.view_host();
 
   type = atomKK->type;
-  d_type = atomKK->k_type.d_view;
-  h_type = atomKK->k_type.h_view;
+  d_type = atomKK->k_type.view_device();
+  h_type = atomKK->k_type.view_host();
   mask = atomKK->mask;
-  d_mask = atomKK->k_mask.d_view;
-  h_mask = atomKK->k_mask.h_view;
+  d_mask = atomKK->k_mask.view_device();
+  h_mask = atomKK->k_mask.view_host();
   image = atomKK->image;
-  d_image = atomKK->k_image.d_view;
-  h_image = atomKK->k_image.h_view;
+  d_image = atomKK->k_image.view_device();
+  h_image = atomKK->k_image.view_host();
 
   x = atomKK->x;
-  d_x = atomKK->k_x.d_view;
-  h_x = atomKK->k_x.h_viewkk;
+  d_x = atomKK->k_x.view_device();
+  h_x = atomKK->k_x.view_hostkk();
   v = atomKK->v;
-  d_v = atomKK->k_v.d_view;
-  h_v = atomKK->k_v.h_viewkk;
+  d_v = atomKK->k_v.view_device();
+  h_v = atomKK->k_v.view_hostkk();
   f = atomKK->f;
-  d_f = atomKK->k_f.d_view;
-  h_f = atomKK->k_f.h_viewkk;
+  d_f = atomKK->k_f.view_device();
+  h_f = atomKK->k_f.view_hostkk();
   radius = atomKK->radius;
-  d_radius = atomKK->k_radius.d_view;
-  h_radius = atomKK->k_radius.h_viewkk;
+  d_radius = atomKK->k_radius.view_device();
+  h_radius = atomKK->k_radius.view_hostkk();
   rmass = atomKK->rmass;
-  d_rmass = atomKK->k_rmass.d_view;
-  h_rmass = atomKK->k_rmass.h_viewkk;
+  d_rmass = atomKK->k_rmass.view_device();
+  h_rmass = atomKK->k_rmass.view_hostkk();
   omega = atomKK->omega;
-  d_omega = atomKK->k_omega.d_view;
-  h_omega = atomKK->k_omega.h_viewkk;
+  d_omega = atomKK->k_omega.view_device();
+  h_omega = atomKK->k_omega.view_hostkk();
   torque = atomKK->torque;
-  d_torque = atomKK->k_torque.d_view;
-  h_torque = atomKK->k_torque.h_viewkk;
+  d_torque = atomKK->k_torque.view_device();
+  h_torque = atomKK->k_torque.view_hostkk();
 }
 
 /* ----------------------------------------------------------------------
@@ -1050,14 +1050,14 @@ int AtomVecSphereKokkos::pack_border_kokkos(
     }
     if (space==Host) {
       AtomVecSphereKokkos_PackBorder<LMPHostType,1> f(
-        buf.h_view, k_sendlist.h_view,
+        buf.view_host(), k_sendlist.view_host(),
         h_x,h_tag,h_type,h_mask,
         h_radius,h_rmass,
         dx,dy,dz);
       Kokkos::parallel_for(n,f);
     } else {
       AtomVecSphereKokkos_PackBorder<LMPDeviceType,1> f(
-        buf.d_view, k_sendlist.d_view,
+        buf.view_device(), k_sendlist.view_device(),
         d_x,d_tag,d_type,d_mask,
         d_radius,d_rmass,
         dx,dy,dz);
@@ -1067,14 +1067,14 @@ int AtomVecSphereKokkos::pack_border_kokkos(
     dx = dy = dz = 0;
     if (space==Host) {
       AtomVecSphereKokkos_PackBorder<LMPHostType,0> f(
-        buf.h_view, k_sendlist.h_view,
+        buf.view_host(), k_sendlist.view_host(),
         h_x,h_tag,h_type,h_mask,
         h_radius,h_rmass,
         dx,dy,dz);
       Kokkos::parallel_for(n,f);
     } else {
       AtomVecSphereKokkos_PackBorder<LMPDeviceType,0> f(
-        buf.d_view, k_sendlist.d_view,
+        buf.view_device(), k_sendlist.view_device(),
         d_x,d_tag,d_type,d_mask,
         d_radius,d_rmass,
         dx,dy,dz);
@@ -1190,7 +1190,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
     if (!deform_vremap) {
       if (space==Host) {
         AtomVecSphereKokkos_PackBorderVel<LMPHostType,1,0> f(
-          buf.h_view, k_sendlist.h_view,
+          buf.view_host(), k_sendlist.view_host(),
           h_x,h_tag,h_type,h_mask,
           h_radius,h_rmass,
           h_v, h_omega,
@@ -1199,7 +1199,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
         Kokkos::parallel_for(n,f);
       } else {
         AtomVecSphereKokkos_PackBorderVel<LMPDeviceType,1,0> f(
-          buf.d_view, k_sendlist.d_view,
+          buf.view_device(), k_sendlist.view_device(),
           d_x,d_tag,d_type,d_mask,
           d_radius,d_rmass,
           d_v, d_omega,
@@ -1214,7 +1214,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
       dvz = pbc[2]*h_rate[2];
       if (space==Host) {
         AtomVecSphereKokkos_PackBorderVel<LMPHostType,1,1> f(
-          buf.h_view, k_sendlist.h_view,
+          buf.view_host(), k_sendlist.view_host(),
           h_x,h_tag,h_type,h_mask,
           h_radius,h_rmass,
           h_v, h_omega,
@@ -1223,7 +1223,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
         Kokkos::parallel_for(n,f);
       } else {
         AtomVecSphereKokkos_PackBorderVel<LMPDeviceType,1,1> f(
-          buf.d_view, k_sendlist.d_view,
+          buf.view_device(), k_sendlist.view_device(),
           d_x,d_tag,d_type,d_mask,
           d_radius,d_rmass,
           d_v, d_omega,
@@ -1235,7 +1235,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
   } else {
     if (space==Host) {
       AtomVecSphereKokkos_PackBorderVel<LMPHostType,0,0> f(
-        buf.h_view, k_sendlist.h_view,
+        buf.view_host(), k_sendlist.view_host(),
         h_x,h_tag,h_type,h_mask,
         h_radius,h_rmass,
         h_v, h_omega,
@@ -1244,7 +1244,7 @@ int AtomVecSphereKokkos::pack_border_vel_kokkos(
       Kokkos::parallel_for(n,f);
     } else {
       AtomVecSphereKokkos_PackBorderVel<LMPDeviceType,0,0> f(
-        buf.d_view, k_sendlist.d_view,
+        buf.view_device(), k_sendlist.view_device(),
         d_x,d_tag,d_type,d_mask,
         d_radius,d_rmass,
         d_v, d_omega,
@@ -1310,13 +1310,13 @@ void AtomVecSphereKokkos::unpack_border_kokkos(const int &n, const int &first,
                                                const DAT::tdual_double_2d_lr &buf,ExecutionSpace space) {
   while (first+n >= nmax) grow(0);
   if (space==Host) {
-    struct AtomVecSphereKokkos_UnpackBorder<LMPHostType> f(buf.h_view,
+    struct AtomVecSphereKokkos_UnpackBorder<LMPHostType> f(buf.view_host(),
       h_x,h_tag,h_type,h_mask,
       h_radius,h_rmass,
       first);
     Kokkos::parallel_for(n,f);
   } else {
-    struct AtomVecSphereKokkos_UnpackBorder<LMPDeviceType> f(buf.d_view,
+    struct AtomVecSphereKokkos_UnpackBorder<LMPDeviceType> f(buf.view_device(),
       d_x,d_tag,d_type,d_mask,
       d_radius,d_rmass,
       first);
@@ -1392,14 +1392,14 @@ void AtomVecSphereKokkos::unpack_border_vel_kokkos(
   const DAT::tdual_double_2d_lr &buf,ExecutionSpace space) {
   while (first+n >= nmax) grow(0);
   if (space==Host) {
-    struct AtomVecSphereKokkos_UnpackBorderVel<LMPHostType> f(buf.h_view,
+    struct AtomVecSphereKokkos_UnpackBorderVel<LMPHostType> f(buf.view_host(),
       h_x,h_tag,h_type,h_mask,
       h_radius,h_rmass,
       h_v, h_omega,
       first);
     Kokkos::parallel_for(n,f);
   } else {
-    struct AtomVecSphereKokkos_UnpackBorderVel<LMPDeviceType> f(buf.d_view,
+    struct AtomVecSphereKokkos_UnpackBorderVel<LMPDeviceType> f(buf.view_device(),
       d_x,d_tag,d_type,d_mask,
       d_radius,d_rmass,
       d_v, d_omega,
@@ -1521,9 +1521,9 @@ int AtomVecSphereKokkos::pack_exchange_kokkos(
 {
   size_exchange = 16;
 
-  if (nsend > (int) (k_buf.h_view.extent(0)*k_buf.h_view.extent(1))/size_exchange) {
-    int newsize = nsend*17/k_buf.h_view.extent(1)+1;
-    k_buf.resize(newsize,k_buf.h_view.extent(1));
+  if (nsend > (int) (k_buf.view_host().extent(0)*k_buf.view_host().extent(1))/size_exchange) {
+    int newsize = nsend*17/k_buf.view_host().extent(1)+1;
+    k_buf.resize(newsize,k_buf.view_host().extent(1));
   }
   atomKK->sync(space,X_MASK | V_MASK | TAG_MASK | TYPE_MASK |
              MASK_MASK | IMAGE_MASK| RADIUS_MASK | RMASS_MASK |
@@ -1621,8 +1621,8 @@ int AtomVecSphereKokkos::unpack_exchange_kokkos(DAT::tdual_double_2d_lr &k_buf, 
   while (nlocal + nrecv/size_exchange >= nmax) grow(0);
 
   if (space == HostKK) {
-    k_count.h_view(0) = nlocal;
-    if (k_indices.h_view.data()) {
+    k_count.view_host()(0) = nlocal;
+    if (k_indices.view_host().data()) {
       AtomVecSphereKokkos_UnpackExchangeFunctor<LMPHostType,1> f(atomKK,k_buf,k_count,k_indices,dim,lo,hi);
       Kokkos::parallel_for(nrecv/size_exchange,f);
     } else {
@@ -1630,10 +1630,10 @@ int AtomVecSphereKokkos::unpack_exchange_kokkos(DAT::tdual_double_2d_lr &k_buf, 
       Kokkos::parallel_for(nrecv/size_exchange,f);
     }
   } else {
-    k_count.h_view(0) = nlocal;
+    k_count.view_host()(0) = nlocal;
     k_count.modify_host();
     k_count.sync_device();
-    if (k_indices.h_view.data()) {
+    if (k_indices.view_host().data()) {
       AtomVecSphereKokkos_UnpackExchangeFunctor<LMPDeviceType,1> f(atomKK,k_buf,k_count,k_indices,dim,lo,hi);
       Kokkos::parallel_for(nrecv/size_exchange,f);
     } else {
@@ -1648,7 +1648,7 @@ int AtomVecSphereKokkos::unpack_exchange_kokkos(DAT::tdual_double_2d_lr &k_buf, 
                  MASK_MASK | IMAGE_MASK| RADIUS_MASK | RMASS_MASK |
                  OMEGA_MASK);
 
-  return k_count.h_view(0);
+  return k_count.view_host()(0);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1720,7 +1720,7 @@ void AtomVecSphereKokkos::sync_pinned(ExecutionSpace space, unsigned int mask, i
     if ((mask & OMEGA_MASK) && atomKK->k_omega.need_sync_device())
       perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d_3>(atomKK->k_omega,space,async_flag);
     if ((mask & TORQUE_MASK) && atomKK->k_torque.need_sync_device())
-      perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d_3>(atomKK->k_torque,space,async_flag);
+      perform_pinned_copy_transform<DAT::ttransform_kkacc_1d_3>(atomKK->k_torque,space,async_flag);
   } else {
     if ((mask & X_MASK) && atomKK->k_x.need_sync_host())
       perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d_3_lr>(atomKK->k_x,space,async_flag);
@@ -1743,7 +1743,7 @@ void AtomVecSphereKokkos::sync_pinned(ExecutionSpace space, unsigned int mask, i
     if ((mask & OMEGA_MASK) && atomKK->k_omega.need_sync_host())
       perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d_3>(atomKK->k_omega,space,async_flag);
     if ((mask & TORQUE_MASK) && atomKK->k_torque.need_sync_host())
-      perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d_3>(atomKK->k_torque,space,async_flag);
+      perform_pinned_copy_transform<DAT::ttransform_kkacc_1d_3>(atomKK->k_torque,space,async_flag);
   }
 }
 

@@ -254,7 +254,7 @@ void AtomKokkos::sort_device()
 
   if (domain->triclinic) domain->lamda2x(nlocal);
 
-  auto d_x = k_x.d_view;
+  auto d_x = k_x.view_device();
   sync(Device, X_MASK);
 
   // sort
