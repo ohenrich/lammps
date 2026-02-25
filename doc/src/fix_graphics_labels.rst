@@ -112,7 +112,7 @@ Examples
 Description
 """""""""""
 
-.. versionadded:: TBD
+.. versionadded:: 11Feb2026
 
 This fix allows to add either images or text as "labels" to :doc:`dump
 image <dump_image>` created images by using the *fix* keyword.  This can
@@ -425,7 +425,7 @@ the generated plot into the visualization of the atom.
 ---------
 
 Restart, fix_modify, output, run start/stop, minimize info
-==========================================================
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 No information about this fix is written to :doc:`binary restart files
 <restart>`.

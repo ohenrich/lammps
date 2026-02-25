@@ -27,7 +27,7 @@ Examples
 Description
 """""""""""
 
-.. versionadded:: TBD
+.. versionadded:: 11Feb2026
 
 This fix allows to add a trace of averaged atom positions in the fix
 group to images rendered with :doc:`dump image <dump_image>` using the
@@ -111,7 +111,7 @@ example input after adjusting its :doc:`create_box <create_box>` and
 
 
 Restart, fix_modify, output, run start/stop, minimize info
-==========================================================
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 This fix writes its current status to :doc:`binary restart files
 <restart>`.  See the :doc:`read_restart <read_restart>` command for info
