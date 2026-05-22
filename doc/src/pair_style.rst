@@ -253,6 +253,7 @@ accelerated styles exist.
 * :doc:`lj/cut/coul/debye <pair_lj_cut_coul>` - LJ with Debye screening added to Coulomb
 * :doc:`lj/cut/coul/debye/dielectric <pair_dielectric>` -
 * :doc:`lj/cut/coul/dsf <pair_lj_cut_coul>` - LJ with Coulomb via damped shifted forces
+* :doc:`lj/cut/coul/esp <pair_lj_cut_coul>` - LJ with long-range Coulomb
 * :doc:`lj/cut/coul/long <pair_lj_cut_coul>` - LJ with long-range Coulomb
 * :doc:`lj/cut/coul/long/cs <pair_cs>` - LJ with long-range Coulomb with core/shell adjustments
 * :doc:`lj/cut/coul/long/dielectric <pair_dielectric>` -
@@ -329,6 +330,12 @@ accelerated styles exist.
 * :doc:`oxdna2/hbond <pair_oxdna2>` -
 * :doc:`oxdna2/stk <pair_oxdna2>` -
 * :doc:`oxdna2/xstk <pair_oxdna2>` -
+* :doc:`oxdna3/coaxstk <pair_oxdna3>` -
+* :doc:`oxdna3/dh <pair_oxdna3>` -
+* :doc:`oxdna3/excv <pair_oxdna3>` -
+* :doc:`oxdna3/hbond <pair_oxdna3>` -
+* :doc:`oxdna3/stk <pair_oxdna3>` -
+* :doc:`oxdna3/xstk <pair_oxdna3>` -
 * :doc:`oxrna2/coaxstk <pair_oxrna2>` -
 * :doc:`oxrna2/dh <pair_oxrna2>` -
 * :doc:`oxrna2/excv <pair_oxrna2>` -

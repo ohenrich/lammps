@@ -9,6 +9,7 @@ OPT.
 .. table_from_list::
    :columns: 5
 
+   * :doc:`esp <kspace_style>`
    * :doc:`ewald (o) <kspace_style>`
    * :doc:`ewald/disp <kspace_style>`
    * :doc:`ewald/disp/dipole <kspace_style>`
