@@ -13,17 +13,16 @@
 ------------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------
-   Contributing authors: Roy Pollock (LLNL), Paul Crozier (SNL)
-     per-atom energy/virial & group/group energy/force added by Stan Moore (BYU)
-     analytic diff (2 FFT) option added by Rolf Isele-Holder (Aachen University)
-     triclinic added by Stan Moore (SNL)
+   Contributing authors: Jiuyang Liang, Libin Lu, Shidong Jiang (Flatiron)
+     analytic diff (2 FFT) option is set to default and recommended
 ------------------------------------------------------------------------- */
 
-#include "pppm.h"
+#include "esp.h"
 
 #include "angle.h"
 #include "atom.h"
 #include "bond.h"
+#include "comm.h"
 #include "domain.h"
 #include "error.h"
 #include "fft3d_wrap.h"
@@ -34,6 +33,7 @@
 #include "memory.h"
 #include "neighbor.h"
 #include "pair.h"
+#include "pswf.h"
 #include "remap_wrap.h"
 
 #include <cmath>
@@ -43,51 +43,33 @@ using namespace LAMMPS_NS;
 using namespace MathConst;
 using namespace MathSpecial;
 
-static constexpr int MAXORDER = 7;
+static constexpr int MAXORDER = 32;
 static constexpr int OFFSET = 16384;
 static constexpr double LARGE = 10000.0;
 static constexpr double SMALL = 0.00001;
 static constexpr double EPS_HOC = 1.0e-7;
 static constexpr FFT_SCALAR ZEROF = 0.0;
 
-static inline double auto_slab_volfactor(double accuracy, double two_charge_force,
-                                         double alpha, double xprd, double yprd, double zprd,
-                                         Error *error)
-{
-  if (alpha <= 0.0) error->all(FLERR, "kspace_modify slab auto requires a positive gewald");
-
-  const double force_tolerance = accuracy / two_charge_force;
-  if (!(force_tolerance > 0.0 && force_tolerance < 1.0))
-    error->all(FLERR,
-               "kspace_modify slab auto requires a normalized force tolerance between 0 and 1");
-
-  const double logeps = log(1.0 / force_tolerance);
-  const double lateral = MAX(xprd, yprd) * logeps / MY_2PI;
-  const double reciprocal = sqrt(logeps) / alpha;
-  return MAX((zprd + MAX(lateral, reciprocal)) / zprd, 1.0);
-}
-
 /* ---------------------------------------------------------------------- */
 
-PPPM::PPPM(LAMMPS *lmp) : KSpace(lmp),
+ESP::ESP(LAMMPS *lmp) : KSpace(lmp),
   factors(nullptr), density_brick(nullptr), vdx_brick(nullptr), vdy_brick(nullptr), vdz_brick(nullptr),
   u_brick(nullptr), v0_brick(nullptr), v1_brick(nullptr), v2_brick(nullptr), v3_brick(nullptr),
-  v4_brick(nullptr), v5_brick(nullptr), greensfn(nullptr), vg(nullptr), fkx(nullptr), fky(nullptr),
-  fkz(nullptr), density_fft(nullptr), work1(nullptr), work2(nullptr), gf_b(nullptr), rho1d(nullptr),
+  v4_brick(nullptr), v5_brick(nullptr), greensfn(nullptr), greensfn2(nullptr), vg(nullptr), vg2(nullptr), fkx(nullptr), fky(nullptr),
+  fkz(nullptr), density_fft(nullptr), work1(nullptr), work2(nullptr), rho1d(nullptr),
   rho_coeff(nullptr), drho1d(nullptr), drho_coeff(nullptr),
   sf_precoeff1(nullptr), sf_precoeff2(nullptr), sf_precoeff3(nullptr),
   sf_precoeff4(nullptr), sf_precoeff5(nullptr), sf_precoeff6(nullptr),
-  acons(nullptr), fft1(nullptr), fft2(nullptr), remap(nullptr), gc(nullptr),
+  fft1(nullptr), fft2(nullptr), remap(nullptr), gc(nullptr),
   gc_buf1(nullptr), gc_buf2(nullptr), density_A_brick(nullptr), density_B_brick(nullptr), density_A_fft(nullptr),
   density_B_fft(nullptr), part2grid(nullptr), boxlo(nullptr)
 {
   peratom_allocate_flag = 0;
   group_allocate_flag = 0;
 
-  pppmflag = 1;
+  espflag = 1;
   group_group_enable = 1;
   triclinic = domain->triclinic;
-  g_ewald_ready = 0;
 
   nfactors = 3;
   factors = new int[nfactors];
@@ -108,8 +90,11 @@ PPPM::PPPM(LAMMPS *lmp) : KSpace(lmp),
   u_brick = nullptr;
   v0_brick = v1_brick = v2_brick = v3_brick = v4_brick = v5_brick = nullptr;
   greensfn = nullptr;
+  greensfn2 = nullptr;
+
   work1 = work2 = nullptr;
   vg = nullptr;
+  vg2 = nullptr;
   fkx = fky = fkz = nullptr;
 
   sf_precoeff1 = sf_precoeff2 = sf_precoeff3 =
@@ -118,7 +103,6 @@ PPPM::PPPM(LAMMPS *lmp) : KSpace(lmp),
   density_A_brick = density_B_brick = nullptr;
   density_A_fft = density_B_fft = nullptr;
 
-  gf_b = nullptr;
   rho1d = rho_coeff = drho1d = drho_coeff = nullptr;
 
   fft1 = fft2 = nullptr;
@@ -129,77 +113,60 @@ PPPM::PPPM(LAMMPS *lmp) : KSpace(lmp),
   nmax = 0;
   part2grid = nullptr;
 
-  // define acons coefficients for estimation of kspace errors
-  // see JCP 109, pg 7698 for derivation of coefficients
-  // higher order coefficients may be computed if needed
-
-  memory->create(acons,8,7,"pppm:acons");
-  acons[1][0] = 2.0 / 3.0;
-  acons[2][0] = 1.0 / 50.0;
-  acons[2][1] = 5.0 / 294.0;
-  acons[3][0] = 1.0 / 588.0;
-  acons[3][1] = 7.0 / 1440.0;
-  acons[3][2] = 21.0 / 3872.0;
-  acons[4][0] = 1.0 / 4320.0;
-  acons[4][1] = 3.0 / 1936.0;
-  acons[4][2] = 7601.0 / 2271360.0;
-  acons[4][3] = 143.0 / 28800.0;
-  acons[5][0] = 1.0 / 23232.0;
-  acons[5][1] = 7601.0 / 13628160.0;
-  acons[5][2] = 143.0 / 69120.0;
-  acons[5][3] = 517231.0 / 106536960.0;
-  acons[5][4] = 106640677.0 / 11737571328.0;
-  acons[6][0] = 691.0 / 68140800.0;
-  acons[6][1] = 13.0 / 57600.0;
-  acons[6][2] = 47021.0 / 35512320.0;
-  acons[6][3] = 9694607.0 / 2095994880.0;
-  acons[6][4] = 733191589.0 / 59609088000.0;
-  acons[6][5] = 326190917.0 / 11700633600.0;
-  acons[7][0] = 1.0 / 345600.0;
-  acons[7][1] = 3617.0 / 35512320.0;
-  acons[7][2] = 745739.0 / 838397952.0;
-  acons[7][3] = 56399353.0 / 12773376000.0;
-  acons[7][4] = 25091609.0 / 1560084480.0;
-  acons[7][5] = 1755948832039.0 / 36229939200000.0;
-  acons[7][6] = 4887769399.0 / 37838389248.0;
+  differentiation_flag = 1; // default to analytic differentiation
 }
 
 /* ---------------------------------------------------------------------- */
 
-void PPPM::settings(int narg, char **arg)
+void ESP::settings(int narg, char **arg)
 {
-  if (narg < 1)
-    utils::missing_cmd_args(FLERR,fmt::format("kspace_style {}", force->kspace_style), error);
+  if (narg < 1 || narg > 2)
+    error->all(FLERR,"Illegal kspace_style {} command", force->kspace_style);
 
-  accuracy_relative = fabs(utils::numeric(FLERR,arg[0],false,lmp));
-  if (accuracy_relative > 1.0)
-    error->all(FLERR, 1, "Invalid relative accuracy {:g} for kspace_style {}",
-               accuracy_relative, force->kspace_style);
+  accuracy_relative = fabs(utils::numeric(FLERR, arg[0], false, lmp)); // splitting accuracy
+
+  if (narg == 1) {
+    // Use the single kspace_style tolerance as an overall force-accuracy target.
+    // A tighter default spread budget keeps the table-based stencil order accurate.
+    spreading_accuracy = 0.25 * accuracy_relative;
+  } else {
+    spreading_accuracy = fabs(utils::numeric(FLERR, arg[1], false, lmp));
+  }
+
+  if (accuracy_relative <= 0.0 || spreading_accuracy <= 0.0 ||
+      accuracy_relative > 1.0 || spreading_accuracy > 1.0)
+    error->all(FLERR, "Invalid relative accuracy {:g} or spreading accuracy {:g} for kspace_style {}",
+               accuracy_relative, spreading_accuracy, force->kspace_style);
+
+  // Estimate order for ESP method
+  order = estimate_order(accuracy_relative);
 }
 
 /* ----------------------------------------------------------------------
    free all memory
 ------------------------------------------------------------------------- */
 
-PPPM::~PPPM()
+ESP::~ESP()
 {
   if (copymode) return;
 
   delete [] factors;
-  PPPM::deallocate();
-  if (peratom_allocate_flag) PPPM::deallocate_peratom();
-  if (group_allocate_flag) PPPM::deallocate_groups();
+  ESP::deallocate();
+  if (peratom_allocate_flag) ESP::deallocate_peratom();
+  if (group_allocate_flag) ESP::deallocate_groups();
   memory->destroy(part2grid);
-  memory->destroy(acons);
+  // memory->destroy(force_poly_coeff);
+  // memory->destroy(energy_poly_coeff);
+  // memory->destroy(fourier_split_poly_coeff);
+  // memory->destroy(fourier_spread_poly_coeff);
 }
 
 /* ----------------------------------------------------------------------
    called once before run
 ------------------------------------------------------------------------- */
 
-void PPPM::init()
+void ESP::init()
 {
-  if (me == 0) utils::logmesg(lmp,"PPPM initialization ...\n");
 
   // error check
 
@@ -209,25 +176,25 @@ void PPPM::init()
     error->all(FLERR,"Must redefine kspace_style after changing to triclinic box");
 
   if (domain->triclinic && differentiation_flag == 1)
-    error->all(FLERR,"Cannot (yet) use PPPM with triclinic box and kspace_modify diff ad");
+    error->all(FLERR,"Cannot (yet) use ESP with triclinic box and kspace_modify diff ad");
   if (domain->triclinic && slabflag)
-    error->all(FLERR,"Cannot (yet) use PPPM with triclinic box and slab correction");
+    error->all(FLERR,"Cannot (yet) use ESP with triclinic box and slab correction");
   if (domain->dimension == 2)
-    error->all(FLERR,"Cannot use PPPM with 2d simulation");
+    error->all(FLERR,"Cannot use ESP with 2d simulation");
 
   if (!atom->q_flag)
     error->all(FLERR,"Kspace style requires atom attribute q");
 
   if (slabflag == 0 && domain->nonperiodic > 0)
-    error->all(FLERR,"Cannot use non-periodic boundaries with PPPM");
+    error->all(FLERR,"Cannot use non-periodic boundaries with ESP");
   if (slabflag) {
     if (domain->xperiodic != 1 || domain->yperiodic != 1 ||
         domain->boundary[2][0] != 1 || domain->boundary[2][1] != 1)
-      error->all(FLERR,"Incorrect boundaries with slab PPPM");
+      error->all(FLERR,"Incorrect boundaries with slab ESP");
   }
 
   if (order < 2 || order > MAXORDER)
-    error->all(FLERR,"PPPM order cannot be < 2 or > {}",MAXORDER);
+    error->all(FLERR,"ESP order cannot be < 2 or > {}",MAXORDER);
 
   // compute two charge force
 
@@ -239,11 +206,14 @@ void PPPM::init()
   pair_check();
 
   int itmp = 0;
-  auto *p_cutoff = (double *) force->pair->extract("cut_coul",itmp);
+  auto p_cutoff = (double *) force->pair->extract("cut_coul",itmp);
   if (p_cutoff == nullptr)
     error->all(FLERR,"KSpace style is incompatible with Pair style");
   cutoff = *p_cutoff;
 
+  //std::cout<<"Before table"<<std::endl;
+  // Build Table for Real Space and Fourier Space Calulations
+  //std::cout<<"After table"<<std::endl;
   // if kspace is TIP4P, extract TIP4P params from pair style
   // bond/angle are not yet init(), so ensure equilibrium request is valid
 
@@ -252,7 +222,7 @@ void PPPM::init()
   if (tip4pflag) {
     if (me == 0) utils::logmesg(lmp,"  extracting TIP4P info from pair style\n");
 
-    auto *p_qdist = (double *) force->pair->extract("qdist",itmp);
+    auto p_qdist = (double *) force->pair->extract("qdist",itmp);
     int *p_typeO = (int *) force->pair->extract("typeO",itmp);
     int *p_typeH = (int *) force->pair->extract("typeH",itmp);
     int *p_typeA = (int *) force->pair->extract("typeA",itmp);
@@ -270,10 +240,10 @@ void PPPM::init()
       error->all(FLERR,"Bond and angle potentials must be defined for TIP4P");
     if (typeA < 1 || typeA > atom->nangletypes ||
         force->angle->setflag[typeA] == 0)
-      error->all(FLERR,"Bad TIP4P angle type for PPPM/TIP4P");
+      error->all(FLERR,"Bad TIP4P angle type for ESP/TIP4P");
     if (typeB < 1 || typeB > atom->nbondtypes ||
         force->bond->setflag[typeB] == 0)
-      error->all(FLERR,"Bad TIP4P bond type for PPPM/TIP4P");
+      error->all(FLERR,"Bad TIP4P bond type for ESP/TIP4P");
     double theta = force->angle->equilibrium_angle(typeA);
     double blen = force->bond->equilibrium_distance(typeB);
     alpha = qdist / (cos(0.5*theta) * blen);
@@ -297,112 +267,63 @@ void PPPM::init()
   if (peratom_allocate_flag) deallocate_peratom();
   if (group_allocate_flag) deallocate_groups();
 
-  const double xprd = domain->xprd;
-  const double yprd = domain->yprd;
-  const double zprd = domain->zprd;
-  bigint natoms = atom->natoms;
-  if (natoms == 0) natoms = 1;
-
-  g_ewald_ready = 0;
-  if (!gewaldflag) {
-    if (accuracy <= 0.0)
-      error->all(FLERR,"KSpace accuracy must be > 0");
-    if (q2 == 0.0)
-      error->all(FLERR,"Must use 'kspace_modify gewald' for uncharged system");
-    g_ewald = accuracy*sqrt(natoms*cutoff*xprd*yprd*zprd) / (2.0*q2);
-    if (g_ewald >= 1.0) g_ewald = (1.35 - 0.15*log(accuracy))/cutoff;
-    else g_ewald = sqrt(-log(g_ewald)) / cutoff;
-    g_ewald_ready = 1;
-  }
-
-  const bool slab_auto_enabled = (slabflag == 1 && slab_auto);
-  if (slab_auto_enabled)
-    slab_volfactor = auto_slab_volfactor(accuracy, two_charge_force, g_ewald, xprd, yprd, zprd,
-                                         error);
-
-  // setup FFT grid resolution and g_ewald
+  // setup FFT grid resolution
   // normally one iteration thru while loop is all that is required
   // if grid stencil does not extend beyond neighbor proc
   //   or overlap is allowed, then done
   // else reduce order and try again
 
   gc = nullptr;
-  const int requested_order = order;
-  int slab_iterations = 0;
+  int iteration = 0;
 
-  while (true) {
-    int iteration = 0;
-    order = requested_order;
+  prolc180(accuracy_relative, select_c);
+  prolc180(spreading_accuracy, spreading_select_c);
 
-    while (order >= minorder) {
-      if (iteration && me == 0)
-        error->warning(FLERR,"Reducing PPPM order b/c stencil extends "
-                       "beyond nearest neighbor processor");
+  // Here debug
+  while (order >= minorder) {
+    if (iteration && me == 0)
+      error->warning(FLERR,"Reducing ESP order b/c stencil extends "
+                     "beyond nearest neighbor processor");
 
-      if (stagger_flag && !differentiation_flag) compute_gf_denom();
-      set_grid_global();
-      set_grid_local();
-      if (overlap_allowed) break;
+    set_grid_global();
+    set_grid_local();
+    if (overlap_allowed) break;
 
-      gc = new Grid3d(lmp,world,nx_pppm,ny_pppm,nz_pppm);
-      gc->set_distance(0.5*neighbor->skin + qdist);
-      gc->set_stencil_atom(-nlower,nupper);
-      gc->set_shift_atom(shiftatom_lo,shiftatom_hi);
-      gc->set_zfactor(slab_volfactor);
+    gc = new Grid3d(lmp,world,nx_pppm,ny_pppm,nz_pppm);
+    gc->set_distance(0.5*neighbor->skin + qdist);
+    gc->set_stencil_atom(-nlower,nupper);
+    gc->set_shift_atom(shiftatom_lo,shiftatom_hi);
+    gc->set_zfactor(slab_volfactor);
 
-      gc->setup_grid(nxlo_in,nxhi_in,nylo_in,nyhi_in,nzlo_in,nzhi_in,
-                     nxlo_out,nxhi_out,nylo_out,nyhi_out,nzlo_out,nzhi_out);
+    gc->setup_grid(nxlo_in,nxhi_in,nylo_in,nyhi_in,nzlo_in,nzhi_in,
+                   nxlo_out,nxhi_out,nylo_out,nyhi_out,nzlo_out,nzhi_out);
 
-      int tmp1,tmp2;
-      gc->setup_comm(tmp1,tmp2);
-      if (gc->ghost_adjacent()) break;
-      delete gc;
-      gc = nullptr;
+    int tmp1,tmp2;
+    gc->setup_comm(tmp1,tmp2);
+    if (gc->ghost_adjacent()) break;
+    delete gc;
 
-      order--;
-      iteration++;
-    }
+    order--;
+    iteration++;
 
-    if (order < minorder) error->all(FLERR,"PPPM order < minimum allowed order");
-    if (!overlap_allowed && !gc->ghost_adjacent())
-      error->all(FLERR,"PPPM grid stencil extends beyond nearest neighbor processor");
-    if (gc) {
-      delete gc;
-      gc = nullptr;
-    }
-
-    // adjust g_ewald
-
-    if (!gewaldflag) adjust_gewald();
-    if (!slab_auto_enabled) break;
-
-    const double old_slab_volfactor = slab_volfactor;
-    const double new_slab_volfactor = auto_slab_volfactor(accuracy, two_charge_force, g_ewald,
-                                                          xprd, yprd, zprd, error);
-    if (fabs(new_slab_volfactor - old_slab_volfactor) <= SMALL * new_slab_volfactor) break;
-    slab_volfactor = new_slab_volfactor;
-
-    slab_iterations++;
-    if (slab_iterations > 5)
-      error->all(FLERR, "Could not converge kspace_modify slab auto");
+    if (me == 0)
+      error->warning(FLERR,"Order decreased to {} to fit stencil on nearest neighbor processors. May not achieve the desired accuracy.", order);
   }
 
-  // calculate the final accuracy
-
-  double estimated_accuracy = final_accuracy();
-  g_ewald_ready = 0;
+  if (order < minorder) error->all(FLERR,"ESP order < minimum allowed order");
+  if (!overlap_allowed && !gc->ghost_adjacent())
+    error->all(FLERR,"ESP grid stencil extends beyond nearest neighbor processor");
+  if (gc) delete gc;
 
   // allocate K-space dependent memory
   // don't invoke allocate peratom() or group(), will be allocated when needed
 
   allocate();
 
-  // pre-compute Green's function denomiator expansion
-  // pre-compute 1d charge distribution coefficients
+  // pre-compute tables for splitting/spreading function
 
-  compute_gf_denom();
+  build_table(accuracy_relative, spreading_accuracy);
   if (differentiation_flag == 1) compute_sf_precoeff();
-  compute_rho_coeff();
 
   // print stats
 
@@ -411,29 +332,27 @@ void PPPM::init()
   MPI_Allreduce(&nfft_both,&nfft_both_max,1,MPI_INT,MPI_MAX,world);
 
   if (me == 0) {
-    std::string mesg = fmt::format("  G vector (1/distance) = {:.8g}\n",g_ewald);
+    std::string mesg = fmt::format(" Spreading parameter c = {:.8g}\n",spreading_select_c);
+    mesg += fmt::format(" Splitting parameter c = {:.8g}\n",select_c);
     mesg += fmt::format("  grid = {} {} {}\n",nx_pppm,ny_pppm,nz_pppm);
     mesg += fmt::format("  stencil order = {}\n",order);
-    if (slabflag == 1 && slab_auto) {
-      mesg += fmt::format("  auto slab volfactor = {:.8g}\n", slab_volfactor);
-      mesg += fmt::format("  auto slab extended z = {:.8g}\n", zprd * slab_volfactor);
-    }
-    mesg += fmt::format("  estimated absolute RMS force accuracy = {:.8g}\n",
-                       estimated_accuracy);
-    mesg += fmt::format("  estimated relative force accuracy = {:.8g}\n",
-                       estimated_accuracy/two_charge_force);
+    mesg += fmt::format("  estimated relative splitting force accuracy = {:.8g}\n",
+                       accuracy_relative);
+    mesg += fmt::format("  estimated relative spreading accuracy = {:.8g}\n",
+                       spreading_accuracy);
     mesg += "  using " LMP_FFT_PREC " precision " LMP_FFT_LIB "\n";
     mesg += fmt::format("  3d grid and FFT values/proc = {} {}\n",
                        ngrid_max,nfft_both_max);
     utils::logmesg(lmp,mesg);
   }
+
 }
 
 /* ----------------------------------------------------------------------
-   adjust PPPM coeffs, called initially and whenever volume has changed
+   adjust ESP coeffs, called initially and whenever volume has changed
 ------------------------------------------------------------------------- */
 
-void PPPM::setup()
+void ESP::setup()
 {
   if (triclinic) {
     setup_triclinic();
@@ -443,19 +362,19 @@ void PPPM::setup()
   // perform some checks to avoid illegal boundaries with read_data
 
   if (slabflag == 0 && domain->nonperiodic > 0)
-    error->all(FLERR,"Cannot use non-periodic boundaries with PPPM");
+    error->all(FLERR,"Cannot use non-periodic boundaries with ESP");
   if (slabflag) {
     if (domain->xperiodic != 1 || domain->yperiodic != 1 ||
         domain->boundary[2][0] != 1 || domain->boundary[2][1] != 1)
-      error->all(FLERR,"Incorrect boundaries with slab PPPM");
+      error->all(FLERR,"Incorrect boundaries with slab ESP");
   }
 
   int i,j,k,n;
   double *prd;
 
   // volume-dependent factors
-  // adjust z dimension for 2d slab PPPM
-  // z dimension for 3d PPPM is zprd since slab_volfactor = 1.0
+  // adjust z dimension for 2d slab ESP
+  // z dimension for 3d ESP is zprd since slab_volfactor = 1.0
 
   if (triclinic == 0) prd = domain->prd;
   else prd = domain->prd_lamda;
@@ -499,7 +418,7 @@ void PPPM::setup()
 
   double sqk,vterm;
 
-  n = 0;
+    n = 0;
   for (k = nzlo_fft; k <= nzhi_fft; k++) {
     for (j = nylo_fft; j <= nyhi_fft; j++) {
       for (i = nxlo_fft; i <= nxhi_fft; i++) {
@@ -511,14 +430,26 @@ void PPPM::setup()
           vg[n][3] = 0.0;
           vg[n][4] = 0.0;
           vg[n][5] = 0.0;
+          vg2[n][0] = 0.0;
+          vg2[n][1] = 0.0;
+          vg2[n][2] = 0.0;
+          vg2[n][3] = 0.0;
+          vg2[n][4] = 0.0;
+          vg2[n][5] = 0.0;
         } else {
-          vterm = -2.0 * (1.0/sqk + 0.25/(g_ewald*g_ewald));
+          vterm = -2.0 / sqk;
           vg[n][0] = 1.0 + vterm*fkx[i]*fkx[i];
           vg[n][1] = 1.0 + vterm*fky[j]*fky[j];
           vg[n][2] = 1.0 + vterm*fkz[k]*fkz[k];
           vg[n][3] = vterm*fkx[i]*fky[j];
           vg[n][4] = vterm*fkx[i]*fkz[k];
           vg[n][5] = vterm*fky[j]*fkz[k];
+          vg2[n][0] = fkx[i]*fkx[i];
+          vg2[n][1] = fky[j]*fky[j];
+          vg2[n][2] = fkz[k]*fkz[k];
+          vg2[n][3] = fkx[i]*fky[j];
+          vg2[n][4] = fkx[i]*fkz[k];
+          vg2[n][5] = fky[j]*fkz[k];
         }
         n++;
       }
@@ -530,18 +461,18 @@ void PPPM::setup()
 }
 
 /* ----------------------------------------------------------------------
-   adjust PPPM coeffs, called initially and whenever volume has changed
+   adjust ESP coeffs, called initially and whenever volume has changed
    for a triclinic system
 ------------------------------------------------------------------------- */
 
-void PPPM::setup_triclinic()
+void ESP::setup_triclinic()
 {
   int i,j,k,n;
   double *prd;
 
   // volume-dependent factors
-  // adjust z dimension for 2d slab PPPM
-  // z dimension for 3d PPPM is zprd since slab_volfactor = 1.0
+  // adjust z dimension for 2d slab ESP
+  // z dimension for 3d ESP is zprd since slab_volfactor = 1.0
 
   prd = domain->prd;
 
@@ -596,14 +527,26 @@ void PPPM::setup_triclinic()
       vg[n][3] = 0.0;
       vg[n][4] = 0.0;
       vg[n][5] = 0.0;
+      vg2[n][0] = 0.0;
+      vg2[n][1] = 0.0;
+      vg2[n][2] = 0.0;
+      vg2[n][3] = 0.0;
+      vg2[n][4] = 0.0;
+      vg2[n][5] = 0.0;
     } else {
-      vterm = -2.0 * (1.0/sqk + 0.25/(g_ewald*g_ewald));
+      vterm = -2.0 / sqk;
       vg[n][0] = 1.0 + vterm*fkx[n]*fkx[n];
       vg[n][1] = 1.0 + vterm*fky[n]*fky[n];
       vg[n][2] = 1.0 + vterm*fkz[n]*fkz[n];
       vg[n][3] = vterm*fkx[n]*fky[n];
       vg[n][4] = vterm*fkx[n]*fkz[n];
       vg[n][5] = vterm*fky[n]*fkz[n];
+      vg2[n][0] = fkx[n]*fkx[n];
+      vg2[n][1] = fky[n]*fky[n];
+      vg2[n][2] = fkz[n]*fkz[n];
+      vg2[n][3] = fkx[n]*fky[n];
+      vg2[n][4] = fkx[n]*fkz[n];
+      vg2[n][5] = fky[n]*fkz[n];
     }
   }
 
@@ -615,13 +558,17 @@ void PPPM::setup_triclinic()
    called by fix balance b/c it changed sizes of processor sub-domains
 ------------------------------------------------------------------------- */
 
-void PPPM::reset_grid()
+void ESP::reset_grid()
 {
   // free all arrays previously allocated
 
   deallocate();
   if (peratom_allocate_flag) deallocate_peratom();
   if (group_allocate_flag) deallocate_groups();
+
+  // reset splitting/spreading c
+  prolc180(accuracy_relative, select_c);
+  prolc180(spreading_accuracy, spreading_select_c);
 
   // reset portion of global grid that each proc owns
 
@@ -633,15 +580,17 @@ void PPPM::reset_grid()
 
   allocate();
 
-  if (!overlap_allowed && !gc->ghost_adjacent())
-    error->all(FLERR,"PPPM grid stencil extends beyond nearest neighbor processor");
+  ////
+  build_table(accuracy_relative, spreading_accuracy);
 
-  // pre-compute Green's function denomiator expansion
+  if (!overlap_allowed && !gc->ghost_adjacent())
+    error->all(FLERR,"ESP grid stencil extends beyond nearest neighbor processor");
+
   // pre-compute 1d charge distribution coefficients
 
-  compute_gf_denom();
   if (differentiation_flag == 1) compute_sf_precoeff();
-  compute_rho_coeff();
+
+  ////compute_rho_coeff();
 
   // pre-compute volume-dependent coeffs for portion of grid I now own
 
@@ -649,10 +598,10 @@ void PPPM::reset_grid()
 }
 
 /* ----------------------------------------------------------------------
-   compute the PPPM long-range force, energy, virial
+   compute the ESP long-range force, energy, virial
 ------------------------------------------------------------------------- */
 
-void PPPM::compute(int eflag, int vflag)
+void ESP::compute(int eflag, int vflag)
 {
   int i,j;
 
@@ -687,7 +636,7 @@ void PPPM::compute(int eflag, int vflag)
   if (atom->nmax > nmax) {
     memory->destroy(part2grid);
     nmax = atom->nmax;
-    memory->create(part2grid,nmax,3,"pppm:part2grid");
+    memory->create(part2grid,nmax,3,"esp:part2grid");
   }
 
   // find grid points for all my particles
@@ -749,9 +698,16 @@ void PPPM::compute(int eflag, int vflag)
     MPI_Allreduce(&energy,&energy_all,1,MPI_DOUBLE,MPI_SUM,world);
     energy = energy_all;
 
+    double self_coeff = 0.00;
+
+    for(int i=1;i<num_of_energy_poly;i++)
+    {
+      self_coeff += 2 * (i+0.00) * energy_poly_coeff[i] * (i%2==1?1.0:-1.0);
+    }
+
     energy *= 0.5*volume;
-    energy -= g_ewald*qsqsum/MY_PIS +
-      MY_PI2*qsum*qsum / (g_ewald*g_ewald*volume);
+    //energy -= (-energy_poly_coeff[1]/cutoff) * qsqsum / 2.0;
+    energy -= (-self_coeff/cutoff) * qsqsum / 2.0;
     energy *= qscale;
   }
 
@@ -774,10 +730,15 @@ void PPPM::compute(int eflag, int vflag)
     if (tip4pflag) ntotal += atom->nghost;
 
     if (eflag_atom) {
+      double self_coeff = 0.00;
+      for(int i=1;i<num_of_energy_poly;i++)
+      {
+        self_coeff += 2 * (i+0.00) * energy_poly_coeff[i] * (i%2==1?1.0:-1.0);
+      }
       for (i = 0; i < nlocal; i++) {
         eatom[i] *= 0.5;
-        eatom[i] -= g_ewald*q[i]*q[i]/MY_PIS + MY_PI2*q[i]*qsum /
-          (g_ewald*g_ewald*volume);
+        //eatom[i] -= (-energy_poly_coeff[1]/cutoff) * q[i] * q[i] / 2.0;
+        eatom[i] -= (-self_coeff/cutoff) * q[i] * q[i] / 2.0;
         eatom[i] *= qscale;
       }
       for (i = nlocal; i < ntotal; i++) eatom[i] *= 0.5*qscale;
@@ -802,7 +763,7 @@ void PPPM::compute(int eflag, int vflag)
    allocate memory that depends on # of K-vectors and order
 ------------------------------------------------------------------------- */
 
-void PPPM::allocate()
+void ESP::allocate()
 {
   // create ghost grid object for rho and electric field communication
   // returns local owned and ghost grid bounds
@@ -822,8 +783,8 @@ void PPPM::allocate()
   if (differentiation_flag) npergrid = 1;
   else npergrid = 3;
 
-  memory->create(gc_buf1,npergrid*ngc_buf1,"pppm:gc_buf1");
-  memory->create(gc_buf2,npergrid*ngc_buf2,"pppm:gc_buf2");
+  memory->create(gc_buf1,npergrid*ngc_buf1,"esp:gc_buf1");
+  memory->create(gc_buf2,npergrid*ngc_buf2,"esp:gc_buf2");
 
   // tally local grid sizes
   // ngrid = count of owned+ghost grid cells on this proc
@@ -846,53 +807,51 @@ void PPPM::allocate()
   // allocate distributed grid data
 
   memory->create3d_offset(density_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:density_brick");
+                          nxlo_out,nxhi_out,"esp:density_brick");
 
-  memory->create(density_fft,nfft_both,"pppm:density_fft");
-  memory->create(greensfn,nfft_both,"pppm:greensfn");
-  memory->create(work1,2*nfft_both,"pppm:work1");
-  memory->create(work2,2*nfft_both,"pppm:work2");
-  memory->create(vg,nfft_both,6,"pppm:vg");
+  memory->create(density_fft,nfft_both,"esp:density_fft");
+  memory->create(greensfn,nfft_both,"esp:greensfn");
+  memory->create(greensfn2,nfft_both,"esp:greensfn2");
+  memory->create(work1,2*nfft_both,"esp:work1");
+  memory->create(work2,2*nfft_both,"esp:work2");
+  memory->create(vg,nfft_both,6,"esp:vg");
+  memory->create(vg2,nfft_both,6,"esp:vg2");
 
   if (triclinic == 0) {
-    memory->create1d_offset(fkx,nxlo_fft,nxhi_fft,"pppm:fkx");
-    memory->create1d_offset(fky,nylo_fft,nyhi_fft,"pppm:fky");
-    memory->create1d_offset(fkz,nzlo_fft,nzhi_fft,"pppm:fkz");
+    memory->create1d_offset(fkx,nxlo_fft,nxhi_fft,"esp:fkx");
+    memory->create1d_offset(fky,nylo_fft,nyhi_fft,"esp:fky");
+    memory->create1d_offset(fkz,nzlo_fft,nzhi_fft,"esp:fkz");
   } else {
-    memory->create(fkx,nfft_both,"pppm:fkx");
-    memory->create(fky,nfft_both,"pppm:fky");
-    memory->create(fkz,nfft_both,"pppm:fkz");
+    memory->create(fkx,nfft_both,"esp:fkx");
+    memory->create(fky,nfft_both,"esp:fky");
+    memory->create(fkz,nfft_both,"esp:fkz");
   }
 
   if (differentiation_flag == 1) {
     memory->create3d_offset(u_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:u_brick");
+                          nxlo_out,nxhi_out,"esp:u_brick");
 
-    memory->create(sf_precoeff1,nfft_both,"pppm:sf_precoeff1");
-    memory->create(sf_precoeff2,nfft_both,"pppm:sf_precoeff2");
-    memory->create(sf_precoeff3,nfft_both,"pppm:sf_precoeff3");
-    memory->create(sf_precoeff4,nfft_both,"pppm:sf_precoeff4");
-    memory->create(sf_precoeff5,nfft_both,"pppm:sf_precoeff5");
-    memory->create(sf_precoeff6,nfft_both,"pppm:sf_precoeff6");
+    memory->create(sf_precoeff1,nfft_both,"esp:sf_precoeff1");
+    memory->create(sf_precoeff2,nfft_both,"esp:sf_precoeff2");
+    memory->create(sf_precoeff3,nfft_both,"esp:sf_precoeff3");
+    memory->create(sf_precoeff4,nfft_both,"esp:sf_precoeff4");
+    memory->create(sf_precoeff5,nfft_both,"esp:sf_precoeff5");
+    memory->create(sf_precoeff6,nfft_both,"esp:sf_precoeff6");
 
   } else {
     memory->create3d_offset(vdx_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                            nxlo_out,nxhi_out,"pppm:vdx_brick");
+                            nxlo_out,nxhi_out,"esp:vdx_brick");
     memory->create3d_offset(vdy_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                            nxlo_out,nxhi_out,"pppm:vdy_brick");
+                            nxlo_out,nxhi_out,"esp:vdy_brick");
     memory->create3d_offset(vdz_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                            nxlo_out,nxhi_out,"pppm:vdz_brick");
+                            nxlo_out,nxhi_out,"esp:vdz_brick");
   }
 
   // summation coeffs
 
   order_allocated = order;
-  if (!stagger_flag) memory->create(gf_b,order,"pppm:gf_b");
-  memory->create2d_offset(rho1d,3,-order/2,order/2,"pppm:rho1d");
-  memory->create2d_offset(drho1d,3,-order/2,order/2,"pppm:drho1d");
-  memory->create2d_offset(rho_coeff,order,(1-order)/2,order/2,"pppm:rho_coeff");
-  memory->create2d_offset(drho_coeff,order,(1-order)/2,order/2,
-                          "pppm:drho_coeff");
+  memory->create2d_offset(rho1d,3,-order/2,order/2,"esp:rho1d");
+  memory->create2d_offset(drho1d,3,-order/2,order/2,"esp:drho1d");
 
   // create 2 FFTs and a Remap
   // 1st FFT keeps data in FFT decomposition
@@ -921,7 +880,7 @@ void PPPM::allocate()
    deallocate memory that depends on # of K-vectors and order
 ------------------------------------------------------------------------- */
 
-void PPPM::deallocate()
+void ESP::deallocate()
 {
   delete gc;
   memory->destroy(gc_buf1);
@@ -945,9 +904,11 @@ void PPPM::deallocate()
 
   memory->destroy(density_fft);
   memory->destroy(greensfn);
+  memory->destroy(greensfn2);
   memory->destroy(work1);
   memory->destroy(work2);
   memory->destroy(vg);
+  memory->destroy(vg2);
 
   if (triclinic == 0) {
     memory->destroy1d_offset(fkx,nxlo_fft);
@@ -959,12 +920,22 @@ void PPPM::deallocate()
     memory->destroy(fkz);
   }
 
-  memory->destroy(gf_b);
-  if (stagger_flag) gf_b = nullptr;
   memory->destroy2d_offset(rho1d,-order_allocated/2);
   memory->destroy2d_offset(drho1d,-order_allocated/2);
-  memory->destroy2d_offset(rho_coeff,(1-order_allocated)/2);
-  memory->destroy2d_offset(drho_coeff,(1-order_allocated)/2);
+  memory->destroy2d_offset(rho_coeff, 0, (1-order_allocated)/2);
+  memory->destroy2d_offset(drho_coeff, 0, (1-order_allocated)/2);
+
+  if(force_poly_coeff)
+    memory->destroy(force_poly_coeff);
+
+  if(energy_poly_coeff)
+    memory->destroy(energy_poly_coeff);
+
+  if(fourier_split_poly_coeff)
+    memory->destroy(fourier_split_poly_coeff);
+
+  if(fourier_spread_poly_coeff)
+    memory->destroy(fourier_spread_poly_coeff);
 
   delete fft1;
   delete fft2;
@@ -975,27 +946,27 @@ void PPPM::deallocate()
    allocate per-atom memory that depends on # of K-vectors and order
 ------------------------------------------------------------------------- */
 
-void PPPM::allocate_peratom()
+void ESP::allocate_peratom()
 {
   peratom_allocate_flag = 1;
 
   if (differentiation_flag != 1)
     memory->create3d_offset(u_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                            nxlo_out,nxhi_out,"pppm:u_brick");
+                            nxlo_out,nxhi_out,"esp:u_brick");
 
   memory->create3d_offset(v0_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v0_brick");
+                          nxlo_out,nxhi_out,"esp:v0_brick");
 
   memory->create3d_offset(v1_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v1_brick");
+                          nxlo_out,nxhi_out,"esp:v1_brick");
   memory->create3d_offset(v2_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v2_brick");
+                          nxlo_out,nxhi_out,"esp:v2_brick");
   memory->create3d_offset(v3_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v3_brick");
+                          nxlo_out,nxhi_out,"esp:v3_brick");
   memory->create3d_offset(v4_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v4_brick");
+                          nxlo_out,nxhi_out,"esp:v4_brick");
   memory->create3d_offset(v5_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:v5_brick");
+                          nxlo_out,nxhi_out,"esp:v5_brick");
 
   // use same GC ghost grid object for peratom grid communication
   // but need to reallocate a larger gc_buf1 and gc_buf2
@@ -1005,15 +976,15 @@ void PPPM::allocate_peratom()
 
   memory->destroy(gc_buf1);
   memory->destroy(gc_buf2);
-  memory->create(gc_buf1,npergrid*ngc_buf1,"pppm:gc_buf1");
-  memory->create(gc_buf2,npergrid*ngc_buf2,"pppm:gc_buf2");
+  memory->create(gc_buf1,npergrid*ngc_buf1,"esp:gc_buf1");
+  memory->create(gc_buf2,npergrid*ngc_buf2,"esp:gc_buf2");
 }
 
 /* ----------------------------------------------------------------------
    deallocate per-atom memory that depends on # of K-vectors and order
 ------------------------------------------------------------------------- */
 
-void PPPM::deallocate_peratom()
+void ESP::deallocate_peratom()
 {
   peratom_allocate_flag = 0;
 
@@ -1029,39 +1000,27 @@ void PPPM::deallocate_peratom()
 }
 
 /* ----------------------------------------------------------------------
-   set global size of PPPM grid = nx,ny,nz_pppm
+   set global size of ESP grid = nx,ny,nz_pppm
    used for charge accumulation, FFTs, and electric field interpolation
 ------------------------------------------------------------------------- */
 
-void PPPM::set_grid_global()
+void ESP::set_grid_global()
 {
   // use xprd,yprd,zprd (even if triclinic, and then scale later)
-  // adjust z dimension for 2d slab PPPM
-  // 3d PPPM just uses zprd since slab_volfactor = 1.0
+  // adjust z dimension for 2d slab ESP
+  // 3d ESP just uses zprd since slab_volfactor = 1.0
 
   double xprd = domain->xprd;
   double yprd = domain->yprd;
   double zprd = domain->zprd;
   double zprd_slab = zprd*slab_volfactor;
 
-  // make initial g_ewald estimate
   // based on desired accuracy and real space cutoff
   // fluid-occupied volume used to estimate real-space error
   // zprd used rather than zprd_slab
 
   double h;
   bigint natoms = atom->natoms;
-  if (natoms == 0) natoms = 1;
-
-  if (!gewaldflag && !g_ewald_ready) {
-    if (accuracy <= 0.0)
-      error->all(FLERR,"KSpace accuracy must be > 0");
-    if (q2 == 0.0)
-      error->all(FLERR,"Must use 'kspace_modify gewald' for uncharged system");
-    g_ewald = accuracy*sqrt(natoms*cutoff*xprd*yprd*zprd) / (2.0*q2);
-    if (g_ewald >= 1.0) g_ewald = (1.35 - 0.15*log(accuracy))/cutoff;
-    else g_ewald = sqrt(-log(g_ewald)) / cutoff;
-  }
 
   // set optimal nx_pppm,ny_pppm,nz_pppm based on order and accuracy
   // nz_pppm uses extended zprd_slab instead of zprd
@@ -1069,66 +1028,25 @@ void PPPM::set_grid_global()
 
   if (!gridflag) {
 
-    if (differentiation_flag == 1 || stagger_flag) {
+    if (differentiation_flag == 1) {
 
-      h = h_x = h_y = h_z = 4.0/g_ewald;
-      int count = 0;
-      while (true) {
+      h = h_x = h_y = h_z = MY_PI * cutoff / select_c; // set initial h
 
-        // set grid dimensions
+      nx_pppm = static_cast<int> (ceil(xprd/h_x));
+      ny_pppm = static_cast<int> (ceil(yprd/h_y));
+      nz_pppm = static_cast<int> (ceil(zprd_slab/h_z));
 
-        nx_pppm = static_cast<int> (xprd/h_x);
-        ny_pppm = static_cast<int> (yprd/h_y);
-        nz_pppm = static_cast<int> (zprd_slab/h_z);
-
-        if (nx_pppm <= 1) nx_pppm = 2;
-        if (ny_pppm <= 1) ny_pppm = 2;
-        if (nz_pppm <= 1) nz_pppm = 2;
-
-        // estimate Kspace force error
-
-        double df_kspace = compute_df_kspace();
-
-        // break loop if the accuracy has been reached or
-        // too many loops have been performed
-
-        count++;
-        if (df_kspace <= accuracy) break;
-
-        if (count > 500) error->all(FLERR, "Could not compute grid size");
-        h *= 0.95;
-        h_x = h_y = h_z = h;
-      }
+      if (nx_pppm <= 1) nx_pppm = 2;
+      if (ny_pppm <= 1) ny_pppm = 2;
+      if (nz_pppm <= 1) nz_pppm = 2;
 
     } else {
 
-      double err;
-      h_x = h_y = h_z = 1.0/g_ewald;
+      h = h_x = h_y = h_z = MY_PI * cutoff / select_c;
 
       nx_pppm = static_cast<int> (xprd/h_x) + 1;
       ny_pppm = static_cast<int> (yprd/h_y) + 1;
       nz_pppm = static_cast<int> (zprd_slab/h_z) + 1;
-
-      err = estimate_ik_error(h_x,xprd,natoms);
-      while (err > accuracy) {
-        err = estimate_ik_error(h_x,xprd,natoms);
-        nx_pppm++;
-        h_x = xprd/nx_pppm;
-      }
-
-      err = estimate_ik_error(h_y,yprd,natoms);
-      while (err > accuracy) {
-        err = estimate_ik_error(h_y,yprd,natoms);
-        ny_pppm++;
-        h_y = yprd/ny_pppm;
-      }
-
-      err = estimate_ik_error(h_z,zprd_slab,natoms);
-      while (err > accuracy) {
-        err = estimate_ik_error(h_z,zprd_slab,natoms);
-        nz_pppm++;
-        h_z = zprd_slab/nz_pppm;
-      }
     }
 
     // scale grid for triclinic skew
@@ -1167,7 +1085,7 @@ void PPPM::set_grid_global()
   }
 
   if (nx_pppm >= OFFSET || ny_pppm >= OFFSET || nz_pppm >= OFFSET)
-    error->all(FLERR,"PPPM grid is too large");
+    error->all(FLERR,"ESP grid is too large");
 }
 
 /* ----------------------------------------------------------------------
@@ -1175,7 +1093,7 @@ void PPPM::set_grid_global()
    return 1 if yes, 0 if no
 ------------------------------------------------------------------------- */
 
-int PPPM::factorable(int n)
+int ESP::factorable(int n)
 {
   int i;
 
@@ -1193,222 +1111,13 @@ int PPPM::factorable(int n)
 }
 
 /* ----------------------------------------------------------------------
-   compute estimated kspace force error
-------------------------------------------------------------------------- */
-
-double PPPM::compute_df_kspace()
-{
-  double xprd = domain->xprd;
-  double yprd = domain->yprd;
-  double zprd = domain->zprd;
-  double zprd_slab = zprd*slab_volfactor;
-  bigint natoms = atom->natoms;
-  double df_kspace = 0.0;
-  if (differentiation_flag == 1 || stagger_flag) {
-    double qopt = compute_qopt();
-    df_kspace = sqrt(qopt/natoms)*q2/(xprd*yprd*zprd_slab);
-  } else {
-    double lprx = estimate_ik_error(h_x,xprd,natoms);
-    double lpry = estimate_ik_error(h_y,yprd,natoms);
-    double lprz = estimate_ik_error(h_z,zprd_slab,natoms);
-    df_kspace = sqrt(lprx*lprx + lpry*lpry + lprz*lprz) / sqrt(3.0);
-  }
-  return df_kspace;
-}
-
-/* ----------------------------------------------------------------------
-   compute qopt
-------------------------------------------------------------------------- */
-
-double PPPM::compute_qopt()
-{
-  int k,l,m,nx,ny,nz;
-  double argx,argy,argz,wx,wy,wz,sx,sy,sz,qx,qy,qz;
-  double u1,u2,sqk;
-  double sum1,sum2,sum3,sum4,dot2;
-
-  double *prd = domain->prd;
-
-  const double xprd = prd[0];
-  const double yprd = prd[1];
-  const double zprd = prd[2];
-  const double zprd_slab = zprd*slab_volfactor;
-  volume = xprd * yprd * zprd_slab;
-
-  const double unitkx = (MY_2PI/xprd);
-  const double unitky = (MY_2PI/yprd);
-  const double unitkz = (MY_2PI/zprd_slab);
-
-  const int twoorder = 2*order;
-
-  // loop over entire FFT grid
-  // each proc calculates contributions from every Pth grid point
-
-  bigint ngridtotal = (bigint) nx_pppm * ny_pppm * nz_pppm;
-  bigint nxy_pppm = (bigint) nx_pppm * ny_pppm;
-
-  double qopt = 0.0;
-
-  for (bigint i = me; i < ngridtotal; i += nprocs) {
-    k = i % nx_pppm;
-    l = (i/nx_pppm) % ny_pppm;
-    m = i / nxy_pppm;
-
-    const int kper = k - nx_pppm*(2*k/nx_pppm);
-    const int lper = l - ny_pppm*(2*l/ny_pppm);
-    const int mper = m - nz_pppm*(2*m/nz_pppm);
-
-    sqk = square(unitkx*kper) + square(unitky*lper) + square(unitkz*mper);
-    if (sqk == 0.0) continue;
-
-    sum1 = sum2 = sum3 = sum4 = 0.0;
-
-    for (nx = -2; nx <= 2; nx++) {
-      qx = unitkx*(kper+nx_pppm*nx);
-      sx = exp(-0.25*square(qx/g_ewald));
-      argx = 0.5*qx*xprd/nx_pppm;
-      wx = powsinxx(argx,twoorder);
-      qx *= qx;
-
-      for (ny = -2; ny <= 2; ny++) {
-        qy = unitky*(lper+ny_pppm*ny);
-        sy = exp(-0.25*square(qy/g_ewald));
-        argy = 0.5*qy*yprd/ny_pppm;
-        wy = powsinxx(argy,twoorder);
-        qy *= qy;
-
-        for (nz = -2; nz <= 2; nz++) {
-          qz = unitkz*(mper+nz_pppm*nz);
-          sz = exp(-0.25*square(qz/g_ewald));
-          argz = 0.5*qz*zprd_slab/nz_pppm;
-          wz = powsinxx(argz,twoorder);
-          qz *= qz;
-
-          dot2 = qx+qy+qz;
-          u1   = sx*sy*sz;
-          u2   = wx*wy*wz;
-
-          sum1 += u1*u1/dot2*MY_4PI*MY_4PI;
-          sum2 += u1 * u2 * MY_4PI;
-          sum3 += u2;
-          sum4 += dot2*u2;
-        }
-      }
-    }
-
-    sum2 *= sum2;
-    qopt += sum1 - sum2/(sum3*sum4);
-  }
-
-  // sum qopt over all procs
-
-  double qopt_all;
-  MPI_Allreduce(&qopt,&qopt_all,1,MPI_DOUBLE,MPI_SUM,world);
-  return qopt_all;
-}
-
-/* ----------------------------------------------------------------------
-   estimate kspace force error for ik method
-------------------------------------------------------------------------- */
-
-double PPPM::estimate_ik_error(double h, double prd, bigint natoms)
-{
-  double sum = 0.0;
-  if (natoms == 0) return 0.0;
-  for (int m = 0; m < order; m++)
-    sum += acons[order][m] * pow(h*g_ewald,2.0*m);
-  double value = q2 * pow(h*g_ewald,(double)order) *
-    sqrt(g_ewald*prd*sqrt(MY_2PI)*sum/natoms) / (prd*prd);
-
-  return value;
-}
-
-/* ----------------------------------------------------------------------
-   adjust the g_ewald parameter to near its optimal value
-   using a Newton-Raphson solver
-------------------------------------------------------------------------- */
-
-void PPPM::adjust_gewald()
-{
-  double dx;
-
-  for (int i = 0; i < LARGE; i++) {
-    dx = newton_raphson_f() / derivf();
-    g_ewald -= dx;
-    if (fabs(newton_raphson_f()) < SMALL) return;
-  }
-  error->all(FLERR, "Could not compute g_ewald");
-}
-
-/* ----------------------------------------------------------------------
-   calculate f(x) using Newton-Raphson solver
-------------------------------------------------------------------------- */
-
-double PPPM::newton_raphson_f()
-{
-  double xprd = domain->xprd;
-  double yprd = domain->yprd;
-  double zprd = domain->zprd;
-  bigint natoms = atom->natoms;
-
-  double df_rspace = 2.0*q2*exp(-g_ewald*g_ewald*cutoff*cutoff) /
-       sqrt(natoms*cutoff*xprd*yprd*zprd);
-
-  double df_kspace = compute_df_kspace();
-
-  return df_rspace - df_kspace;
-}
-
-/* ----------------------------------------------------------------------
-   calculate numerical derivative f'(x) using forward difference
-   [f(x + h) - f(x)] / h
-------------------------------------------------------------------------- */
-
-double PPPM::derivf()
-{
-  double h = 0.000001;  //Derivative step-size
-  double df,f1,f2,g_ewald_old;
-
-  f1 = newton_raphson_f();
-  g_ewald_old = g_ewald;
-  g_ewald += h;
-  f2 = newton_raphson_f();
-  g_ewald = g_ewald_old;
-  df = (f2 - f1)/h;
-
-  return df;
-}
-
-/* ----------------------------------------------------------------------
-   calculate the final estimate of the accuracy
-------------------------------------------------------------------------- */
-
-double PPPM::final_accuracy()
-{
-  double xprd = domain->xprd;
-  double yprd = domain->yprd;
-  double zprd = domain->zprd;
-  bigint natoms = atom->natoms;
-  if (natoms == 0) natoms = 1; // avoid division by zero
-
-  double df_kspace = compute_df_kspace();
-  double q2_over_sqrt = q2 / sqrt(natoms*cutoff*xprd*yprd*zprd);
-  double df_rspace = 2.0 * q2_over_sqrt * exp(-g_ewald*g_ewald*cutoff*cutoff);
-  double df_table = estimate_table_accuracy(q2_over_sqrt,df_rspace);
-  double estimated_accuracy = sqrt(df_kspace*df_kspace + df_rspace*df_rspace +
-                                   df_table*df_table);
-
-  return estimated_accuracy;
-}
-
-/* ----------------------------------------------------------------------
    set params which determine which owned and ghost cells this proc owns
    Grid3d uses these params to partition grid
    also partition FFT grid
      n xyz lo/hi fft = FFT columns that I own (all of x dim, 2d decomp in yz)
 ------------------------------------------------------------------------- */
 
-void PPPM::set_grid_local()
+void ESP::set_grid_local()
 {
   // shift values for particle <-> grid mapping depend on stencil order
   // add/subtract OFFSET to avoid int(-0.75) = 0 when want it to be -1
@@ -1428,20 +1137,14 @@ void PPPM::set_grid_local()
   // shiftatom lo/hi are passed to Grid3d to determine ghost cell extents
   // shiftatom_lo = min shift on lo side
   // shiftatom_hi = max shift on hi side
-  // for PPPMStagger, stagger value (0.0 or 0.5) also affects this
 
-  if ((order % 2) && !stagger_flag) {
+  if (order % 2) {
     shiftatom_lo = 0.5;
     shiftatom_hi = 0.5;
-  } else if ((order % 2) && stagger_flag) {
-    shiftatom_lo = 0.5;
-    shiftatom_hi = 0.5 + 0.5;
-  } else if ((order % 2 == 0) && !stagger_flag) {
+  }
+  else if (order % 2 == 0) {
     shiftatom_lo = 0.0;
     shiftatom_hi = 0.0;
-  } else if ((order % 2 == 0) && stagger_flag) {
-    shiftatom_lo = 0.0;
-    shiftatom_hi = 0.0 + 0.5;
   }
 
   // x-pencil decomposition of FFT mesh
@@ -1450,12 +1153,14 @@ void PPPM::set_grid_local()
   // npey_fft,npez_fft = # of procs in y,z dims
   // if nprocs is small enough, proc can own 1 or more entire xy planes,
   //   else proc owns 2d sub-blocks of yz plane
+  //   NOTE: commented out lines support this
+  //     need to ensure fft3d.cpp and remap.cpp support 2D planes
   // me_y,me_z = which proc (0-npe_fft-1) I am in y,z dimensions
   // nlo_fft,nhi_fft = lower/upper limit of the section
   //   of the global FFT mesh that I own in x-pencil decomposition
 
-  int npey_fft = 1, npez_fft = nprocs;
-  procs2grid2d(nprocs, ny_pppm, nz_pppm, npey_fft, npez_fft);
+  int npey_fft,npez_fft;
+  procs2grid2d(nprocs,ny_pppm,nz_pppm,&npey_fft,&npez_fft);
 
   int me_y = me % npey_fft;
   int me_z = me / npey_fft;
@@ -1469,33 +1174,10 @@ void PPPM::set_grid_local()
 }
 
 /* ----------------------------------------------------------------------
-   pre-compute Green's function denominator expansion coeffs, Gamma(2n)
-------------------------------------------------------------------------- */
-
-void PPPM::compute_gf_denom()
-{
-  int k,l,m;
-
-  for (l = 1; l < order; l++) gf_b[l] = 0.0;
-  gf_b[0] = 1.0;
-
-  for (m = 1; m < order; m++) {
-    for (l = m; l > 0; l--)
-      gf_b[l] = 4.0 * (gf_b[l]*(l-m)*(l-m-0.5)-gf_b[l-1]*(l-m-1)*(l-m-1));
-    gf_b[0] = 4.0 * (gf_b[0]*(l-m)*(l-m-0.5));
-  }
-
-  bigint ifact = 1;
-  for (k = 1; k < 2*order; k++) ifact *= k;
-  double gaminv = 1.0/ifact;
-  for (l = 0; l < order; l++) gf_b[l] *= gaminv;
-}
-
-/* ----------------------------------------------------------------------
    pre-compute modified (Hockney-Eastwood) Coulomb Green's function
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_gf_ik()
+void ESP::compute_gf_ik()
 {
   const double * const prd = domain->prd;
 
@@ -1508,66 +1190,119 @@ void PPPM::compute_gf_ik()
   const double unitkz = (MY_2PI/zprd_slab);
 
   double snx,sny,snz;
-  double argx,argy,argz,wx,wy,wz,sx,sy,sz,qx,qy,qz;
+  double argx,argy,argz,wx,wy,wz,qx,qy,qz;
   double sum1,dot1,dot2;
   double numerator,denominator;
   double sqk;
 
   int k,l,m,n,nx,ny,nz,kper,lper,mper;
 
-  const int nbx = static_cast<int> ((g_ewald*xprd/(MY_PI*nx_pppm)) *
-                                    pow(-log(EPS_HOC),0.25));
-  const int nby = static_cast<int> ((g_ewald*yprd/(MY_PI*ny_pppm)) *
-                                    pow(-log(EPS_HOC),0.25));
-  const int nbz = static_cast<int> ((g_ewald*zprd_slab/(MY_PI*nz_pppm)) *
-                                    pow(-log(EPS_HOC),0.25));
+  const int nbx = static_cast<int> (select_c * xprd / (MY_2PI * cutoff * nx_pppm)) * pow(-log(EPS_HOC),0.25);
+  const int nby = static_cast<int> (select_c * yprd / (MY_2PI * cutoff * ny_pppm)) * pow(-log(EPS_HOC),0.25);
+  const int nbz = static_cast<int> (select_c * zprd / (MY_2PI * cutoff * nz_pppm)) * pow(-log(EPS_HOC),0.25);
+
   const int twoorder = 2*order;
 
   n = 0;
   for (m = nzlo_fft; m <= nzhi_fft; m++) {
     mper = m - nz_pppm*(2*m/nz_pppm);
-    snz = square(sin(0.5*unitkz*mper*zprd_slab/nz_pppm));
+    snz = unitkz*mper;
 
     for (l = nylo_fft; l <= nyhi_fft; l++) {
       lper = l - ny_pppm*(2*l/ny_pppm);
-      sny = square(sin(0.5*unitky*lper*yprd/ny_pppm));
+      sny = unitky*lper;
 
       for (k = nxlo_fft; k <= nxhi_fft; k++) {
         kper = k - nx_pppm*(2*k/nx_pppm);
-        snx = square(sin(0.5*unitkx*kper*xprd/nx_pppm));
+        snx = unitkx*kper;
 
         sqk = square(unitkx*kper) + square(unitky*lper) + square(unitkz*mper);
 
         if (sqk != 0.0) {
-          numerator = 12.5663706/sqk;
-          denominator = gf_denom(snx,sny,snz);
+          numerator = 1.0/sqk;
+          denominator = gf_denom_psw(snx,sny,snz,xprd/nx_pppm,yprd/ny_pppm,zprd_slab/nz_pppm);
+
           sum1 = 0.0;
 
           for (nx = -nbx; nx <= nbx; nx++) {
             qx = unitkx*(kper+nx_pppm*nx);
-            sx = exp(-0.25*square(qx/g_ewald));
-            argx = 0.5*qx*xprd/nx_pppm;
-            wx = powsinxx(argx,twoorder);
+
+            double ph_2_kx_c = order * (xprd/nx_pppm) / 2.0 * fabs(qx) / spreading_select_c;
+            wx = 0.00;
+            if(ph_2_kx_c <= 1.00){
+                ph_2_kx_c = 2.0 * ph_2_kx_c - 1.0;
+                double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+                double Fourier_spreading_r = 1.0;
+                for(int i=1; i<fourier_spreading_order; i++){
+                    Fourier_spreading_r *= ph_2_kx_c;
+                    Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+                }
+                wx = order / 2.0 * Fourier_spreading_appx;
+                wx = wx * wx;
+            }
 
             for (ny = -nby; ny <= nby; ny++) {
               qy = unitky*(lper+ny_pppm*ny);
-              sy = exp(-0.25*square(qy/g_ewald));
-              argy = 0.5*qy*yprd/ny_pppm;
-              wy = powsinxx(argy,twoorder);
+
+              double ph_2_ky_c = order * (yprd/ny_pppm) / 2.0 * fabs(qy) / spreading_select_c;
+              wy = 0.00;
+              if(ph_2_ky_c <= 1.00){
+                ph_2_ky_c = 2.0 * ph_2_ky_c - 1.0;
+                double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+                double Fourier_spreading_r = 1.0;
+                for(int i=1; i<fourier_spreading_order; i++){
+                    Fourier_spreading_r *= ph_2_ky_c;
+                    Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+                }
+                wy = order / 2.0 * Fourier_spreading_appx;
+                wy = wy * wy;
+              }
 
               for (nz = -nbz; nz <= nbz; nz++) {
                 qz = unitkz*(mper+nz_pppm*nz);
-                sz = exp(-0.25*square(qz/g_ewald));
-                argz = 0.5*qz*zprd_slab/nz_pppm;
-                wz = powsinxx(argz,twoorder);
+
+                double ph_2_kz_c = order * (zprd/nz_pppm) / 2.0 * fabs(qz) / spreading_select_c;
+                wz = 0.00;
+                if(ph_2_kz_c <= 1.00){
+                  ph_2_kz_c = 2.0 * ph_2_kz_c - 1.0;
+                  double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+                  double Fourier_spreading_r = 1.0;
+                  for(int i=1; i<fourier_spreading_order; i++){
+                    Fourier_spreading_r *= ph_2_kz_c;
+                    Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+                  }
+                  wz = order / 2.0 * Fourier_spreading_appx;
+                  wz = wz * wz;
+                }
 
                 dot1 = unitkx*kper*qx + unitky*lper*qy + unitkz*mper*qz;
-                dot2 = qx*qx+qy*qy+qz*qz;
-                sum1 += (dot1/dot2) * sx*sy*sz * wx*wy*wz;
+                double k_rc_c = sqrt(qx*qx+qy*qy+qz*qz) * cutoff / select_c;
+                dot2 = 0.00;
+                if(k_rc_c <= 1.00){
+                  k_rc_c = 2.0 * k_rc_c - 1.0;
+                  double Fourier_poly_appx = fourier_split_poly_coeff[0];
+                  double Fourier_poly_r = 1.0;
+                  for(int i=1; i<num_of_Fourier_poly; i++){
+                    Fourier_poly_r *= k_rc_c;
+                    Fourier_poly_appx += fourier_split_poly_coeff[i] * Fourier_poly_r;
+                  }
+                  dot2 = 2 * 3.14159265 * Fourier_poly_appx / (qx*qx+qy*qy+qz*qz);
+                }
+                else
+                  dot2 = 0.0;
+
+                sum1 += dot1 * dot2 * wx * wy * wz;
               }
             }
           }
-          greensfn[n++] = numerator*sum1/denominator;
+
+          if(denominator==0.00){
+             greensfn[n++] = 0.00;
+          }
+          else{
+             greensfn[n++] = numerator*sum1/denominator;
+          }
+
         } else greensfn[n++] = 0.0;
       }
     }
@@ -1579,7 +1314,7 @@ void PPPM::compute_gf_ik()
    for a triclinic system
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_gf_ik_triclinic()
+void ESP::compute_gf_ik_triclinic()
 {
   double snx,sny,snz;
   double argx,argy,argz,wx,wy,wz,sx,sy,sz,qx,qy,qz;
@@ -1589,11 +1324,18 @@ void PPPM::compute_gf_ik_triclinic()
 
   int k,l,m,n,nx,ny,nz,kper,lper,mper;
 
+  const double * const prd = domain->prd;
+  const double xprd = prd[0];
+  const double yprd = prd[1];
+  const double zprd = prd[2];
+  const double zprd_slab = zprd * slab_volfactor;
+
   double tmp[3];
-  tmp[0] = (g_ewald/(MY_PI*nx_pppm)) * pow(-log(EPS_HOC),0.25);
-  tmp[1] = (g_ewald/(MY_PI*ny_pppm)) * pow(-log(EPS_HOC),0.25);
-  tmp[2] = (g_ewald/(MY_PI*nz_pppm)) * pow(-log(EPS_HOC),0.25);
-  lamda2xT(&tmp[0],&tmp[0]);
+  tmp[0] = static_cast<int> (select_c / (MY_2PI * cutoff * nx_pppm)) * pow(-log(EPS_HOC),0.25);
+  tmp[1] = static_cast<int> (select_c / (MY_2PI * cutoff * ny_pppm)) * pow(-log(EPS_HOC),0.25);
+  tmp[2] = static_cast<int> (select_c / (MY_2PI * cutoff * nz_pppm)) * pow(-log(EPS_HOC),0.25);
+
+  lamda2xT(&tmp[0], &tmp[0]);
   const int nbx = static_cast<int> (tmp[0]);
   const int nby = static_cast<int> (tmp[1]);
   const int nbz = static_cast<int> (tmp[2]);
@@ -1603,15 +1345,12 @@ void PPPM::compute_gf_ik_triclinic()
   n = 0;
   for (m = nzlo_fft; m <= nzhi_fft; m++) {
     mper = m - nz_pppm*(2*m/nz_pppm);
-    snz = square(sin(MY_PI*mper/nz_pppm));
 
     for (l = nylo_fft; l <= nyhi_fft; l++) {
       lper = l - ny_pppm*(2*l/ny_pppm);
-      sny = square(sin(MY_PI*lper/ny_pppm));
 
       for (k = nxlo_fft; k <= nxhi_fft; k++) {
         kper = k - nx_pppm*(2*k/nx_pppm);
-        snx = square(sin(MY_PI*kper/nx_pppm));
 
         double unitk_lamda[3];
         unitk_lamda[0] = 2.0*MY_PI*kper;
@@ -1622,21 +1361,61 @@ void PPPM::compute_gf_ik_triclinic()
         sqk = square(unitk_lamda[0]) + square(unitk_lamda[1]) + square(unitk_lamda[2]);
 
         if (sqk != 0.0) {
-          numerator = 12.5663706/sqk;
-          denominator = gf_denom(snx,sny,snz);
+          numerator = 1.0 / sqk;
+          denominator = gf_denom_psw(unitk_lamda[0], unitk_lamda[1], unitk_lamda[2],
+                                     xprd / nx_pppm, yprd / ny_pppm, zprd_slab / nz_pppm);
           sum1 = 0.0;
 
           for (nx = -nbx; nx <= nbx; nx++) {
-            argx = MY_PI*kper/nx_pppm + MY_PI*nx;
-            wx = powsinxx(argx,twoorder);
+            //qx = unitk_lamda[0] + 2.0 * MY_PI * nx_pppm * nx;
+
+            double ph_2_kx_c = order * MY_PI * fabs(kper/nx_pppm + nx) / spreading_select_c;
+            wx = 0.00;
+            if (ph_2_kx_c <= 1.00) {
+              ph_2_kx_c = 2.0 * ph_2_kx_c - 1.0;
+              double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+              double Fourier_spreading_r = 1.0;
+              for (int i = 1; i < fourier_spreading_order; i++) {
+                Fourier_spreading_r *= ph_2_kx_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+              }
+              wx = order / 2.0 * Fourier_spreading_appx;
+              wx = wx * wx;
+            }
 
             for (ny = -nby; ny <= nby; ny++) {
-              argy = MY_PI*lper/ny_pppm + MY_PI*ny;
-              wy = powsinxx(argy,twoorder);
+              //qy = unitk_lamda[1] + 2.0 * MY_PI * ny_pppm * ny;
+
+              double ph_2_ky_c = order * MY_PI * fabs(lper/ny_pppm + ny) / spreading_select_c;
+              wy = 0.00;
+              if (ph_2_ky_c <= 1.00) {
+                ph_2_ky_c = 2.0 * ph_2_ky_c - 1.0;
+                double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+                double Fourier_spreading_r = 1.0;
+                for (int i = 1; i < fourier_spreading_order; i++) {
+                  Fourier_spreading_r *= ph_2_ky_c;
+                  Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+                }
+                wy = order / 2.0 * Fourier_spreading_appx;
+                wy = wy * wy;
+              }
 
               for (nz = -nbz; nz <= nbz; nz++) {
-                argz = MY_PI*mper/nz_pppm + MY_PI*nz;
-                wz = powsinxx(argz,twoorder);
+                //qz = unitk_lamda[2] + 2.0 * MY_PI * nz_pppm * nz;
+
+                double ph_2_kz_c = order * MY_PI * fabs(mper/nz_pppm + nz) / spreading_select_c;
+                wz = 0.00;
+                if (ph_2_kz_c <= 1.00) {
+                  ph_2_kz_c = 2.0 * ph_2_kz_c - 1.0;
+                  double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+                  double Fourier_spreading_r = 1.0;
+                  for (int i = 1; i < fourier_spreading_order; i++) {
+                    Fourier_spreading_r *= ph_2_kz_c;
+                    Fourier_spreading_appx += fourier_spread_poly_coeff[i] * Fourier_spreading_r;
+                  }
+                  wz = order / 2.0 * Fourier_spreading_appx;
+                  wz = wz * wz;
+                }
 
                 double b[3];
                 b[0] = 2.0*MY_PI*nx_pppm*nx;
@@ -1645,21 +1424,36 @@ void PPPM::compute_gf_ik_triclinic()
                 x2lamdaT(&b[0],&b[0]);
 
                 qx = unitk_lamda[0]+b[0];
-                sx = exp(-0.25*square(qx/g_ewald));
-
                 qy = unitk_lamda[1]+b[1];
-                sy = exp(-0.25*square(qy/g_ewald));
-
                 qz = unitk_lamda[2]+b[2];
-                sz = exp(-0.25*square(qz/g_ewald));
 
                 dot1 = unitk_lamda[0]*qx + unitk_lamda[1]*qy + unitk_lamda[2]*qz;
-                dot2 = qx*qx+qy*qy+qz*qz;
-                sum1 += (dot1/dot2) * sx*sy*sz * wx*wy*wz;
+                double k_rc_c = sqrt(qx * qx + qy * qy + qz * qz) * cutoff / select_c;
+                dot2 = 0.00;
+                if (k_rc_c <= 1.00) {
+                  k_rc_c = 2.0 * k_rc_c - 1.0;
+                  double Fourier_poly_appx = fourier_split_poly_coeff[0];
+                  double Fourier_poly_r = 1.0;
+                  for (int i = 1; i < num_of_Fourier_poly; i++) {
+                    Fourier_poly_r *= k_rc_c;
+                    Fourier_poly_appx += fourier_split_poly_coeff[i] * Fourier_poly_r;
+                  }
+                  dot2 = 2 * MY_PI * Fourier_poly_appx / (qx * qx + qy * qy + qz * qz);
+                } else
+                  dot2 = 0.0;
+
+                sum1 += dot1 * dot2 * wx * wy * wz;
               }
             }
           }
-          greensfn[n++] = numerator*sum1/denominator;
+
+          if(denominator==0.00){
+             greensfn[n++] = 0.00;
+          }
+          else{
+             greensfn[n++] = numerator*sum1/denominator;
+          }
+
         } else greensfn[n++] = 0.0;
       }
     }
@@ -1670,105 +1464,178 @@ void PPPM::compute_gf_ik_triclinic()
    compute optimized Green's function for energy calculation
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_gf_ad()
+void ESP::compute_gf_ad()
 {
   const double * const prd = domain->prd;
 
   const double xprd = prd[0];
   const double yprd = prd[1];
   const double zprd = prd[2];
-  const double zprd_slab = zprd*slab_volfactor;
-  const double unitkx = (MY_2PI/xprd);
-  const double unitky = (MY_2PI/yprd);
-  const double unitkz = (MY_2PI/zprd_slab);
 
-  double snx,sny,snz,sqk;
-  double argx,argy,argz,wx,wy,wz,sx,sy,sz,qx,qy,qz;
-  double numerator,denominator;
-  int k,l,m,n,kper,lper,mper;
+  const double zprd_slab = zprd * slab_volfactor;
 
-  const int twoorder = 2*order;
+  const double unitkx = (MY_2PI / xprd);
+  const double unitky = (MY_2PI / yprd);
+  const double unitkz = (MY_2PI / zprd_slab);
+
+  const double hx = xprd / (double)nx_pppm;
+  const double hy = yprd / (double)ny_pppm;
+  const double hz_slab = zprd_slab / (double)nz_pppm;
+
+  const double sqk_cut2 = (select_c / cutoff) * (select_c / cutoff);
+
+  const double scale_x = (order * MY_PI) / ((double)nx_pppm * spreading_select_c);
+  const double scale_y = (order * MY_PI) / ((double)ny_pppm * spreading_select_c);
+  const double scale_z = (order * MY_PI) / ((double)nz_pppm * spreading_select_c * slab_volfactor);
 
   for (int i = 0; i < 6; i++) sf_coeff[i] = 0.0;
 
-  n = 0;
-  for (m = nzlo_fft; m <= nzhi_fft; m++) {
-    mper = m - nz_pppm*(2*m/nz_pppm);
-    qz = unitkz*mper;
-    snz = square(sin(0.5*qz*zprd_slab/nz_pppm));
-    sz = exp(-0.25*square(qz/g_ewald));
-    argz = 0.5*qz*zprd_slab/nz_pppm;
-    wz = powsinxx(argz,twoorder);
+  const int nx = nxhi_fft - nxlo_fft + 1;
+  const int ny = nyhi_fft - nylo_fft + 1;
+  const int nz = nzhi_fft - nzlo_fft + 1;
 
-    for (l = nylo_fft; l <= nyhi_fft; l++) {
-      lper = l - ny_pppm*(2*l/ny_pppm);
-      qy = unitky*lper;
-      sny = square(sin(0.5*qy*yprd/ny_pppm));
-      sy = exp(-0.25*square(qy/g_ewald));
-      argy = 0.5*qy*yprd/ny_pppm;
-      wy = powsinxx(argy,twoorder);
+  // --- precompute per-dimension tables
+  std::vector<int>    kper(nx), lper(ny), mper(nz);
+  std::vector<double> qx(nx), qy(ny), qz(nz);
+  std::vector<double> qx2(nx), qy2(ny), qz2(nz);
 
-      for (k = nxlo_fft; k <= nxhi_fft; k++) {
-        kper = k - nx_pppm*(2*k/nx_pppm);
-        qx = unitkx*kper;
-        snx = square(sin(0.5*qx*xprd/nx_pppm));
-        sx = exp(-0.25*square(qx/g_ewald));
-        argx = 0.5*qx*xprd/nx_pppm;
-        wx = powsinxx(argx,twoorder);
+  std::vector<double> wx_denom(nx), wy_denom(ny), wz_denom(nz);
 
-        sqk = qx*qx + qy*qy + qz*qz;
+  // k dimension
+  for (int ii = 0; ii < nx; ++ii) {
+    const int k = nxlo_fft + ii;
+    const int kp = k - nx_pppm * (2 * k / nx_pppm);
+    kper[ii] = kp;
 
-        if (sqk != 0.0) {
-          numerator = MY_4PI/sqk;
-          denominator = gf_denom(snx,sny,snz);
-          greensfn[n] = numerator*sx*sy*sz*wx*wy*wz/denominator;
-          sf_coeff[0] += sf_precoeff1[n]*greensfn[n];
-          sf_coeff[1] += sf_precoeff2[n]*greensfn[n];
-          sf_coeff[2] += sf_precoeff3[n]*greensfn[n];
-          sf_coeff[3] += sf_precoeff4[n]*greensfn[n];
-          sf_coeff[4] += sf_precoeff5[n]*greensfn[n];
-          sf_coeff[5] += sf_precoeff6[n]*greensfn[n];
-          n++;
-        } else {
-          greensfn[n] = 0.0;
-          sf_coeff[0] += sf_precoeff1[n]*greensfn[n];
-          sf_coeff[1] += sf_precoeff2[n]*greensfn[n];
-          sf_coeff[2] += sf_precoeff3[n]*greensfn[n];
-          sf_coeff[3] += sf_precoeff4[n]*greensfn[n];
-          sf_coeff[4] += sf_precoeff5[n]*greensfn[n];
-          sf_coeff[5] += sf_precoeff6[n]*greensfn[n];
-          n++;
-        }
+    const double q = unitkx * (double)kp;
+    qx[ii]  = q;
+    qx2[ii] = q * q;
+
+    wx_denom[ii] = spreading_weight2_from_abs_index(std::abs(kp), scale_x);
+  }
+
+  // l dimension
+  for (int ll = 0; ll < ny; ++ll) {
+    const int l = nylo_fft + ll;
+    const int lp = l - ny_pppm * (2 * l / ny_pppm);
+    lper[ll] = lp;
+
+    const double q = unitky * (double)lp;
+    qy[ll]  = q;
+    qy2[ll] = q * q;
+
+    wy_denom[ll] = spreading_weight2_from_abs_index(std::abs(lp), scale_y);
+  }
+
+  // m dimension
+  for (int mm = 0; mm < nz; ++mm) {
+    const int m = nzlo_fft + mm;
+    const int mp = m - nz_pppm * (2 * m / nz_pppm);
+    mper[mm] = mp;
+
+    const double q = unitkz * (double)mp; // slab kz
+    qz[mm]  = q;
+    qz2[mm] = q * q;
+
+    wz_denom[mm] = spreading_weight2_from_abs_index(std::abs(mp), scale_z);
+  }
+
+  // local accumulators
+  double c0=0.0, c1=0.0, c2=0.0, c3=0.0, c4=0.0, c5=0.0;
+
+  // pointers
+  double *g1 = greensfn;
+  double *g2 = greensfn2;
+
+  const double *p1 = sf_precoeff1;
+  const double *p2 = sf_precoeff2;
+  const double *p3 = sf_precoeff3;
+  const double *p4 = sf_precoeff4;
+  const double *p5 = sf_precoeff5;
+  const double *p6 = sf_precoeff6;
+
+  int n = 0;
+  for (int mm = 0; mm < nz; ++mm) {
+    const double wz = wz_denom[mm];
+
+    for (int ll = 0; ll < ny; ++ll) {
+      const double wy = wy_denom[ll];
+
+      const double wyz = wy * wz;
+
+      for (int ii = 0; ii < nx; ++ii, ++n) {
+        const double wx = wx_denom[ii];
+
+        // base weight product
+        const double wxyz = wx * wyz;
+
+        // sqk
+        const double sqk = qx2[ii] + qy2[ll] + qz2[mm];
+        g1[n] = 0.0;
+        g2[n] = 0.0;
+        if (sqk == 0.0) continue;
+
+        // denom = (sumx*sumy*sumz)^2  (sumx=denomx[ii], etc.)
+        const double denom = wxyz;
+        if (denom == 0.0) continue;
+
+        // outside cutoff => dot2=0, greensfn stays 0
+        if (sqk > sqk_cut2) continue;
+
+        // k_rc_c_old in [0,1], then map to x in [-1,1]
+        const double krc_old = std::sqrt(sqk) * cutoff / select_c;
+        const double x = 2.0 * krc_old - 1.0;
+
+        double poly, dpoly_dx;
+        poly_and_deriv_horner(x, fourier_split_poly_coeff, num_of_Fourier_poly, poly, dpoly_dx);
+
+        const double poly_virial = 2.0 * krc_old * dpoly_dx;
+
+        const double invden = 1.0 / denom;
+
+        g1[n] = (MY_2PI * poly) * invden / sqk;
+
+        const double sqk2 = sqk * sqk;
+        g2[n] = (MY_2PI * poly_virial) * invden / sqk2;
+
+        const double gg = g1[n];
+        c0 += p1[n] * gg;  c1 += p2[n] * gg;
+        c2 += p3[n] * gg;  c3 += p4[n] * gg;
+        c4 += p5[n] * gg;  c5 += p6[n] * gg;
       }
     }
   }
 
-  // compute the coefficients for the self-force correction
+  sf_coeff[0] = c0; sf_coeff[1] = c1; sf_coeff[2] = c2;
+  sf_coeff[3] = c3; sf_coeff[4] = c4; sf_coeff[5] = c5;
 
-  double prex, prey, prez;
-  prex = prey = prez = MY_PI/volume;
-  prex *= nx_pppm/xprd;
-  prey *= ny_pppm/yprd;
-  prez *= nz_pppm/zprd_slab;
+  // self-force correction
+  double prex = MY_PI / volume;
+  double prey = MY_PI / volume;
+  double prez = MY_PI / volume;
+
+  prex *= nx_pppm / xprd;
+  prey *= ny_pppm / yprd;
+  prez *= nz_pppm / zprd_slab;
+
   sf_coeff[0] *= prex;
-  sf_coeff[1] *= prex*2;
+  sf_coeff[1] *= prex * 2.0;
   sf_coeff[2] *= prey;
-  sf_coeff[3] *= prey*2;
+  sf_coeff[3] *= prey * 2.0;
   sf_coeff[4] *= prez;
-  sf_coeff[5] *= prez*2;
+  sf_coeff[5] *= prez * 2.0;
 
-  // communicate values with other procs
-
+  // MPI reduce
   double tmp[6];
-  MPI_Allreduce(sf_coeff,tmp,6,MPI_DOUBLE,MPI_SUM,world);
-  for (n = 0; n < 6; n++) sf_coeff[n] = tmp[n];
+  MPI_Allreduce(sf_coeff, tmp, 6, MPI_DOUBLE, MPI_SUM, world);
+  for (int i = 0; i < 6; i++) sf_coeff[i] = tmp[i];
 }
 
 /* ----------------------------------------------------------------------
    compute self force coefficients for ad-differentiation scheme
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_sf_precoeff()
+void ESP::compute_sf_precoeff()
 {
   int i,k,l,m,n;
   int nx,ny,nz,kper,lper,mper;
@@ -1792,25 +1659,133 @@ void PPPM::compute_sf_precoeff()
 
           qx0 = MY_2PI*(kper+nx_pppm*(i-2));
           qx1 = MY_2PI*(kper+nx_pppm*(i-1));
-          qx2 = MY_2PI*(kper+nx_pppm*i);
-          wx0[i] = powsinxx(0.5*qx0/nx_pppm,order);
-          wx1[i] = powsinxx(0.5*qx1/nx_pppm,order);
-          wx2[i] = powsinxx(0.5*qx2/nx_pppm,order);
+          qx2 = MY_2PI*(kper+nx_pppm*(i  ));
+
+          double ph_2_kx_c = (0.5 * order / nx_pppm) * (std::abs(qx0) / spreading_select_c);
+          wx0[i] = 0.00;
+          if(ph_2_kx_c <= 1.00){
+            ph_2_kx_c = 2.0 * ph_2_kx_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kx_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wx0[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_kx_c = (0.5 * order / nx_pppm) * (std::abs(qx1) / spreading_select_c);
+          wx1[i] = 0.00;
+          if(ph_2_kx_c <= 1.00){
+            ph_2_kx_c = 2.0 * ph_2_kx_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kx_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wx1[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_kx_c = (0.5 * order / nx_pppm) * (std::abs(qx2) / spreading_select_c);
+          wx2[i] = 0.00;
+          if(ph_2_kx_c <= 1.00){
+            ph_2_kx_c = 2.0 * ph_2_kx_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kx_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wx2[i] = order / 2.0 * Fourier_spreading_appx;
+          }
 
           qy0 = MY_2PI*(lper+ny_pppm*(i-2));
           qy1 = MY_2PI*(lper+ny_pppm*(i-1));
-          qy2 = MY_2PI*(lper+ny_pppm*i);
-          wy0[i] = powsinxx(0.5*qy0/ny_pppm,order);
-          wy1[i] = powsinxx(0.5*qy1/ny_pppm,order);
-          wy2[i] = powsinxx(0.5*qy2/ny_pppm,order);
+          qy2 = MY_2PI*(lper+ny_pppm*(i  ));
+
+          double ph_2_ky_c = (0.5 * order / ny_pppm) * (std::abs(qy0) / spreading_select_c);
+          wy0[i] = 0.00;
+          if(ph_2_ky_c <= 1.00){
+            ph_2_ky_c = 2.0 * ph_2_ky_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_ky_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wy0[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_ky_c = (0.5 * order / ny_pppm) * (std::abs(qy1) / spreading_select_c);
+          wy1[i] = 0.00;
+          if(ph_2_ky_c <= 1.00){
+            ph_2_ky_c = 2.0 * ph_2_ky_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_ky_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wy1[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_ky_c = (0.5 * order / ny_pppm) * (std::abs(qy2) / spreading_select_c);
+          wy2[i] = 0.00;
+          if(ph_2_ky_c <= 1.00){
+            ph_2_ky_c = 2.0 * ph_2_ky_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_ky_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wy2[i] = order / 2.0 * Fourier_spreading_appx;
+          }
 
           qz0 = MY_2PI*(mper+nz_pppm*(i-2));
           qz1 = MY_2PI*(mper+nz_pppm*(i-1));
-          qz2 = MY_2PI*(mper+nz_pppm*i);
+          qz2 = MY_2PI*(mper+nz_pppm*(i  ));
 
-          wz0[i] = powsinxx(0.5*qz0/nz_pppm,order);
-          wz1[i] = powsinxx(0.5*qz1/nz_pppm,order);
-          wz2[i] = powsinxx(0.5*qz2/nz_pppm,order);
+          double ph_2_kz_c = (0.5 * order / nz_pppm) * (std::abs(qz0) / spreading_select_c);
+          wz0[i] = 0.00;
+          if(ph_2_kz_c <= 1.00){
+            ph_2_kz_c = 2.0 * ph_2_kz_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kz_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wz0[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_kz_c = (0.5 * order / nz_pppm) * (std::abs(qz1) / spreading_select_c);
+
+          wz1[i] = 0.00;
+          if(ph_2_kz_c <= 1.00){
+            ph_2_kz_c = 2.0 * ph_2_kz_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kz_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wz1[i] = order / 2.0 * Fourier_spreading_appx;
+          }
+
+          ph_2_kz_c = (0.5 * order / nz_pppm) * (std::abs(qz2) / spreading_select_c);
+          wz2[i] = 0.00;
+          if(ph_2_kz_c <= 1.00){
+            ph_2_kz_c = 2.0 * ph_2_kz_c - 1.0;
+            double Fourier_spreading_appx = fourier_spread_poly_coeff[0];
+            double Fourier_spreading_r = 1.0;
+            for(int ii=1; ii<fourier_spreading_order; ii++){
+                Fourier_spreading_r *= ph_2_kz_c;
+                Fourier_spreading_appx += fourier_spread_poly_coeff[ii] * Fourier_spreading_r;
+            }
+            wz2[i] = order / 2.0 * Fourier_spreading_appx;
+          }
         }
 
         for (nx = 0; nx < 5; nx++) {
@@ -1834,8 +1809,6 @@ void PPPM::compute_sf_precoeff()
           }
         }
 
-        // store values
-
         sf_precoeff1[n] = sum1;
         sf_precoeff2[n] = sum2;
         sf_precoeff3[n] = sum3;
@@ -1853,7 +1826,7 @@ void PPPM::compute_sf_precoeff()
    store central grid pt indices in part2grid array
 ------------------------------------------------------------------------- */
 
-void PPPM::particle_map()
+void ESP::particle_map()
 {
   int nx,ny,nz;
 
@@ -1863,7 +1836,7 @@ void PPPM::particle_map()
   int flag = 0;
 
   if (!std::isfinite(boxlo[0]) || !std::isfinite(boxlo[1]) || !std::isfinite(boxlo[2]))
-    error->one(FLERR,"Non-numeric box dimensions - simulation unstable" + utils::errorurl(6));
+    error->one(FLERR,"Non-numeric box dimensions - simulation unstable");
 
   for (int i = 0; i < nlocal; i++) {
 
@@ -1890,7 +1863,7 @@ void PPPM::particle_map()
       flag = 1;
   }
 
-  if (flag) error->one(FLERR, Error::NOLASTLINE, "Out of range atoms - cannot compute PPPM" + utils::errorurl(4));
+  if (flag) error->one(FLERR,"Out of range atoms - cannot compute ESP");
 }
 
 /* ----------------------------------------------------------------------
@@ -1900,7 +1873,7 @@ void PPPM::particle_map()
    in global grid
 ------------------------------------------------------------------------- */
 
-void PPPM::make_rho()
+void ESP::make_rho()
 {
   int l,m,n,nx,ny,nz,mx,my,mz;
   FFT_SCALAR dx,dy,dz,x0,y0,z0;
@@ -1950,7 +1923,7 @@ void PPPM::make_rho()
    remap density from 3d brick decomposition to FFT decomposition
 ------------------------------------------------------------------------- */
 
-void PPPM::brick2fft()
+void ESP::brick2fft()
 {
   int n,ix,iy,iz;
 
@@ -1971,7 +1944,7 @@ void PPPM::brick2fft()
    FFT-based Poisson solver
 ------------------------------------------------------------------------- */
 
-void PPPM::poisson()
+void ESP::poisson()
 {
   if (differentiation_flag == 1) poisson_ad();
   else poisson_ik();
@@ -1981,7 +1954,7 @@ void PPPM::poisson()
    FFT-based Poisson solver for ik
 ------------------------------------------------------------------------- */
 
-void PPPM::poisson_ik()
+void ESP::poisson_ik()
 {
   int i,j,k,n;
   double eng;
@@ -2113,7 +2086,7 @@ void PPPM::poisson_ik()
    FFT-based Poisson solver for ik for a triclinic system
 ------------------------------------------------------------------------- */
 
-void PPPM::poisson_ik_triclinic()
+void ESP::poisson_ik_triclinic()
 {
   int i,j,k,n;
 
@@ -2183,10 +2156,10 @@ void PPPM::poisson_ik_triclinic()
    FFT-based Poisson solver for ad
 ------------------------------------------------------------------------- */
 
-void PPPM::poisson_ad()
+void ESP::poisson_ad()
 {
   int i,j,k,n;
-  double eng;
+  double eng,eng_virial;
 
   // transform charge density (r -> k)
 
@@ -2209,7 +2182,12 @@ void PPPM::poisson_ad()
       n = 0;
       for (i = 0; i < nfft; i++) {
         eng = s2 * greensfn[i] * (work1[n]*work1[n] + work1[n+1]*work1[n+1]);
-        for (j = 0; j < 6; j++) virial[j] += eng*vg[i][j];
+        eng_virial = s2 * greensfn2[i] * (work1[n]*work1[n] + work1[n+1]*work1[n+1]);
+        for (j = 0; j < 6; j++)
+        {
+          virial[j] += eng*vg[i][j]; // The first term
+          virial[j] += eng_virial*vg2[i][j]; // The second term
+        }
         if (eflag_global) energy += eng;
         n += 2;
       }
@@ -2258,7 +2236,7 @@ void PPPM::poisson_ad()
    FFT-based Poisson solver for per-atom energy/virial
 ------------------------------------------------------------------------- */
 
-void PPPM::poisson_peratom()
+void ESP::poisson_peratom()
 {
   int i,j,k,n;
 
@@ -2394,7 +2372,7 @@ void PPPM::poisson_peratom()
    interpolate from grid to get electric field & force on my particles
 ------------------------------------------------------------------------- */
 
-void PPPM::fieldforce()
+void ESP::fieldforce()
 {
   if (differentiation_flag == 1) fieldforce_ad();
   else fieldforce_ik();
@@ -2404,7 +2382,7 @@ void PPPM::fieldforce()
    interpolate from grid to get electric field & force on my particles for ik
 ------------------------------------------------------------------------- */
 
-void PPPM::fieldforce_ik()
+void ESP::fieldforce_ik()
 {
   int i,l,m,n,nx,ny,nz,mx,my,mz;
   FFT_SCALAR dx,dy,dz,x0,y0,z0;
@@ -2462,7 +2440,7 @@ void PPPM::fieldforce_ik()
    interpolate from grid to get electric field & force on my particles for ad
 ------------------------------------------------------------------------- */
 
-void PPPM::fieldforce_ad()
+void ESP::fieldforce_ad()
 {
   int i,l,m,n,nx,ny,nz,mx,my,mz;
   FFT_SCALAR dx,dy,dz;
@@ -2516,6 +2494,7 @@ void PPPM::fieldforce_ad()
         }
       }
     }
+
     ekx *= hx_inv;
     eky *= hy_inv;
     ekz *= hz_inv;
@@ -2530,6 +2509,7 @@ void PPPM::fieldforce_ad()
     sf = sf_coeff[0]*sin(2*MY_PI*s1);
     sf += sf_coeff[1]*sin(4*MY_PI*s1);
     sf *= 2*q[i]*q[i];
+
     f[i][0] += qfactor*(ekx*q[i] - sf);
 
     sf = sf_coeff[2]*sin(2*MY_PI*s2);
@@ -2537,11 +2517,14 @@ void PPPM::fieldforce_ad()
     sf *= 2*q[i]*q[i];
     f[i][1] += qfactor*(eky*q[i] - sf);
 
-
     sf = sf_coeff[4]*sin(2*MY_PI*s3);
     sf += sf_coeff[5]*sin(4*MY_PI*s3);
     sf *= 2*q[i]*q[i];
-    if (slabflag != 2) f[i][2] += qfactor*(ekz*q[i] - sf);
+
+    if (slabflag != 2)
+    {
+      f[i][2] += qfactor*(ekz*q[i] - sf);
+    }
   }
 }
 
@@ -2549,7 +2532,7 @@ void PPPM::fieldforce_ad()
    interpolate from grid to get per-atom energy/virial
 ------------------------------------------------------------------------- */
 
-void PPPM::fieldforce_peratom()
+void ESP::fieldforce_peratom()
 {
   int i,l,m,n,nx,ny,nz,mx,my,mz;
   FFT_SCALAR dx,dy,dz,x0,y0,z0;
@@ -2614,9 +2597,9 @@ void PPPM::fieldforce_peratom()
    pack own values to buf to send to another proc
 ------------------------------------------------------------------------- */
 
-void PPPM::pack_forward_grid(int flag, void *vbuf, int nlist, int *list)
+void ESP::pack_forward_grid(int flag, void *vbuf, int nlist, int *list)
 {
-  auto *buf = (FFT_SCALAR *) vbuf;
+  auto buf = (FFT_SCALAR *) vbuf;
 
   int n = 0;
 
@@ -2674,9 +2657,9 @@ void PPPM::pack_forward_grid(int flag, void *vbuf, int nlist, int *list)
    unpack another proc's own values from buf and set own ghost values
 ------------------------------------------------------------------------- */
 
-void PPPM::unpack_forward_grid(int flag, void *vbuf, int nlist, int *list)
+void ESP::unpack_forward_grid(int flag, void *vbuf, int nlist, int *list)
 {
-  auto *buf = (FFT_SCALAR *) vbuf;
+  auto buf = (FFT_SCALAR *) vbuf;
 
   int n = 0;
 
@@ -2734,9 +2717,9 @@ void PPPM::unpack_forward_grid(int flag, void *vbuf, int nlist, int *list)
    pack ghost values into buf to send to another proc
 ------------------------------------------------------------------------- */
 
-void PPPM::pack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
+void ESP::pack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
 {
-  auto *buf = (FFT_SCALAR *) vbuf;
+  auto buf = (FFT_SCALAR *) vbuf;
 
   if (flag == REVERSE_RHO) {
     FFT_SCALAR *src = &density_brick[nzlo_out][nylo_out][nxlo_out];
@@ -2749,9 +2732,9 @@ void PPPM::pack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
    unpack another proc's ghost values from buf and add to own values
 ------------------------------------------------------------------------- */
 
-void PPPM::unpack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
+void ESP::unpack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
 {
-  auto *buf = (FFT_SCALAR *) vbuf;
+  auto buf = (FFT_SCALAR *) vbuf;
 
   if (flag == REVERSE_RHO) {
     FFT_SCALAR *dest = &density_brick[nzlo_out][nylo_out][nxlo_out];
@@ -2764,7 +2747,7 @@ void PPPM::unpack_reverse_grid(int flag, void *vbuf, int nlist, int *list)
    map nprocs to NX by NY grid as PX by PY procs - return optimal px,py
 ------------------------------------------------------------------------- */
 
-void PPPM::procs2grid2d(int nprocs, int nx, int ny, int &px, int &py)
+void ESP::procs2grid2d(int nprocs, int nx, int ny, int *px, int *py)
 {
   // loop thru all possible factorizations of nprocs
   // surf = surface area of largest proc sub-domain
@@ -2785,12 +2768,13 @@ void PPPM::procs2grid2d(int nprocs, int nx, int ny, int &px, int &py)
       boxy = ny/ipy;
       if (ny % ipy) boxy++;
       surf = boxx + boxy;
-      if ((surf < bestsurf) || ((surf == bestsurf) && (boxx*boxy > bestboxx*bestboxy))) {
+      if (surf < bestsurf ||
+          (surf == bestsurf && boxx*boxy > bestboxx*bestboxy)) {
         bestsurf = surf;
         bestboxx = boxx;
         bestboxy = boxy;
-        px = ipx;
-        py = ipy;
+        *px = ipx;
+        *py = ipy;
       }
     }
     ipx++;
@@ -2798,20 +2782,106 @@ void PPPM::procs2grid2d(int nprocs, int nx, int ny, int &px, int &py)
 }
 
 /* ----------------------------------------------------------------------
+   estimate the spreading order of the ESP method
+------------------------------------------------------------------------- */
+
+int ESP::estimate_order(double accuracy)
+{
+    // p = -log10(acc)
+    double p = -std::log10(accuracy);
+
+    double p_round = std::round(p);
+    const double eps = 0.2;
+
+    int order;
+    if (std::abs(p - p_round) < eps) {
+        order = static_cast<int>(p_round) * 2 - 2;
+    } else {
+        order = static_cast<int>(std::ceil(p)) * 2 - 3;
+    }
+
+    if (order < 2) order = 2;
+    if (order > 16) order = 16;
+    return order;
+}
+
+/* —----------------------------------------------------------------------
+   build table for ESP method
+------------------------------------------------------------------------- */
+
+void ESP::build_table(double algorithm_accuracy, double spreading_accuracy)
+{
+  // force kernel
+  std::vector<double> poly_coeff;
+  force_poly(accuracy_relative, 0.1*accuracy_relative, select_c, poly_coeff);
+  num_of_force_poly = poly_coeff.size();
+  memory->create(force_poly_coeff, num_of_force_poly, "ESP:force_poly_coeff");
+  for (int i = 0; i < num_of_force_poly; i++) force_poly_coeff[i] = poly_coeff[i];
+  if (me == 0) utils::logmesg(lmp," force poly size: {}\n",num_of_force_poly);
+
+  // energy kernel
+  poly_coeff.clear();
+  energy_poly(accuracy_relative, 0.01*accuracy_relative, select_c, poly_coeff);
+  num_of_energy_poly = poly_coeff.size();
+  memory->create(energy_poly_coeff, num_of_energy_poly, "ESP:energy_poly_coeff");
+  for (int i = 0; i < num_of_energy_poly; i++) energy_poly_coeff[i] = poly_coeff[i];
+  if (me == 0) utils::logmesg(lmp," energy poly size: {}\n",num_of_energy_poly);
+
+  // Fourier space kernel
+  poly_coeff.clear();
+  fourier_poly(accuracy_relative, 0.1*accuracy_relative, select_c, Lambda_0, poly_coeff);
+  num_of_Fourier_poly = poly_coeff.size();
+  memory->create(fourier_split_poly_coeff, num_of_Fourier_poly, "ESP:fourier_split_poly_coeff");
+  for (int i = 0; i < num_of_Fourier_poly; i++) fourier_split_poly_coeff[i] = poly_coeff[i];
+  if (me == 0) utils::logmesg(lmp," Fourier poly size: {}\n",num_of_Fourier_poly);
+
+  // spreading kernel in real space - need to be consistent with the spreading accuracy
+  poly_coeff.clear();
+  spread_real_poly(order, spreading_accuracy, 0.1*spreading_accuracy, spreading_select_c, poly_coeff);
+  poly_order = poly_coeff.size() / order;
+
+  memory->create2d_offset(rho_coeff,poly_order,(1-order)/2,order/2,"esp:rho_coeff");
+  memory->create2d_offset(drho_coeff,poly_order,(1-order)/2,order/2,"esp:drho_coeff");
+
+  for(int i=0; i<poly_order; i++){
+    for(int j=0; j<order; j++){
+        rho_coeff[i][j+(1-order)/2] = poly_coeff[i*order+j];
+    }
+  }
+  for (int m = -(order-1)/2; m <= order/2; m += 1) {
+    for (int l = 1; l < poly_order; l++)
+        drho_coeff[l-1][m] = l*rho_coeff[l][m]; // Coefficients for l x^l-1 terms
+    drho_coeff[poly_order-1][m] = 0.00;
+  }
+  if (me == 0) utils::logmesg(lmp," spread real poly size: {}\n",poly_order);
+
+  // spreading kernel in Fourier space
+  poly_coeff.clear();
+  spread_fourier_poly(spreading_accuracy, 0.1*spreading_accuracy, spreading_select_c, spreading_Lambda_0, poly_coeff);
+  fourier_spreading_order = poly_coeff.size();
+  memory->create(fourier_spread_poly_coeff, fourier_spreading_order, "ESP:fourier_spread_poly_coeff");
+  for (int i = 0; i < fourier_spreading_order; i++) fourier_spread_poly_coeff[i] = poly_coeff[i];
+  if (me == 0) utils::logmesg(lmp," Fourier spreading poly size: {}\n",fourier_spreading_order);
+}
+
+
+/* ----------------------------------------------------------------------
    charge assignment into rho1d
    dx,dy,dz = distance of particle from "lower left" grid point
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_rho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
+void ESP::compute_rho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
                          const FFT_SCALAR &dz)
 {
   int k,l;
   FFT_SCALAR r1,r2,r3;
 
+  // k: order of spreading points
+  // l: order of polynomials
   for (k = (1-order)/2; k <= order/2; k++) {
     r1 = r2 = r3 = ZEROF;
 
-    for (l = order-1; l >= 0; l--) {
+    for (l = poly_order-1; l >=0; l--) {
       r1 = rho_coeff[l][k] + r1*dx;
       r2 = rho_coeff[l][k] + r2*dy;
       r3 = rho_coeff[l][k] + r3*dz;
@@ -2827,7 +2897,7 @@ void PPPM::compute_rho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
    dx,dy,dz = distance of particle from "lower left" grid point
 ------------------------------------------------------------------------- */
 
-void PPPM::compute_drho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
+void ESP::compute_drho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
                           const FFT_SCALAR &dz)
 {
   int k,l;
@@ -2836,7 +2906,7 @@ void PPPM::compute_drho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
   for (k = (1-order)/2; k <= order/2; k++) {
     r1 = r2 = r3 = ZEROF;
 
-    for (l = order-2; l >= 0; l--) {
+    for (l = poly_order-2; l >= 0; l--) {
       r1 = drho_coeff[l][k] + r1*dx;
       r2 = drho_coeff[l][k] + r2*dy;
       r3 = drho_coeff[l][k] + r3*dz;
@@ -2847,32 +2917,13 @@ void PPPM::compute_drho1d(const FFT_SCALAR &dx, const FFT_SCALAR &dy,
   }
 }
 
-/* ----------------------------------------------------------------------
-   generate coeffients for the weight function of order n
-
-              (n-1)
-  Wn(x) =     Sum    wn(k,x) , Sum is over every other integer
-           k=-(n-1)
-  For k=-(n-1),-(n-1)+2, ....., (n-1)-2,n-1
-      k is odd integers if n is even and even integers if n is odd
-              ---
-             | n-1
-             | Sum a(l,j)*(x-k/2)**l   if abs(x-k/2) < 1/2
-  wn(k,x) = <  l=0
-             |
-             |  0                       otherwise
-              ---
-  a coeffients are packed into the array rho_coeff to eliminate zeros
-  rho_coeff(l,((k+mod(n+1,2))/2) = a(l,k)
-------------------------------------------------------------------------- */
-
-void PPPM::compute_rho_coeff()
+void ESP::compute_rho_coeff()
 {
   int j,k,l,m;
   FFT_SCALAR s;
 
   FFT_SCALAR **a;
-  memory->create2d_offset(a,order,-order,order,"pppm:a");
+  memory->create2d_offset(a,order,-order,order,"esp:a");
 
   for (k = -order; k <= order; k++)
     for (l = 0; l < order; l++)
@@ -2899,9 +2950,9 @@ void PPPM::compute_rho_coeff()
   m = (1-order)/2;
   for (k = -(order-1); k < order; k += 2) {
     for (l = 0; l < order; l++)
-      rho_coeff[l][m] = a[l][k];
+      rho_coeff[l][m] = a[l][k]; // Coefficients for x^l terms
     for (l = 1; l < order; l++)
-      drho_coeff[l-1][m] = l*a[l][k];
+      drho_coeff[l-1][m] = l*a[l][k]; // Coefficients for l x^l-1 terms
     m++;
   }
 
@@ -2916,7 +2967,7 @@ void PPPM::compute_rho_coeff()
    extended to non-neutral systems (J. Chem. Phys. 131, 094107).
 ------------------------------------------------------------------------- */
 
-void PPPM::slabcorr()
+void ESP::slabcorr()
 {
   // compute local contribution to global dipole moment
 
@@ -2977,7 +3028,7 @@ void PPPM::slabcorr()
    perform and time the 1d FFTs required for N timesteps
 ------------------------------------------------------------------------- */
 
-int PPPM::timing_1d(int n, double &time1d)
+int ESP::timing_1d(int n, double &time1d)
 {
   double time1,time2;
 
@@ -3007,7 +3058,7 @@ int PPPM::timing_1d(int n, double &time1d)
    perform and time the 3d FFTs required for N timesteps
 ------------------------------------------------------------------------- */
 
-int PPPM::timing_3d(int n, double &time3d)
+int ESP::timing_3d(int n, double &time3d)
 {
   double time1,time2;
 
@@ -3037,7 +3088,7 @@ int PPPM::timing_3d(int n, double &time3d)
    memory usage of local arrays
 ------------------------------------------------------------------------- */
 
-double PPPM::memory_usage()
+double ESP::memory_usage()
 {
   double bytes = (double)nmax*3 * sizeof(double);
 
@@ -3074,10 +3125,10 @@ double PPPM::memory_usage()
  ------------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------
-   compute the PPPM total long-range force and energy for groups A and B
+   compute the ESP total long-range force and energy for groups A and B
  ------------------------------------------------------------------------- */
 
-void PPPM::compute_group_group(int groupbit_A, int groupbit_B, int AA_flag)
+void ESP::compute_group_group(int groupbit_A, int groupbit_B, int AA_flag)
 {
   if (slabflag && triclinic)
     error->all(FLERR,"Cannot (yet) use K-space slab "
@@ -3177,23 +3228,23 @@ void PPPM::compute_group_group(int groupbit_A, int groupbit_B, int AA_flag)
  allocate group-group memory that depends on # of K-vectors and order
  ------------------------------------------------------------------------- */
 
-void PPPM::allocate_groups()
+void ESP::allocate_groups()
 {
   group_allocate_flag = 1;
 
   memory->create3d_offset(density_A_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:density_A_brick");
+                          nxlo_out,nxhi_out,"esp:density_A_brick");
   memory->create3d_offset(density_B_brick,nzlo_out,nzhi_out,nylo_out,nyhi_out,
-                          nxlo_out,nxhi_out,"pppm:density_B_brick");
-  memory->create(density_A_fft,nfft_both,"pppm:density_A_fft");
-  memory->create(density_B_fft,nfft_both,"pppm:density_B_fft");
+                          nxlo_out,nxhi_out,"esp:density_B_brick");
+  memory->create(density_A_fft,nfft_both,"esp:density_A_fft");
+  memory->create(density_B_fft,nfft_both,"esp:density_B_fft");
 }
 
 /* ----------------------------------------------------------------------
  deallocate group-group memory that depends on # of K-vectors and order
  ------------------------------------------------------------------------- */
 
-void PPPM::deallocate_groups()
+void ESP::deallocate_groups()
 {
   group_allocate_flag = 0;
 
@@ -3210,7 +3261,7 @@ void PPPM::deallocate_groups()
  in global grid for group-group interactions
  ------------------------------------------------------------------------- */
 
-void PPPM::make_rho_groups(int groupbit_A, int groupbit_B, int AA_flag)
+void ESP::make_rho_groups(int groupbit_A, int groupbit_B, int AA_flag)
 {
   int l,m,n,nx,ny,nz,mx,my,mz;
   FFT_SCALAR dx,dy,dz,x0,y0,z0;
@@ -3279,7 +3330,7 @@ void PPPM::make_rho_groups(int groupbit_A, int groupbit_B, int AA_flag)
    FFT-based Poisson solver for group-group interactions
  ------------------------------------------------------------------------- */
 
-void PPPM::poisson_groups(int AA_flag)
+void ESP::poisson_groups(int AA_flag)
 {
   int i,j,k,n;
 
@@ -3386,7 +3437,7 @@ void PPPM::poisson_groups(int AA_flag)
    for a triclinic system
  ------------------------------------------------------------------------- */
 
-void PPPM::poisson_groups_triclinic()
+void ESP::poisson_groups_triclinic()
 {
   int i,n;
 
@@ -3433,7 +3484,7 @@ void PPPM::poisson_groups_triclinic()
    extended to non-neutral systems (J. Chem. Phys. 131, 094107).
 ------------------------------------------------------------------------- */
 
-void PPPM::slabcorr_groups(int groupbit_A, int groupbit_B, int AA_flag)
+void ESP::slabcorr_groups(int groupbit_A, int groupbit_B, int AA_flag)
 {
   // compute local contribution to global dipole moment
 

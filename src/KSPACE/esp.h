@@ -13,31 +13,39 @@
 
 #ifdef KSPACE_CLASS
 // clang-format off
-KSpaceStyle(pppm,PPPM);
+KSpaceStyle(esp,ESP);
 // clang-format on
 #else
 
-#ifndef LMP_PPPM_H
-#define LMP_PPPM_H
+#ifndef LMP_ESP_H
+#define LMP_ESP_H
 
 #include "kspace.h"
 #include "lmpfftsettings.h"    // IWYU pragma: export
+#include "math_const.h"
+
+#include <cmath>
+
+using namespace LAMMPS_NS;
+using MathConst::MY_PI;
 
 namespace LAMMPS_NS {
 
-class PPPM : public KSpace {
+class ESP : public KSpace {
  public:
-  PPPM(class LAMMPS *);
-  ~PPPM() override;
+  ESP(class LAMMPS *);
+  ~ESP() override;
   void settings(int, char **) override;
   void init() override;
+  void NewFunction();
   void setup() override;
   void reset_grid() override;
   void compute(int, int) override;
   int timing_1d(int, double &) override;
   int timing_3d(int, double &) override;
   double memory_usage() override;
-
+  void build_table(double, double);
+  int estimate_order(double);
   void compute_group_group(int, int, int) override;
 
  protected:
@@ -50,7 +58,6 @@ class PPPM : public KSpace {
   double h_x, h_y, h_z;
   double shift, shiftone, shiftatom_lo, shiftatom_hi;
   int peratom_allocate_flag;
-  int g_ewald_ready;
 
   int nxlo_in, nylo_in, nzlo_in, nxhi_in, nyhi_in, nzhi_in;
   int nxlo_out, nylo_out, nzlo_out, nxhi_out, nyhi_out, nzhi_out;
@@ -64,18 +71,17 @@ class PPPM : public KSpace {
   FFT_SCALAR ***u_brick;
   FFT_SCALAR ***v0_brick, ***v1_brick, ***v2_brick;
   FFT_SCALAR ***v3_brick, ***v4_brick, ***v5_brick;
-  double *greensfn;
-  double **vg;
+  double *greensfn, *greensfn2;
+  double **vg, **vg2;
   double *fkx, *fky, *fkz;
   FFT_SCALAR *density_fft;
   FFT_SCALAR *work1, *work2;
 
-  double *gf_b;
-  FFT_SCALAR **rho1d, **rho_coeff, **drho1d, **drho_coeff;
+  FFT_SCALAR **rho1d, **rho_coeff, **drho1d,
+      **drho_coeff;    // coefficients for the table of spreading function
   double *sf_precoeff1, *sf_precoeff2, *sf_precoeff3;
   double *sf_precoeff4, *sf_precoeff5, *sf_precoeff6;
   double sf_coeff[6];    // coefficients for calculating ad self-forces
-  double **acons;
 
   // FFTs and grid communication
 
@@ -103,20 +109,12 @@ class PPPM : public KSpace {
 
   virtual void set_grid_global();
   virtual void set_grid_local();
-  void adjust_gewald();
-  virtual double newton_raphson_f();
-  double derivf();
-  double final_accuracy();
 
   virtual void allocate();
   virtual void allocate_peratom();
   virtual void deallocate();
   virtual void deallocate_peratom();
   int factorable(int);
-  virtual double compute_df_kspace();
-  virtual double estimate_ik_error(double, double, bigint);
-  virtual double compute_qopt();
-  virtual void compute_gf_denom();
   virtual void compute_gf_ik();
   virtual void compute_gf_ad();
   void compute_sf_precoeff();
@@ -135,13 +133,12 @@ class PPPM : public KSpace {
 
   virtual void poisson_peratom();
   virtual void fieldforce_peratom();
-  void procs2grid2d(int, int, int, int &, int &);
+  void procs2grid2d(int, int, int, int *, int *);
   void compute_rho1d(const FFT_SCALAR &, const FFT_SCALAR &, const FFT_SCALAR &);
   void compute_drho1d(const FFT_SCALAR &, const FFT_SCALAR &, const FFT_SCALAR &);
   void compute_rho_coeff();
   virtual void slabcorr();
 
- public:
   // grid communication
 
   void pack_forward_grid(int, void *, int, int *) override;
@@ -149,7 +146,6 @@ class PPPM : public KSpace {
   void pack_reverse_grid(int, void *, int, int *) override;
   void unpack_reverse_grid(int, void *, int, int *) override;
 
- protected:
   // triclinic
 
   int triclinic;    // domain settings, orthog or triclinic
@@ -166,29 +162,76 @@ class PPPM : public KSpace {
   virtual void poisson_groups(int);
   virtual void slabcorr_groups(int, int, int);
 
-  /* ----------------------------------------------------------------------
-   denominator for Hockney-Eastwood Green's function
-     of x,y,z = sin(kx*deltax/2), etc
-
-            inf                 n-1
-   S(n,k) = Sum  W(k+pi*j)**2 = Sum b(l)*(z*z)**l
-           j=-inf               l=0
-
-          = -(z*z)**n /(2n-1)! * (d/dx)**(2n-1) cot(x)  at z = sin(x)
-   gf_b = denominator expansion coeffs
-------------------------------------------------------------------------- */
-
-  [[nodiscard]] double gf_denom(const double &x, const double &y, const double &z) const
+  double poly_horner(const double x, const double *coeff, const int n) const
   {
-    double sx, sy, sz;
-    sz = sy = sx = 0.0;
-    for (int l = order - 1; l >= 0; l--) {
-      sx = gf_b[l] + sx * x;
-      sy = gf_b[l] + sy * y;
-      sz = gf_b[l] + sz * z;
+    // coeff[0] + coeff[1] x + ... + coeff[n-1] x^(n-1)
+    double p = coeff[n - 1];
+    for (int i = n - 2; i >= 0; --i) p = p * x + coeff[i];
+    return p;
+  }
+
+  void poly_and_deriv_horner(const double x, const double *coeff, const int n, double &p,
+                             double &dp) const
+  {
+    // p(x) and dp/dx, Horner form
+    p = coeff[n - 1];
+    dp = 0.0;
+    for (int i = n - 2; i >= 0; --i) {
+      dp = dp * x + p;
+      p = p * x + coeff[i];
     }
-    double s = sx * sy * sz;
-    return s * s;
+  }
+
+  double spreading_weight2_from_t(const double t) const
+  {
+    // t = (order * h / 2) * |q| / spreading_select_c
+    // returns ( (order/2 * poly(2t-1))^2 ), or 0 if t>1
+    if (t > 1.0) return 0.0;
+    const double x = 2.0 * t - 1.0;
+    // apply Horner rule for polynomial evaluation
+    const double appx = poly_horner(x, fourier_spread_poly_coeff, fourier_spreading_order);
+    const double w = 0.5 * order * appx;
+    return w * w;
+  }
+
+  double spreading_weight2_from_abs_index(const int abs_index, const double scale) const
+  {
+    // integer-form helper: t = scale * abs_index
+    return spreading_weight2_from_t(scale * (double) abs_index);
+  }
+
+  double gf_denom_psw(const double &kx, const double &ky, const double &kz, const double &hx,
+                      const double &hy, const double &hz) const
+  {
+    int Nmax = (differentiation_flag == 0) ? 2 : 0;
+
+    const double stepx = 2.0 * MY_PI / hx;
+    const double stepy = 2.0 * MY_PI / hy;
+    const double stepz = 2.0 * MY_PI / hz;
+
+    // sum_{nx,ny,nz} wx*wy*wz = (sum wx)*(sum wy)*(sum wz)
+    double sumx = 0.0, sumy = 0.0, sumz = 0.0;
+
+    for (int nx = -Nmax; nx <= Nmax; ++nx) {
+      const double qx = kx + stepx * (double) nx;
+      const double t = (0.5 * order * hx * fabs(qx)) / spreading_select_c;
+      sumx += spreading_weight2_from_t(t);
+    }
+
+    for (int ny = -Nmax; ny <= Nmax; ++ny) {
+      const double qy = ky + stepy * (double) ny;
+      const double t = (0.5 * order * hy * fabs(qy)) / spreading_select_c;
+      sumy += spreading_weight2_from_t(t);
+    }
+
+    for (int nz = -Nmax; nz <= Nmax; ++nz) {
+      const double qz = kz + stepz * (double) nz;
+      const double t = (0.5 * order * hz * fabs(qz)) / spreading_select_c;
+      sumz += spreading_weight2_from_t(t);
+    }
+
+    const double denom = sumx * sumy * sumz;
+    return denom * denom;
   };
 };
 
