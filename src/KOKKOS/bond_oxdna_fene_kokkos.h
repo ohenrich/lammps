@@ -29,8 +29,8 @@ namespace LAMMPS_NS {
 
 template<class DeviceType>
 class FixOxdnaLRFKokkos;  // forward declaration
-
-struct TagBondOxdnaFENEPrecomputeBondPrimeNeighs{};
+template<class DeviceType>
+class FixOxdnaPrimeNeighsKokkos;  // forward declaration
 
 template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 struct TagBondOxdnaFENECompute{};
@@ -48,10 +48,6 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
   void compute(int, int) override;
   void coeff(int, char **) override;
   void read_restart(FILE *) override;
-
-// NOLINTNEXTLINE
-  KOKKOS_INLINE_FUNCTION
-  void operator()(TagBondOxdnaFENEPrecomputeBondPrimeNeighs, const int&) const;
 
   template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 // NOLINTNEXTLINE
@@ -96,9 +92,6 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
 
   int nlocal,newton_bond;
   int eflag,vflag;
-  // bond->prime-neigh table only changes on reneighbor; cache the lastcall it
-  // was built for so it is recomputed once per neighbor build, not every step.
-  bigint last_precompute_lastcall = -1;
 
   DAT::tdual_kkfloat_1d k_k;
   DAT::tdual_kkfloat_5d k_r0;
@@ -113,13 +106,8 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
   void allocate() override;
 
   FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to oxdna/lrf/kk fix
+  FixOxdnaPrimeNeighsKokkos<DeviceType> *fix_oxdna_prime_neighsKK;    // ptr to oxdna/prime/neighs/kk fix
 
-  // Atom Mapping
-  int map_style;
-  DAT::tdual_int_1d k_map_array;
-  dual_hash_type k_map_hash;
-  DAT::tdual_int_1d k_sametag;
-  typename AT::t_int_1d d_sametag;
   // Precomputed atom a/b 3'/5' directionality and atom mapping of their 3' and 5' neighbors.
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.
   typename AT::t_int_1d_4 d_bond_prime_neighs; // single device-space View suffices

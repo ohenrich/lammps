@@ -35,8 +35,8 @@ namespace LAMMPS_NS {
 
 template<class DeviceType>
 class FixOxdnaLRFKokkos;  // forward declaration
-
-struct TagPairOxdnaStkPrecomputeBondPrimeNeighs{};
+template<class DeviceType>
+class FixOxdnaPrimeNeighsKokkos;  // forward declaration
 
 template<int NEWTON_BOND, int EVFLAG>
 struct TagPairOxdnaStkCompute{};
@@ -54,10 +54,6 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
   void coeff(int, char **) override;
   void init_style() override;
   double init_one(int, int) override;
-
-// NOLINTNEXTLINE
-  KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdnaStkPrecomputeBondPrimeNeighs, const int&) const;
 
   template<int NEWTON_BOND, int EVFLAG>
 // NOLINTNEXTLINE
@@ -95,9 +91,6 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
 
   int nbondlist;
   int nlocal, newton_bond, eflag, vflag;
-  // bond->prime-neigh table only changes on reneighbor; cache the lastcall it
-  // was built for so it is recomputed once per neighbor build, not every step.
-  bigint last_precompute_lastcall = -1;
 
   // stacking interaction parameters
   typename AT::tdual_kkfloat_2d k_epsilon_st, k_a_st;
@@ -162,20 +155,10 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
   friend void pair_virial_fdotr_compute<PairOxdnaStkKokkos>(PairOxdnaStkKokkos*);
 
   FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to oxdna/lrf/kk fix
+  FixOxdnaPrimeNeighsKokkos<DeviceType> *fix_oxdna_prime_neighsKK;    // ptr to oxdna/prime/neighs/kk fix
 
-  // Atom Mapping
-  int map_style;
-  DAT::tdual_int_1d k_map_array;
-  dual_hash_type k_map_hash;
-  DAT::tdual_int_1d k_sametag;
-  typename AT::t_int_1d d_sametag;
   // Precomputed atom a/b 3'/5' directionality and atom mapping of their 3' and 5' neighbors.
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.
-  // Internal scratch: written by the precompute kernel and read by the compute
-  // kernel, both in the same (device) execution space, so a single device-space
-  // View suffices -- no DualView/host mirror (cf. bond_prime_neighs in the
-  // oxdna_kokkos standalone). A DualView would force a device<->host deep_copy
-  // of this int*[4] array on sync, which is both needless and fails on GPU.
   typename AT::t_int_1d_4 d_bond_prime_neighs;
 };
 
