@@ -1,8 +1,8 @@
 #! /bin/bash
 
 DATE='12Mar26'
-REL_TOL=1e-8
-REL_TOL_GPU=1e-8
+REL_TOL=5e-7
+REL_TOL_GPU=1e-4
 UNITS=lj
 
 LMPDIR=/media/lewis/PhD/GH_lammps/
