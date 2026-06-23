@@ -72,7 +72,7 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   void ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j, const int &nlocal, const int &newton_bond,\
-      const KK_FLOAT &evdwl, const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz,\
+      const KK_FLOAT &evdwl, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,\
       const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const;
 
  protected:

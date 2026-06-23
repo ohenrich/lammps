@@ -293,8 +293,8 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
   // vectors COM-hbond site in lab frame
   KK_FLOAT ra_chb[3], rb_chb[3];
 
-  KK_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
-  KK_FLOAT evdwl, finc, tpair;             // energy, force, torque
+  KK_ACC_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
+  KK_ACC_FLOAT evdwl, finc, tpair;             // energy, force, torque
   KK_FLOAT delr_hb[3],delr_hb_norm[3],rsq_hb,r_hb,rinv_hb;
   KK_FLOAT theta1,t1dir[3],cost1;
   KK_FLOAT theta2,t2dir[3],cost2;
@@ -1184,7 +1184,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkComputeGPUPair<
   evdwl = f2 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
   if (!evdwl) return;
 
-  KK_FLOAT delf[3], delta[3], deltb[3];
+  KK_ACC_FLOAT delf[3], delta[3], deltb[3];
 
   delf[0] = 0.0;
   delf[1] = 0.0;
@@ -1562,8 +1562,8 @@ template<class DeviceType>
 template<int NEIGHFLAG, int NEWTON_PAIR>
 KOKKOS_INLINE_FUNCTION
 void PairOxdnaXstkKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j,
-      const KK_FLOAT &epair, const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz, const KK_FLOAT &delx,
-                const KK_FLOAT &dely, const KK_FLOAT &delz) const
+      const KK_FLOAT &epair, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,
+      const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
 {
   const int EFLAG = eflag;
   const int VFLAG = vflag_either;

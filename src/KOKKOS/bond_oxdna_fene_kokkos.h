@@ -66,7 +66,7 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
 // NOLINTNEXTLINE
    KOKKOS_INLINE_FUNCTION
    void ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j, const int &nlocal, const int &newton_bond,\
-      const KK_FLOAT &ebond, const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz,\
+      const KK_FLOAT &ebond, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,\
       const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const;
 
   DAT::ttransform_kkacc_1d k_eatom;

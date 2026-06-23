@@ -190,9 +190,9 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
   const int &in, EV_FLOAT &ev) const
 {
   // The f and torque arrays are atomic
-  Kokkos::View<KK_FLOAT*[3], typename DAT::t_kkfloat_1d_3::array_layout,\
+  Kokkos::View<KK_ACC_FLOAT*[3], typename DAT::t_kkacc_1d_3::array_layout,\
     typename KKDevice<DeviceType>::value,Kokkos::MemoryTraits<Kokkos::Atomic|Kokkos::Unmanaged> > a_f = f;
-  Kokkos::View<KK_FLOAT*[3], typename DAT::t_kkfloat_1d_3::array_layout,\
+  Kokkos::View<KK_ACC_FLOAT*[3], typename DAT::t_kkacc_1d_3::array_layout,\
     typename KKDevice<DeviceType>::value,Kokkos::MemoryTraits<Kokkos::Atomic|Kokkos::Unmanaged> > a_torque = torque;
 
   // Use precomputed bond and prime neighbors.
@@ -204,8 +204,8 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
   KK_FLOAT ra_cstk[3], rb_cstk[3];           // vectors COM-stacking sites in lab frame
   KK_FLOAT ra_cbk[3], rb_cbk[3];             // vectors COM-backbone sites in lab frame
 
-  KK_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
-  KK_FLOAT evdwl,finc,tpair;               
+  KK_ACC_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
+  KK_ACC_FLOAT evdwl,finc,tpair;               
   KK_FLOAT delr_bkbk[3],delr_bkbk_norm[3],rsq_bkbk,r_bkbk,rinv_bkbk;
   KK_FLOAT delr_stkstk[3],delr_stkstk_norm[3],rsq_stkstk,r_stkstk,rinv_stkstk;
   KK_FLOAT theta4,t4dir[3],cost4;
@@ -899,7 +899,7 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 void PairOxdnaStkKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j,\
       const int &nlocal, const int &newton_bond, const KK_FLOAT &evdwl,\
-      const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz,\
+      const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,\
       const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
 {
   KK_ACC_FLOAT evdwlhalf;

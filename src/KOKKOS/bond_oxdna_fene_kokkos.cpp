@@ -218,9 +218,9 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
   const int &in, EV_FLOAT& ev) const
 {
   // The f and torque arrays are atomic
-  Kokkos::View<KK_FLOAT*[3], typename DAT::t_kkfloat_1d_3::array_layout,\
+  Kokkos::View<KK_ACC_FLOAT*[3], typename DAT::t_kkacc_1d_3::array_layout,\
     typename KKDevice<DeviceType>::value,Kokkos::MemoryTraits<Kokkos::Atomic|Kokkos::Unmanaged> > a_f = f;
-  Kokkos::View<KK_FLOAT*[3], typename DAT::t_kkfloat_1d_3::array_layout,\
+  Kokkos::View<KK_ACC_FLOAT*[3], typename DAT::t_kkacc_1d_3::array_layout,\
     typename KKDevice<DeviceType>::value,Kokkos::MemoryTraits<Kokkos::Atomic|Kokkos::Unmanaged> > a_torque = torque;
 
   // Use precomputed bond and prime neighbors.
@@ -244,7 +244,7 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
   int id5p_local = d_bond_prime_neighs(in,3);
   b5ptype = (id5p_local != -1) ? atomtype[id5p_local] : 0;
 
-  KK_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
+  KK_ACC_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
   KK_FLOAT delr_bkbk[3];                   // vector backbone site b to a
   // vectors COM-backbone site in lab frame
   KK_FLOAT ra_cbk[3], rb_cbk[3];
@@ -327,7 +327,7 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
     }
   }
 
-  KK_FLOAT fbond = -d_k[type] * rr0 / rlogarg / Deltasq / r_bkbk;
+  KK_ACC_FLOAT fbond = -d_k[type] * rr0 / rlogarg / Deltasq / r_bkbk;
   delf[0] = delr_bkbk[0] * fbond;
   delf[1] = delr_bkbk[1] * fbond;
   delf[2] = delr_bkbk[2] * fbond;
@@ -465,7 +465,7 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 void BondOxdnaFENEKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j,\
       const int &nlocal, const int &newton_bond,\
-      const KK_FLOAT &ebond, const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz,\
+      const KK_FLOAT &ebond, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,\
       const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
 {
   KK_ACC_FLOAT ebondhalf;

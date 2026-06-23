@@ -287,8 +287,8 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
   // vectors COM-backbone site in lab frame
   KK_FLOAT ra_cs[3], rb_cs[3];
 
-  KK_FLOAT delf[3],delta[3],deltb[3];    // force, torque increment
-  KK_FLOAT evdwl, fpair;
+  KK_ACC_FLOAT delf[3],delta[3],deltb[3];    // force, torque increment
+  KK_ACC_FLOAT evdwl, fpair;
   KK_FLOAT rtmp_s[3],delr[3];
   KK_FLOAT r,rsq,rinv;
 
@@ -541,8 +541,8 @@ template<class DeviceType>
 template<int NEIGHFLAG, int NEWTON_PAIR>
 KOKKOS_INLINE_FUNCTION
 void PairOxdna2DhKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j,
-      const KK_FLOAT &epair, const KK_FLOAT &fx, const KK_FLOAT &fy, const KK_FLOAT &fz, const KK_FLOAT &delx,
-                const KK_FLOAT &dely, const KK_FLOAT &delz) const
+      const KK_FLOAT &epair, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,
+      const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
 {
   const int EFLAG = eflag;
   const int VFLAG = vflag_either;
