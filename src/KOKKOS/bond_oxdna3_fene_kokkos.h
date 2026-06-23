@@ -68,6 +68,11 @@ void BondOxdna3FENEKokkos<DeviceType>::coeff(int narg, char **arg)
   this->k_k.template modify<LMPHostType>();
   this->k_r0.template modify<LMPHostType>();
   this->k_Delta.template modify<LMPHostType>();
+
+  // Sync to device
+  this->k_k.template sync<DeviceType>();
+  this->k_r0.template sync<DeviceType>();
+  this->k_Delta.template sync<DeviceType>();
 }
 
 }    // namespace LAMMPS_NS
