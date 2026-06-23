@@ -160,7 +160,7 @@ Atom::Atom(LAMMPS *_lmp) : Pointers(_lmp), atom_style(nullptr), avec(nullptr), a
 
   // PERI package
 
-  vfrac = s0 = nullptr;
+  vfrac = s0 = smin = nullptr;
   x0 = nullptr;
 
   // SPIN package
@@ -495,6 +495,7 @@ void Atom::peratom_create()
 
   add_peratom("vfrac",&vfrac,DOUBLE,0);
   add_peratom("s0",&s0,DOUBLE,0);
+  add_peratom("smin",&smin,DOUBLE,0);
   add_peratom("x0",&x0,DOUBLE,3);
 
   // SPIN package
@@ -514,7 +515,7 @@ void Atom::peratom_create()
 
   add_peratom("id3p",&id3p,tagintsize,0);
   add_peratom("id5p",&id5p,tagintsize,0);
-  add_peratom("qeff",&qeff,tagintsize,0);
+  add_peratom("qeff",&qeff,DOUBLE,0);
 
   // DPD-REACT package
 
@@ -649,7 +650,7 @@ void Atom::set_atomflag_defaults()
   // identical list as 2nd customization in atom.h
 
   labelmapflag = 0;
-  ellipsoid_flag = line_flag = tri_flag = body_flag = 0;
+  ellipsoid_flag = line_flag = tri_flag = body_flag = superellipsoid_flag = 0;
   quat_flag = 0;
   peri_flag = electron_flag = sph_flag = 0;
   molecule_flag = molindex_flag = molatom_flag = 0;

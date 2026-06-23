@@ -34,6 +34,7 @@ class PairOxdna2Coaxstk : public Pair {
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
+  void init_style() override;
   void init_list(int, class NeighList *) override;
   double init_one(int, int) override;
   void write_restart(FILE *) override;
@@ -57,9 +58,11 @@ class PairOxdna2Coaxstk : public Pair {
   double **a_cxst6, **theta_cxst6_0, **dtheta_cxst6_ast;
   double **b_cxst6, **dtheta_cxst6_c;
   double **AA_cxst1, **BB_cxst1;
-  double **nx_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
 
   virtual void allocate();
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

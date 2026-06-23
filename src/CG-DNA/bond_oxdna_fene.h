@@ -42,11 +42,11 @@ class BondOxdnaFene : public Bond {
  protected:
   friend class BondOxdna3Fene; // friend for KOKKOS access to oxdna3 without inheriting
 
-  double *k, *****Delta, *****r0;               // FENE
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
+  double *k, *****Delta, *****r0;    // FENE
+  double **nxyz_xtrct;               // per-atom arrays for local unit vectors
 
   virtual void allocate();
-  void ev_tally_xyz(int, int, int, int, double, double, double, double, double, double, double);
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

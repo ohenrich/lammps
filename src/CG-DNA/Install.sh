@@ -58,6 +58,8 @@ action  fix_nve_dotc_langevin.cpp atom_vec_ellipsoid.h
 action  fix_nve_dotc_langevin.h atom_vec_ellipsoid.h
 action  fix_nve_dot.cpp atom_vec_ellipsoid.h
 action  fix_nve_dot.h atom_vec_ellipsoid.h
+action  fix_oxdna_lrf.cpp atom_vec_ellipsoid.h
+action  fix_oxdna_lrf.h atom_vec_ellipsoid.h
 action  mf_oxdna.h atom_vec_ellipsoid.h
 action  pair_oxdna_excv.cpp atom_vec_ellipsoid.h
 action  pair_oxdna3_excv.cpp atom_vec_ellipsoid.h

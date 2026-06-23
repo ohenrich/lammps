@@ -166,9 +166,7 @@ void FixMolSwap::init()
 
   // c_pe = compute used to calculate before/after potential energy
 
-  auto *id_pe = (char *) "thermo_pe";
-  int ipe = modify->find_compute(id_pe);
-  c_pe = modify->compute[ipe];
+  c_pe = modify->get_compute_by_id("thermo_pe");
 
   // minmol = smallest molID with atoms of itype or jtype
   // maxmol = largest molID with atoms of itype or jtype
@@ -429,8 +427,9 @@ int FixMolSwap::attempt_swap()
 
 double FixMolSwap::energy_full()
 {
-  int eflag = 1;
-  int vflag = 0;
+  // flag that we only need to compute the global energy
+  int eflag = ENERGY_GLOBAL | ENERGY_ONLY;
+  int vflag = VIRIAL_NONE;
 
   if (modify->n_pre_force) modify->pre_force(vflag);
 
@@ -444,13 +443,10 @@ double FixMolSwap::energy_full()
   }
 
   if (force->kspace) force->kspace->compute(eflag,vflag);
-
   if (modify->n_post_force_any) modify->post_force(vflag);
 
   update->eflag_global = update->ntimestep;
-  double total_energy = c_pe->compute_scalar();
-
-  return total_energy;
+  return c_pe->compute_scalar();
 }
 
 /* ---------------------------------------------------------------------- */

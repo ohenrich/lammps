@@ -72,7 +72,7 @@ void AtomVecOxdna::data_atom_post(int ilocal)
 {
   tagint *id3p = atom->id3p;
   tagint *id5p = atom->id5p;
-  tagint *qeff = atom->qeff;
+  double *qeff = atom->qeff;
   id3p[ilocal] = -1;
   id5p[ilocal] = -1;
   qeff[ilocal] = -1;

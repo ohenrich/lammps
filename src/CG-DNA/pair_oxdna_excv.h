@@ -33,6 +33,7 @@ class PairOxdnaExcv : public Pair {
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
+  void init_style() override;
   void init_list(int, class NeighList *) override;
   double init_one(int, int) override;
   void write_restart(FILE *) override;
@@ -40,8 +41,6 @@ class PairOxdnaExcv : public Pair {
   void write_restart_settings(FILE *) override;
   void read_restart_settings(FILE *) override;
   void *extract(const char *, int &) override;
-  int pack_forward_comm(int, int *, double *, int, int *) override;
-  void unpack_forward_comm(int, int, double *) override;
 
  protected:
   // s=sugar-phosphate backbone site, b=base site, st=stacking site
@@ -58,8 +57,10 @@ class PairOxdnaExcv : public Pair {
   double ****sigma4_bsbs, ****cut4_bsbs_ast, ****cut4sq_bsbs_ast;
   double ****lj14_bsbs, ****lj24_bsbs, ****b4_bsbs, ****cut4_bsbs_c, ****cut4sq_bsbs_c;
 
-  double **nx, **ny, **nz;    // per-atom arrays for local unit vectors
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
   virtual void allocate();
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

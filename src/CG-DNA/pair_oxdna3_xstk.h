@@ -32,6 +32,7 @@ class PairOxdna3Xstk : public Pair {
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
+  void init_style() override;
   void init_list(int, class NeighList *) override;
   double init_one(int, int) override;
   void write_restart(FILE *) override;
@@ -44,9 +45,9 @@ class PairOxdna3Xstk : public Pair {
   // cross-stacking interaction
   double **k_xst;
   double ****cut_xst_0_33, ****cut_xst_c_33, ****cut_xst_lo_33, ****cut_xst_hi_33;
-  double ****cut_xst_lc_33, ****cut_xst_hc_33,****cutsq_xst_hc_33;
+  double ****cut_xst_lc_33, ****cut_xst_hc_33, ****cutsq_xst_hc_33;
   double ****cut_xst_0_55, ****cut_xst_c_55, ****cut_xst_lo_55, ****cut_xst_hi_55;
-  double ****cut_xst_lc_55, ****cut_xst_hc_55,****cutsq_xst_hc_55;
+  double ****cut_xst_lc_55, ****cut_xst_hc_55, ****cutsq_xst_hc_55;
   double **b_xst_lo, **b_xst_hi;
   double **a_xst1, **theta_xst1_0, **dtheta_xst1_ast;
   double **b_xst1, **dtheta_xst1_c;
@@ -62,9 +63,11 @@ class PairOxdna3Xstk : public Pair {
   double **b_xst7, **dtheta_xst7_c;
   double **a_xst8, **theta_xst8_0_33, **theta_xst8_0_55, **dtheta_xst8_ast;
   double **b_xst8, **dtheta_xst8_c;
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
 
   virtual void allocate();
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

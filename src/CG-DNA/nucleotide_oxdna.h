@@ -14,7 +14,6 @@
 #ifndef NUCLEOTIDE_OXDNA_H
 #define NUCLEOTIDE_OXDNA_H
 
-# include <cstdio>
 #include "pointers.h"
 #include "constants_oxdna.h"
 
@@ -23,8 +22,8 @@ namespace LAMMPS_NS {
 template <class Derived>
 class NucleotideOxdna {
  public:
-  NucleotideOxdna(){};
-  ~NucleotideOxdna(){};
+  NucleotideOxdna() = default;
+  virtual ~NucleotideOxdna() = default;
   void backbone_site_interface(double e1[3], double e2[3], double e3[3], double rbk[3]) {
     static_cast<Derived*>(this)->backbone_site(e1, e2, e3, rbk);
   }
@@ -42,8 +41,6 @@ class NucleotideOxdna {
 ------------------------------------------------------------------------- */
 class NucleotideOxdna1 : public NucleotideOxdna<NucleotideOxdna1> {
  public:
-  NucleotideOxdna1(){};
-  ~NucleotideOxdna1(){};
   inline void backbone_site(double e1[3], double /*e2*/[3], double /*e3*/[3], double rbk[3]) {
     double dx_cbk_oxdna1 = ConstantsOxdna::get_dx_cbk_oxdna1();
     rbk[0] = dx_cbk_oxdna1 * e1[0];
@@ -74,8 +71,6 @@ inline void NucleotideOxdna1::base_site<0>(double e1[3], double /*e2*/[3],
 ------------------------------------------------------------------------- */
 class NucleotideOxdna2 : public NucleotideOxdna<NucleotideOxdna2> {
  public:
-  NucleotideOxdna2(){};
-  ~NucleotideOxdna2(){};
   inline void backbone_site(double e1[3], double e2[3], double /*e3*/[3], double rbk[3]) {
     double dx_cbk_oxdna2 = ConstantsOxdna::get_dx_cbk_oxdna2();
     double dy_cbk_oxdna2 = ConstantsOxdna::get_dy_cbk_oxdna2();
@@ -90,8 +85,6 @@ class NucleotideOxdna2 : public NucleotideOxdna<NucleotideOxdna2> {
 ------------------------------------------------------------------------- */
 class NucleotideOxdna3 : public NucleotideOxdna<NucleotideOxdna3> {
  public:
-  NucleotideOxdna3(){};
-  ~NucleotideOxdna3(){};
   inline void stacking_site(double e1[3], double /*e2*/[3], double /*e3*/[3], double rstk[3]) {
     double dx_cstk_oxdna3 = ConstantsOxdna::get_dx_cstk_oxdna3();
     rstk[0] = dx_cstk_oxdna3 * e1[0];
@@ -140,8 +133,6 @@ inline void NucleotideOxdna3::base_site<3>(double e1[3], double /*e2*/[3],
 ------------------------------------------------------------------------- */
 class NucleotideOxrna2 : public NucleotideOxdna<NucleotideOxrna2> {
  public:
-  NucleotideOxrna2(){};
-  ~NucleotideOxrna2(){};
   inline void backbone_site(double e1[3], double /*e2*/[3], double e3[3], double rbk[3]) {
     double dx_cbk_oxrna2 = ConstantsOxdna::get_dx_cbk_oxrna2();
     double dz_cbk_oxrna2 = ConstantsOxdna::get_dz_cbk_oxrna2();

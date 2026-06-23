@@ -20,21 +20,21 @@ PairStyle(oxrna2/excv,PairOxrna2Excv);
 #ifndef LMP_PAIR_OXRNA2_EXCV_H
 #define LMP_PAIR_OXRNA2_EXCV_H
 
-#include "pair_oxdna_excv.h"
 #include "nucleotide_oxdna.h"
+#include "pair_oxdna_excv.h"
 
 namespace LAMMPS_NS {
 
 class PairOxrna2Excv : public PairOxdnaExcv {
  public:
   PairOxrna2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
-  // inline below has to be here in the header file, otherwise KOKKOS 
+  // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
-  inline void compute_backbone_site(double e1[3], double /*e2*/[3],
-   double e3[3], double rbk[3]) const
+  void compute_backbone_site(double e1[3], double /*e2*/[3], double e3[3],
+                             double rbk[3]) const override
   {
-   NucleotideOxrna2 oxrna2;
-   oxrna2.backbone_site(e1, NULL, e3, rbk);
+    NucleotideOxrna2 oxrna2;
+    oxrna2.backbone_site(e1, nullptr, e3, rbk);
   };
 };
 

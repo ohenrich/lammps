@@ -168,7 +168,7 @@ void PairOxdna3Hbond::coeff(int narg, char **arg)
     }
     if ((iloc != arg[0]) || (jloc != arg[1]) || (potential_name != "hbond"))
       error->one(FLERR, "No corresponding hbond potential found in file {} for pair type {} {}",
-                 arg[3], arg[0], arg[1]);
+                 arg[2], arg[0], arg[1]);
   }
 
   MPI_Bcast(&epsilon_hb_one, 1, MPI_DOUBLE, 0, world);

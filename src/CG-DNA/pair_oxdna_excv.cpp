@@ -23,11 +23,14 @@
 #include "atom_vec_ellipsoid.h"
 #include "comm.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "math_extra.h"
 #include "memory.h"
 #include "mf_oxdna.h"
+#include "modify.h"
 #include "neigh_list.h"
+#include "neighbor.h"
 #include "potential_file_reader.h"
 
 #include <cmath>
@@ -40,13 +43,11 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
-PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) : Pair(lmp)
+PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) : Pair(lmp), fix_lrf(nullptr)
 {
   single_enable = 0;
   writedata = 0;
 
-  // set comm size needed by this Pair
-  comm_forward = 9;
   trim_flag = 0;
 }
 
@@ -54,11 +55,10 @@ PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) : Pair(lmp)
 
 PairOxdnaExcv::~PairOxdnaExcv()
 {
-  if (allocated && !copymode) {
 
-    memory->destroy(nx);
-    memory->destroy(ny);
-    memory->destroy(nz);
+  if (fix_lrf) modify->delete_fix(fix_lrf->id);
+
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -111,7 +111,7 @@ inline void PairOxdnaExcv::compute_backbone_site(double e1[3], double /*e2*/[3],
     double /*e3*/[3], double rbk[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.backbone_site(e1, NULL, NULL, rbk);
+  oxdna1.backbone_site(e1, nullptr, nullptr, rbk);
 }
 
 /* ---------------------------------------------------------------------
@@ -122,7 +122,7 @@ inline void PairOxdnaExcv::compute_base_site(int /*type*/, double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rbs[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.base_site<0>(e1, NULL, NULL, rbs);
+  oxdna1.base_site<0>(e1, nullptr, nullptr, rbs);
 }
 
 /* ----------------------------------------------------------------------
@@ -156,11 +156,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
   int *alist,*blist,*numneigh,**firstneigh;
 
-  auto *avec = dynamic_cast<AtomVecEllipsoid *>(atom->style_match("ellipsoid"));
-  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
-  int *ellipsoid = atom->ellipsoid;
-
-  int a,b,in,ia,ib,anum,bnum,atype,btype;
+  int a,b,ia,ib,anum,bnum,atype,btype;
   tagint *id3p = atom->id3p;
   tagint *id5p = atom->id5p;
   int _3ptype,_5ptype;
@@ -173,28 +169,8 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  // loop over all local atoms, calculation of local reference frame
-  for (in = 0; in < atom->nlocal; in++) {
-
-    int n = alist[in];
-    double *qn,nx_temp[3],ny_temp[3],nz_temp[3]; // quaternion and Cartesian unit vectors in lab frame
-
-    qn=bonus[ellipsoid[n]].quat;
-    MathExtra::q_to_exyz(qn,nx_temp,ny_temp,nz_temp);
-
-    nx[n][0] = nx_temp[0];
-    nx[n][1] = nx_temp[1];
-    nx[n][2] = nx_temp[2];
-    ny[n][0] = ny_temp[0];
-    ny[n][1] = ny_temp[1];
-    ny[n][2] = ny_temp[2];
-    nz[n][0] = nz_temp[0];
-    nz[n][1] = nz_temp[1];
-    nz[n][2] = nz_temp[2];
-
-  }
-
-  comm->forward_comm(this);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix oxdna/lrf
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
 
@@ -203,15 +179,15 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
-    ax[0] = nx[a][0];
-    ax[1] = nx[a][1];
-    ax[2] = nx[a][2];
-    ay[0] = ny[a][0];
-    ay[1] = ny[a][1];
-    ay[2] = ny[a][2];
-    az[0] = nz[a][0];
-    az[1] = nz[a][1];
-    az[2] = nz[a][2];
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
+    ay[0] = nxyz_xtrct[a][3];
+    ay[1] = nxyz_xtrct[a][4];
+    ay[2] = nxyz_xtrct[a][5];
+    az[0] = nxyz_xtrct[a][6];
+    az[1] = nxyz_xtrct[a][7];
+    az[2] = nxyz_xtrct[a][8];
 
     // vector COM - backbone site a
     compute_backbone_site(ax,ay,az,ra_cbk);
@@ -238,15 +214,15 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
 
       btype = type[b];
 
-      bx[0] = nx[b][0];
-      bx[1] = nx[b][1];
-      bx[2] = nx[b][2];
-      by[0] = ny[b][0];
-      by[1] = ny[b][1];
-      by[2] = ny[b][2];
-      bz[0] = nz[b][0];
-      bz[1] = nz[b][1];
-      bz[2] = nz[b][2];
+      bx[0] = nxyz_xtrct[b][0];
+      bx[1] = nxyz_xtrct[b][1];
+      bx[2] = nxyz_xtrct[b][2];
+      by[0] = nxyz_xtrct[b][3];
+      by[1] = nxyz_xtrct[b][4];
+      by[2] = nxyz_xtrct[b][5];
+      bz[0] = nxyz_xtrct[b][6];
+      bz[1] = nxyz_xtrct[b][7];
+      bz[2] = nxyz_xtrct[b][8];
 
       // vector COM - backbone site b
       compute_backbone_site(bx,by,bz,rb_cbk);
@@ -458,7 +434,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
         }
       }
 
-      if (evdwl) {
+      if (evdwl != 0.0) {
 
         delf[0] = delr_bsbs[0]*fpair;
         delf[1] = delr_bsbs[1]*fpair;
@@ -515,10 +491,6 @@ void PairOxdnaExcv::allocate()
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
-
-  memory->create(nx,atom->nmax,3,"pair:nx");
-  memory->create(ny,atom->nmax,3,"pair:ny");
-  memory->create(nz,atom->nmax,3,"pair:nz");
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
@@ -790,6 +762,18 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
 }
 
 /* ----------------------------------------------------------------------
+   init specific to this pair style
+------------------------------------------------------------------------- */
+void PairOxdnaExcv::init_style()
+{
+  // ensure fix oxdna/lrf is added for backward-compatability
+  if (!fix_lrf)
+    fix_lrf = dynamic_cast<FixOxdnaLRF *>(modify->add_fix("lrf all OXDNA/LRF"));
+
+  neighbor->add_request(this, NeighConst::REQ_DEFAULT);
+}
+
+/* ----------------------------------------------------------------------
    neighbor callback to inform pair style of neighbor list to use regular
 ------------------------------------------------------------------------- */
 
@@ -940,56 +924,9 @@ void PairOxdnaExcv::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-int PairOxdnaExcv::pack_forward_comm(int n, int *list, double *buf,
-                               int /*pbc_flag*/, int * /*pbc*/)
-{
-  int i,j,m;
-
-  m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
-    buf[m++] = nx[j][0];
-    buf[m++] = nx[j][1];
-    buf[m++] = nx[j][2];
-    buf[m++] = ny[j][0];
-    buf[m++] = ny[j][1];
-    buf[m++] = ny[j][2];
-    buf[m++] = nz[j][0];
-    buf[m++] = nz[j][1];
-    buf[m++] = nz[j][2];
-  }
-  return m;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void PairOxdnaExcv::unpack_forward_comm(int n, int first, double *buf)
-{
-  int i,m,last;
-  m = 0;
-  last = first + n;
-  for (i = first; i < last; i++) {
-    nx[i][0] = buf[m++];
-    nx[i][1] = buf[m++];
-    nx[i][2] = buf[m++];
-    ny[i][0] = buf[m++];
-    ny[i][1] = buf[m++];
-    ny[i][2] = buf[m++];
-    nz[i][0] = buf[m++];
-    nz[i][1] = buf[m++];
-    nz[i][2] = buf[m++];
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
 void *PairOxdnaExcv::extract(const char *str, int &dim)
 {
   dim = 2;
-
-  if (strcmp(str,"nx") == 0) return (void *) nx;
-  if (strcmp(str,"ny") == 0) return (void *) ny;
-  if (strcmp(str,"nz") == 0) return (void *) nz;
 
   if (strcmp(str,"epsilon_bkbk") == 0) return (void *) epsilon_bkbk;
   if (strcmp(str,"sigma_bkbk") == 0) return (void *) sigma_bkbk;

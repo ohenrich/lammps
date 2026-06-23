@@ -33,6 +33,7 @@ class PairOxdna2Dh : public Pair {
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
+  void init_style() override;
   void init_list(int, class NeighList *) override;
   double init_one(int, int) override;
   void write_restart(FILE *) override;
@@ -44,10 +45,12 @@ class PairOxdna2Dh : public Pair {
  protected:
   double **qeff_dh_pf, **kappa_dh;
   double **b_dh, **cut_dh_ast, **cutsq_dh_ast, **cut_dh_c, **cutsq_dh_c;
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
-  int no_3p_charge_flag;
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
+  int half_charged_ends_flag;
 
   virtual void allocate();
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

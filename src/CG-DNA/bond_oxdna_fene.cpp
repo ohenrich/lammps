@@ -21,8 +21,10 @@
 #include "atom.h"
 #include "comm.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "memory.h"
+#include "modify.h"
 #include "neighbor.h"
 #include "potential_file_reader.h"
 #include "update.h"
@@ -50,94 +52,11 @@ BondOxdnaFene::~BondOxdnaFene()
 /* ----------------------------------------------------------------------
     compute vector COM-sugar-phosphate backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
-inline void BondOxdnaFene::compute_backbone_site(double e1[3], double /*e2*/[3],
-  double /*e3*/[3], double rbk[3]) const
+void BondOxdnaFene::compute_backbone_site(double e1[3], double /*e2*/[3], double /*e3*/[3],
+                                          double rbk[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.backbone_site(e1, NULL, NULL, rbk);
-}
-
-/* ----------------------------------------------------------------------
-   tally energy and virial into global and per-atom accumulators
-------------------------------------------------------------------------- */
-
-void BondOxdnaFene::ev_tally_xyz(int i, int j, int nlocal, int newton_bond, double ebond, double fx,
-                                 double fy, double fz, double delx, double dely, double delz)
-{
-  double ebondhalf, v[6];
-
-  if (eflag_either) {
-    if (eflag_global) {
-      if (newton_bond)
-        energy += ebond;
-      else {
-        ebondhalf = 0.5 * ebond;
-        if (i < nlocal) energy += ebondhalf;
-        if (j < nlocal) energy += ebondhalf;
-      }
-    }
-    if (eflag_atom) {
-      ebondhalf = 0.5 * ebond;
-      if (newton_bond || i < nlocal) eatom[i] += ebondhalf;
-      if (newton_bond || j < nlocal) eatom[j] += ebondhalf;
-    }
-  }
-
-  if (vflag_either) {
-    v[0] = delx * fx;
-    v[1] = dely * fy;
-    v[2] = delz * fz;
-    v[3] = delx * fy;
-    v[4] = delx * fz;
-    v[5] = dely * fz;
-
-    if (vflag_global) {
-      if (newton_bond) {
-        virial[0] += v[0];
-        virial[1] += v[1];
-        virial[2] += v[2];
-        virial[3] += v[3];
-        virial[4] += v[4];
-        virial[5] += v[5];
-      } else {
-        if (i < nlocal) {
-          virial[0] += 0.5 * v[0];
-          virial[1] += 0.5 * v[1];
-          virial[2] += 0.5 * v[2];
-          virial[3] += 0.5 * v[3];
-          virial[4] += 0.5 * v[4];
-          virial[5] += 0.5 * v[5];
-        }
-        if (j < nlocal) {
-          virial[0] += 0.5 * v[0];
-          virial[1] += 0.5 * v[1];
-          virial[2] += 0.5 * v[2];
-          virial[3] += 0.5 * v[3];
-          virial[4] += 0.5 * v[4];
-          virial[5] += 0.5 * v[5];
-        }
-      }
-    }
-
-    if (vflag_atom) {
-      if (newton_bond || i < nlocal) {
-        vatom[i][0] += 0.5 * v[0];
-        vatom[i][1] += 0.5 * v[1];
-        vatom[i][2] += 0.5 * v[2];
-        vatom[i][3] += 0.5 * v[3];
-        vatom[i][4] += 0.5 * v[4];
-        vatom[i][5] += 0.5 * v[5];
-      }
-      if (newton_bond || j < nlocal) {
-        vatom[j][0] += 0.5 * v[0];
-        vatom[j][1] += 0.5 * v[1];
-        vatom[j][2] += 0.5 * v[2];
-        vatom[j][3] += 0.5 * v[3];
-        vatom[j][4] += 0.5 * v[4];
-        vatom[j][5] += 0.5 * v[5];
-      }
-    }
-  }
+  oxdna1.backbone_site(e1, nullptr, nullptr, rbk);
 }
 
 /* ----------------------------------------------------------------------
@@ -175,11 +94,8 @@ void BondOxdnaFene::compute(int eflag, int vflag)
   ebond = 0.0;
   ev_init(eflag, vflag);
 
-  // n(x/y/z)_xtrct = extracted local unit vectors in lab frame from oxdna_excv
-  int dim;
-  nx_xtrct = (double **) force->pair->extract("nx", dim);
-  ny_xtrct = (double **) force->pair->extract("ny", dim);
-  nz_xtrct = (double **) force->pair->extract("nz", dim);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over FENE bonds
 
@@ -195,46 +111,44 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       btemp = b;
       b = a;
       a = btemp;
-
     }
 
     // a now in 3' direction, b in 5' direction
 
-    ax[0] = nx_xtrct[a][0];
-    ax[1] = nx_xtrct[a][1];
-    ax[2] = nx_xtrct[a][2];
-    ay[0] = ny_xtrct[a][0];
-    ay[1] = ny_xtrct[a][1];
-    ay[2] = ny_xtrct[a][2];
-    az[0] = nz_xtrct[a][0];
-    az[1] = nz_xtrct[a][1];
-    az[2] = nz_xtrct[a][2];
-    bx[0] = nx_xtrct[b][0];
-    bx[1] = nx_xtrct[b][1];
-    bx[2] = nx_xtrct[b][2];
-    by[0] = ny_xtrct[b][0];
-    by[1] = ny_xtrct[b][1];
-    by[2] = ny_xtrct[b][2];
-    bz[0] = nz_xtrct[b][0];
-    bz[1] = nz_xtrct[b][1];
-    bz[2] = nz_xtrct[b][2];
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
+    ay[0] = nxyz_xtrct[a][3];
+    ay[1] = nxyz_xtrct[a][4];
+    ay[2] = nxyz_xtrct[a][5];
+    az[0] = nxyz_xtrct[a][6];
+    az[1] = nxyz_xtrct[a][7];
+    az[2] = nxyz_xtrct[a][8];
+    bx[0] = nxyz_xtrct[b][0];
+    bx[1] = nxyz_xtrct[b][1];
+    bx[2] = nxyz_xtrct[b][2];
+    by[0] = nxyz_xtrct[b][3];
+    by[1] = nxyz_xtrct[b][4];
+    by[2] = nxyz_xtrct[b][5];
+    bz[0] = nxyz_xtrct[b][6];
+    bz[1] = nxyz_xtrct[b][7];
+    bz[2] = nxyz_xtrct[b][8];
 
     // determine tetramer types
     // 3'neighbor a - a - b - 5'neighbor b
 
     if (id3p[a] != -1) {
       a3ptype = atomtype[atom->map(id3p[a])];
-    }
-    else a3ptype = 0;
+    } else
+      a3ptype = 0;
 
     atype = atomtype[a];
     btype = atomtype[b];
 
     if (id5p[b] != -1) {
       b5ptype = atomtype[atom->map(id5p[b])];
-      b5ptype = atomtype[atom->map(id5p[b])];
-    }
-    else b5ptype = 0;
+    } else
+      b5ptype = 0;
 
     // vector COM-backbone site a and b
     compute_backbone_site(ax, ay, az, ra_cbk);
@@ -253,35 +167,35 @@ void BondOxdnaFene::compute(int eflag, int vflag)
     rlogarg = 1.0 - rr0sq / Deltasq;
 
     // energy
-    if (eflag) {
-      ebond = -0.5 * k[type] * log(rlogarg);
-    }
+    if (eflag) { ebond = -0.5 * k[type] * log(rlogarg); }
 
     // switching to capped force for r-r0 -> Delta at
     // r > r_max = r0 + Delta*sqrt(1-rlogarg) OR
     // r < r_min = r0 - Delta*sqrt(1-rlogarg)
     if (rlogarg < rlogarg_min) {
       // issue warning, reset rlogarg and rr0 to cap force
-      error->warning(FLERR, "FENE bond too long: {} {} {} {}", update->ntimestep, atom->tag[a],
-                     atom->tag[b], r_bkbk);
+      error->warning(FLERR, "FENE bond too long: {} {} {} {}", update->ntimestep, atom->tag[a], atom->tag[b], r_bkbk);
       rlogarg = rlogarg_min;
 
       // if overstretched F(r)=F(r_max)=F_max, E(r)=E(r_max)+F_max*(r-r_max)
       if (r_bkbk > r0[type][a3ptype][atype][btype][b5ptype]) {
-        rr0 =  Delta[type][a3ptype][atype][btype][b5ptype]*sqrt(1.0-rlogarg);
+        rr0 = Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
         // energy
         if (eflag) {
-          ebond = -0.5 * k[type] * log(rlogarg) + k[type] * sqrt(1.0-rlogarg) / rlogarg / Delta[type][a3ptype][atype][btype][b5ptype] *
-                  (r_bkbk - r0[type][a3ptype][atype][btype][b5ptype] - Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0-rlogarg));
+          ebond = -0.5 * k[type] * log(rlogarg) + k[type] * sqrt(1.0 - rlogarg) / rlogarg /
+                  Delta[type][a3ptype][atype][btype][b5ptype] * (r_bkbk - r0[type][a3ptype][atype][btype][b5ptype] -
+                   Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg));
         }
       }
       // if overcompressed F(r)=F(r_min)=F_max, E(r)=E(r_min)+F_max*(r_min-r)
       else if (r_bkbk < r0[type][a3ptype][atype][btype][b5ptype]) {
-        rr0 = -Delta[type][a3ptype][atype][btype][b5ptype]*sqrt(1.0-rlogarg);
+        rr0 = -Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
         // energy
         if (eflag) {
-          ebond = -0.5 * k[type] * log(rlogarg) + k[type] * sqrt(1.0-rlogarg) / rlogarg / Delta[type][a3ptype][atype][btype][b5ptype] *
-                  (r0[type][a3ptype][atype][btype][b5ptype] - Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0-rlogarg) - r_bkbk);
+          ebond = -0.5 * k[type] * log(rlogarg) +
+              k[type] * sqrt(1.0 - rlogarg) / rlogarg / Delta[type][a3ptype][atype][btype][b5ptype] *
+                  (r0[type][a3ptype][atype][btype][b5ptype] -
+                   Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg) - r_bkbk);
         }
       }
     }
@@ -337,10 +251,10 @@ void BondOxdnaFene::allocate()
   int n = atom->nbondtypes;
   int m = atom->ntypes;
 
-  memory->create(k, n+1, "bond:k");
-  memory->create(Delta, n+1, m+1, m+1, m+1, m+1, "bond:Delta");
-  memory->create(r0, n+1, m+1, m+1, m+1, m+1, "bond:r0");
-  memory->create(setflag, n+1, "bond:setflag");
+  memory->create(k, n + 1, "bond:k");
+  memory->create(Delta, n + 1, m + 1, m + 1, m + 1, m + 1, "bond:Delta");
+  memory->create(r0, n + 1, m + 1, m + 1, m + 1, m + 1, "bond:r0");
+  memory->create(setflag, n + 1, "bond:setflag");
 
   for (int i = 1; i <= n; i++) setflag[i] = 0;
 }
@@ -351,7 +265,9 @@ void BondOxdnaFene::allocate()
 
 void BondOxdnaFene::coeff(int narg, char **arg)
 {
-  if (narg != 2 && narg != 4) error->all(FLERR, "Incorrect args for bond coefficients in oxdna/fene, oxdna2/fene or oxrna2/fene" + utils::errorurl(21));
+  if (narg != 2 && narg != 4)
+    error->all(FLERR, "Incorrect args for bond coefficients in oxdna/fene, oxdna2/fene or oxrna2/fene" + utils::errorurl(21));
+
   if (!allocated) allocate();
 
   int ilo, ihi;
@@ -366,9 +282,9 @@ void BondOxdnaFene::coeff(int narg, char **arg)
     Delta_one = utils::numeric(FLERR, arg[2], false, lmp);
     r0_one = utils::numeric(FLERR, arg[3], false, lmp);
   } else {
-    if (comm->me == 0) { // read values from potential file
+    if (comm->me == 0) {    // read values from potential file
       PotentialFileReader reader(lmp, arg[1], "oxdna potential", " (fene)");
-      char * line;
+      char *line;
       std::string iloc, potential_name;
 
       while ((line = reader.next_line())) {
@@ -382,14 +298,14 @@ void BondOxdnaFene::coeff(int narg, char **arg)
             r0_one = values.next_double();
 
             break;
-          } else continue;
+          } else
+            continue;
         } catch (std::exception &e) {
           error->one(FLERR, "Problem parsing oxdna, oxdna2 or oxrna2 potential file: {}", e.what());
         }
       }
       if ((iloc != arg[0]) || (potential_name != "fene"))
-        error->one(FLERR, "No corresponding fene potential found in file {} for bond type {}",
-                   arg[1], arg[0]);
+        error->one(FLERR, "No corresponding fene potential found in file {} for bond type {}", arg[1], arg[0]);
     }
 
     MPI_Bcast(&k_one, 1, MPI_DOUBLE, 0, world);
@@ -402,10 +318,10 @@ void BondOxdnaFene::coeff(int narg, char **arg)
 
   for (int i = ilo; i <= ihi; i++) {
     k[i] = k_one;
-    for (int n1 = 0; n1 <= n; n1++) {
+    for (int n1 = 0; n1 <= n; n1++) {    // type 0 for terminal n2
       for (int n2 = 0; n2 <= n; n2++) {
         for (int n3 = 0; n3 <= n; n3++) {
-          for (int n4 = 0; n4 <= n; n4++) {
+          for (int n4 = 0; n4 <= n; n4++) {    // type 0 for terminal n3
             Delta[i][n1][n2][n3][n4] = Delta_one;
             r0[i][n1][n2][n3][n4] = r0_one;
           }
@@ -416,7 +332,8 @@ void BondOxdnaFene::coeff(int narg, char **arg)
     count++;
   }
 
-  if (count == 0) error->all(FLERR, "Incorrect args for bond coefficients in oxdna/fene, oxdna2/fene or oxrna2/fene" + utils::errorurl(21));
+  if (count == 0)
+    error->all(FLERR, "Incorrect args for bond coefficients in oxdna/fene, oxdna2/fene or oxrna2/fene" + utils::errorurl(21));
 }
 
 /* ----------------------------------------------------------------------
@@ -426,10 +343,14 @@ void BondOxdnaFene::coeff(int narg, char **arg)
 void BondOxdnaFene::init_style()
 {
   if (force->special_lj[1] != 0.0 || force->special_lj[2] != 1.0 || force->special_lj[3] != 1.0)
-    error->all(
-        FLERR,
-        "Must use 'special_bonds lj 0 1 1' with bond style oxdna/fene, oxdna2/fene, oxdna3/fene or oxrna2/fene");
+    error->all(FLERR, "Must use 'special_bonds lj 0 1 1' with bond style oxdna/fene, oxdna2/fene, " "oxdna3/fene or oxrna2/fene");
 
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.size() == 0)
+    error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  else
+    fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -445,7 +366,7 @@ double BondOxdnaFene::equilibrium_distance(int i)
 
 void BondOxdnaFene::write_restart(FILE *fp)
 {
-  int ii,jj,kk,ll;
+  int ii, jj, kk, ll;
 
   fwrite(&k[0], sizeof(double), 1, fp);
   fwrite(&k[1], sizeof(double), atom->nbondtypes, fp);
@@ -461,7 +382,6 @@ void BondOxdnaFene::write_restart(FILE *fp)
       }
     }
   }
-
 }
 
 /* ----------------------------------------------------------------------
@@ -470,7 +390,7 @@ void BondOxdnaFene::write_restart(FILE *fp)
 
 void BondOxdnaFene::read_restart(FILE *fp)
 {
-  int ii,jj,kk,ll;
+  int ii, jj, kk, ll;
 
   allocate();
 
@@ -482,9 +402,11 @@ void BondOxdnaFene::read_restart(FILE *fp)
         for (kk = 1; kk <= atom->ntypes; kk++) {
           for (ll = 1; ll <= atom->ntypes; ll++) {
             utils::sfread(FLERR, &Delta[0][ii][jj][kk][ll], sizeof(double), 1, fp, nullptr, error);
-            utils::sfread(FLERR, &Delta[1][ii][jj][kk][ll], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+            utils::sfread(FLERR, &Delta[1][ii][jj][kk][ll], sizeof(double), atom->nbondtypes, fp,
+                          nullptr, error);
             utils::sfread(FLERR, &r0[0][ii][jj][kk][ll], sizeof(double), 1, fp, nullptr, error);
-            utils::sfread(FLERR, &r0[1][ii][jj][kk][ll], sizeof(double), atom->nbondtypes, fp, nullptr, error);
+            utils::sfread(FLERR, &r0[1][ii][jj][kk][ll], sizeof(double), atom->nbondtypes, fp,
+                          nullptr, error);
           }
         }
       }

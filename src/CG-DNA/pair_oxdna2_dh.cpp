@@ -23,10 +23,13 @@
 #include "comm.h"
 #include "constants_oxdna.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "math_extra.h"
 #include "memory.h"
+#include "modify.h"
 #include "neigh_list.h"
+#include "neighbor.h"
 #include "potential_file_reader.h"
 
 #include <cmath>
@@ -72,7 +75,7 @@ inline void PairOxdna2Dh::compute_backbone_site(double e1[3], double e2[3],
   double /*e3*/[3], double rbk[3]) const
 {
   NucleotideOxdna2 oxdna2;
-  oxdna2.backbone_site(e1, e2, NULL, rbk);
+  oxdna2.backbone_site(e1, e2, nullptr, rbk);
 }
 
 /* ----------------------------------------------------------------------
@@ -97,7 +100,7 @@ void PairOxdna2Dh::compute(int eflag, int vflag)
   double **f = atom->f;
   double **torque = atom->torque;
   int *type = atom->type;
-  tagint *qeff = atom->qeff;
+  double *qeff = atom->qeff;
 
   int nlocal = atom->nlocal;
   int newton_pair = force->newton_pair;
@@ -114,11 +117,8 @@ void PairOxdna2Dh::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  // n(x/y/z)_xtrct = extracted local unit vectors from oxdna_excv
-  int dim;
-  nx_xtrct = (double **) force->pair->extract("nx",dim);
-  ny_xtrct = (double **) force->pair->extract("ny",dim);
-  nz_xtrct = (double **) force->pair->extract("nz",dim);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
 
@@ -127,15 +127,15 @@ void PairOxdna2Dh::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
-    ax[0] = nx_xtrct[a][0];
-    ax[1] = nx_xtrct[a][1];
-    ax[2] = nx_xtrct[a][2];
-    ay[0] = ny_xtrct[a][0];
-    ay[1] = ny_xtrct[a][1];
-    ay[2] = ny_xtrct[a][2];
-    az[0] = nz_xtrct[a][0];
-    az[1] = nz_xtrct[a][1];
-    az[2] = nz_xtrct[a][2];
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
+    ay[0] = nxyz_xtrct[a][3];
+    ay[1] = nxyz_xtrct[a][4];
+    ay[2] = nxyz_xtrct[a][5];
+    az[0] = nxyz_xtrct[a][6];
+    az[1] = nxyz_xtrct[a][7];
+    az[2] = nxyz_xtrct[a][8];
 
     // vector COM-backbone site a
     compute_backbone_site(ax,ay,az,ra_cbk);
@@ -154,15 +154,15 @@ void PairOxdna2Dh::compute(int eflag, int vflag)
       b &= NEIGHMASK;
       btype = type[b];
 
-      bx[0] = nx_xtrct[b][0];
-      bx[1] = nx_xtrct[b][1];
-      bx[2] = nx_xtrct[b][2];
-      by[0] = ny_xtrct[b][0];
-      by[1] = ny_xtrct[b][1];
-      by[2] = ny_xtrct[b][2];
-      bz[0] = nz_xtrct[b][0];
-      bz[1] = nz_xtrct[b][1];
-      bz[2] = nz_xtrct[b][2];
+      bx[0] = nxyz_xtrct[b][0];
+      bx[1] = nxyz_xtrct[b][1];
+      bx[2] = nxyz_xtrct[b][2];
+      by[0] = nxyz_xtrct[b][3];
+      by[1] = nxyz_xtrct[b][4];
+      by[2] = nxyz_xtrct[b][5];
+      bz[0] = nxyz_xtrct[b][6];
+      bz[1] = nxyz_xtrct[b][7];
+      bz[2] = nxyz_xtrct[b][8];
 
       // vector COM-backbone site b
       compute_backbone_site(bx,by,bz,rb_cbk);
@@ -190,10 +190,10 @@ void PairOxdna2Dh::compute(int eflag, int vflag)
         }
         else {
 
-          fpair = 2.0 * b_dh[atype][btype] * (cut_dh_c[atype][btype] - r) * rinv;
+          fpair = 2.0 * qeff[a]*qeff[b] * b_dh[atype][btype] * (cut_dh_c[atype][btype] - r) * rinv;
 
           if (eflag) {
-            evdwl = b_dh[atype][btype] * (r - cut_dh_c[atype][btype]) * (r - cut_dh_c[atype][btype]);
+            evdwl = qeff[a]*qeff[b] * b_dh[atype][btype] * (r - cut_dh_c[atype][btype]) * (r - cut_dh_c[atype][btype]);
           }
 
         }
@@ -293,7 +293,7 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
 {
   int count;
 
-  if (narg != 5 && narg != 6) error->all(FLERR,"Incorrect args for pair coefficients in oxdna2/dh" + utils::errorurl(21));
+  if (narg != 5 && narg != 7) error->all(FLERR,"Incorrect args for pair coefficients in oxdna2/dh" + utils::errorurl(21));
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi;
@@ -303,12 +303,13 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
   count = 0;
 
   int nlocal = atom->nlocal;
-  tagint *qeff = atom->qeff;
+  double *qeff = atom->qeff;
   tagint *id3p = atom->id3p;
+  tagint *id5p = atom->id5p;
 
   double T, rhos_dh_one, qeff_dh_one;
 
-  no_3p_charge_flag = 0;
+  half_charged_ends_flag = 0;
 
   T = utils::numeric(FLERR,arg[2],false,lmp);
   rhos_dh_one = utils::numeric(FLERR,arg[3],false,lmp);
@@ -340,8 +341,8 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
     MPI_Bcast(&qeff_dh_one, 1, MPI_DOUBLE, 0, world);
   } else qeff_dh_one = utils::numeric(FLERR,arg[4],false,lmp); // else, it is effective charge
 
-  if (narg == 6 && strcmp(arg[5],"no_3p_charge")  == 0) {
-    no_3p_charge_flag = 1;
+  if (narg == 7 && strcmp(arg[5],"half_charged_ends")  == 0) {
+    half_charged_ends_flag = utils::logical(FLERR, arg[6], false, lmp);
   }
 
   double lambda_dh_one, kappa_dh_one, qeff_dh_pf_one;
@@ -413,13 +414,26 @@ void PairOxdna2Dh::coeff(int narg, char **arg)
     }
   }
 
-  // optionally remove charge from 3'-end
   for (int in = 0; in < nlocal; in++) {
-    qeff[in] = 1;
-    if (id3p[in] == -1 && no_3p_charge_flag) qeff[in] = 0;
+    qeff[in] = 1.0;
+    // optionally set half a charge at terminal nucleotides to distribute charge equally
+    if ((id3p[in] == -1 || id5p[in] == -1) && half_charged_ends_flag == 1) qeff[in] = 0.5;
   }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna2/dh" + utils::errorurl(21));
+}
+
+/* ----------------------------------------------------------------------
+   init specific to this pair style
+------------------------------------------------------------------------- */
+void PairOxdna2Dh::init_style()
+{
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  else fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
+
+  neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
 /* ----------------------------------------------------------------------

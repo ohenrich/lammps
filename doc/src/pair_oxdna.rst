@@ -107,12 +107,7 @@ cross-stacking *oxdna/xstk* and coaxial stacking interaction
 *oxdna/coaxstk* as well as the hydrogen-bonding interaction
 *oxdna/hbond* between complementary pairs of nucleotides on opposite
 strands. Average sequence or sequence-dependent stacking and
-base-pairing strengths are supported :ref:`(Sulc) <Sulc1>`. Quasi-unique
-base-pairing between nucleotides can be achieved by using more
-complementary pairs of atom types like 5-8 and 6-7, 9-12 and 10-11,
-13-16 and 14-15, etc.  This prevents the hybridization of in principle
-complementary bases within Ntypes/4 bases up and down along the
-backbone.
+base-pairing strengths are supported :ref:`(Sulc) <Sulc1>`.
 
 The exact functional form of the pair styles is rather complex.  The
 individual potentials consist of products of modulation factors, which
@@ -151,26 +146,16 @@ description of the oxDNA force field.
 
    If data files are produced with :doc:`write_data <write_data>`, then
    the :doc:`newton <newton>` command should be set to *newton on*.
-   Otherwise the data files will not have the same 3'-to-5' polarity 
+   Otherwise the data files will not have the same 3'-to-5' polarity
    as the initial data file. This limitation does not apply to
    binary restart files produced with :doc:`write_restart <write_restart>`.
 
 Example input and data files for DNA duplexes can be found in
-``examples/PACKAGES/cgdna/examples/oxDNA/``.  A
-simple python setup tool which creates single straight or helical DNA
+``examples/PACKAGES/cgdna/examples/lj_units/oxDNA/``
+or in the corresponding folder for real units.
+A simple python setup tool which creates single straight or helical DNA
 strands, DNA duplexes or arrays of DNA duplexes can be found in
 ``examples/PACKAGES/cgdna/util/``.
-
-Please cite :ref:`(Henrich) <Henrich1>` in any publication that uses
-this implementation. An updated documentation that contains general
-information on the model, its implementation and performance as well as
-the structure of the data and input file can be found `here
-<PDF/CG-DNA.pdf>`_.
-
-Please cite also the relevant oxDNA publications
-:ref:`(Ouldridge) <Ouldridge1>`,
-:ref:`(Ouldridge-DPhil) <Ouldridge-DPhil1>`
-and :ref:`(Sulc) <Sulc1>`.
 
 ----------
 
@@ -222,6 +207,79 @@ systems for oxDNA, the python tool *lj2real.py* located in the
 ``examples/PACKAGES/cgdna/util/`` directory can be used. This tool
 assumes similar file structure to the examples found in
 ``examples/PACKAGES/cgdna/examples/``.
+
+----------
+
+Unique base pairing
+""""""""""""""""""""""
+
+Unique base pairing describes the restriction on the specific complementary
+nucleotide with which a particular base can pair. This can be used to prevent
+asymmetric base pairs or to simplify the free energy landscape. With unique
+base pairing enabled base pairs can only form between complementary nucleotides
+with specific atom IDs. This functionality draws on :doc:`fix property/atom <fix_property_atom>`
+and a modified :doc:`read_data <read_data>` command.
+
+To use unique base pairing, the data file of a system with N nucleotides must contain a section like
+
+.. code-block:: LAMMPS
+
+   Basepairs # i_idc
+
+   1 idc1
+   2 idc2
+   3 idc3
+   4 idc4
+   ...
+   N idcN
+
+where idc is the non-negative atom ID of a complementary nucleotide that binds uniquely
+to the preceding atom ID.
+
+Unique base pairing can be combined with normal base pairing by setting a zero or negative value for idc.
+For instance, in a 4-mer with 8 nucleotides consisting of a ssDNA strand 3'-A-A-A-A-5' with atom IDs 3'-1-2-3-4-5'
+and a complementary strand 5'-T-T-T-T-3' with atom IDs 5'-8-7-6-5-3' set up as
+
+.. code-block:: LAMMPS
+
+   Basepairs # i_idc
+
+   1 8
+   2 -1
+   3 -1
+   4 5
+   5 4
+   6 -1
+   7 -1
+   8 1
+
+the A nucleotide with ID 1 can only hybridize with the T nucleotide with ID 8 and
+the A nucleotide with ID 4 can only hybridize with the T nucleotide with ID 5,
+whereas the A nucleotides with ID 2 and 3 can hybridize with either T nucleotide with ID 6 and 7.
+
+The input file requires an instance of the :doc:`fix property/atom <fix_property_atom>` and a
+:doc:`read_data <read_data>` command as follows:
+
+.. code-block:: LAMMPS
+
+   fix Basepairs all property/atom i_idc ghost yes
+   read_data file fix Basepairs NULL Basepairs
+
+where *file* is the name of the data file and the only modifiable argument.
+An example input and data file for a dsDNA ring can be found in
+``examples/PACKAGES/cgdna/examples/lj_units/oxDNA3/unique_bp``
+or in the corresponding folder for real units.
+
+Please cite :ref:`(Henrich) <Henrich1>` in any publication that uses
+this implementation. An updated documentation that contains general
+information on the model, its implementation and performance as well as
+the structure of the data and input file can be found `here
+<PDF/CG-DNA.pdf>`_.
+
+Please cite also the relevant oxDNA publications
+:ref:`(Ouldridge) <Ouldridge1>`,
+:ref:`(Ouldridge-DPhil) <Ouldridge-DPhil1>`
+and :ref:`(Sulc) <Sulc1>`.
 
 ----------
 

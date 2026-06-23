@@ -23,11 +23,13 @@
 /src/FEP/             @agiliopadua
 /src/GPU/             @ndtrung81
 /src/GRANULAR/        @jtclemm @dsbolin
+/src/GRANSURF/        @jtclemm @dsbolin @sjplimp
 /src/GRAPHICS/        @akohlmey
 /src/INTEL/           @wmbrownintel
 /src/KIM/             @ellio167
 /src/KOKKOS/          @stanmoore1
 /src/MANIFOLD/        @Pakketeretet2
+/src/MBX/             @Miniland1333
 /src/MDI/             @taylor-a-barnes @sjplimp
 /src/MEAM/            @martok
 /src/MESONT/          @iafoss
@@ -55,6 +57,7 @@
 /src/UEF/             @danicholson
 
 # individual files in packages
+/src/ASPHERE/*superellipsoid*        @jtclemm @jibril-b-coulibaly @JBil8
 /src/GPU/pair_vashishta_gpu.*        @andeplane
 /src/KOKKOS/pair_vashishta_kokkos.*  @andeplane @stanmoore1
 /src/KOSSOS/pair_pod_kokkos.*        @exapde @stanmoore1

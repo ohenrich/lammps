@@ -48,7 +48,7 @@ class PairOxdnaStk : public Pair {
   double eta_st[4][4];
   double stacking_strength(double, double, double);
   double **epsilon_st, **a_st;
-  double ****cut_st_0, ****cut_st_c, ****cut_st_lo, ****cut_st_hi; 
+  double ****cut_st_0, ****cut_st_c, ****cut_st_lo, ****cut_st_hi;
   double ****cut_st_lc, ****cut_st_hc, **b_st_lo, **b_st_hi, ****shift_st;
   double ****cutsq_st_hc;
   double ****a_st4, **theta_st4_0, ****dtheta_st4_ast;
@@ -59,11 +59,13 @@ class PairOxdnaStk : public Pair {
   double **b_st6, **dtheta_st6_c;
   double **a_st1, **cosphi_st1_ast, **b_st1, **cosphi_st1_c;
   double **a_st2, **cosphi_st2_ast, **b_st2, **cosphi_st2_c;
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
   int seqdepflag;
 
   virtual void allocate();
   void ev_tally_xyz(int, int, int, int, double, double, double, double, double, double, double);
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

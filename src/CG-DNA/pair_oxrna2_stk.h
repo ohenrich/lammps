@@ -58,11 +58,13 @@ class PairOxrna2Stk : public Pair {
   double **b_st10, **dtheta_st10_c;
   double **a_st1, **cosphi_st1_ast, **b_st1, **cosphi_st1_c;
   double **a_st2, **cosphi_st2_ast, **b_st2, **cosphi_st2_c;
-  double **nx_xtrct, **ny_xtrct, **nz_xtrct;    // per-atom arrays for local unit vectors
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
   int seqdepflag;
 
   virtual void allocate();
   void ev_tally_xyz(int, int, int, int, double, double, double, double, double, double, double);
+
+  class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 
 }    // namespace LAMMPS_NS

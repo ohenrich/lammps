@@ -22,12 +22,15 @@
 #include "comm.h"
 #include "constants_oxdna.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "math_const.h"
 #include "math_extra.h"
 #include "memory.h"
 #include "mf_oxdna.h"
+#include "modify.h"
 #include "neigh_list.h"
+#include "neighbor.h"
 #include "potential_file_reader.h"
 
 #include <cmath>
@@ -114,7 +117,7 @@ inline void PairOxdnaXstk::compute_base_site(int /*type*/, double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rbs[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.base_site<0>(e1, NULL, NULL, rbs);
+  oxdna1.base_site<0>(e1, nullptr, nullptr, rbs);
 }
 
 /* ----------------------------------------------------------------------
@@ -155,7 +158,7 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
   int a,b,ia,ib,anum,bnum,atype,btype;
 
   double f2,f4t1,f4t4,f4t2,f4t3,f4t7,f4t8;
-  double df2,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8,rsint;
+  double df2,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8;
 
   evdwl = 0.0;
   ev_init(eflag,vflag);
@@ -165,11 +168,8 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  // n(x/y/z)_xtrct = extracted local unit vectors from oxdna_excv
-  int dim;
-  nx_xtrct = (double **) force->pair->extract("nx",dim);
-  ny_xtrct = (double **) force->pair->extract("ny",dim);
-  nz_xtrct = (double **) force->pair->extract("nz",dim);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
 
@@ -178,9 +178,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
-    ax[0] = nx_xtrct[a][0];
-    ax[1] = nx_xtrct[a][1];
-    ax[2] = nx_xtrct[a][2];
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
 
     // vector COM - base site a
     compute_base_site(atype%4,ax,ay,az,ra_cbs);
@@ -196,9 +196,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
 
       btype = type[b];
 
-      bx[0] = nx_xtrct[b][0];
-      bx[1] = nx_xtrct[b][1];
-      bx[2] = nx_xtrct[b][2];
+      bx[0] = nxyz_xtrct[b][0];
+      bx[1] = nxyz_xtrct[b][1];
+      bx[2] = nxyz_xtrct[b][2];
 
       // vector COM - base site b
       compute_base_site(btype%4,bx,by,bz,rb_cbs);
@@ -216,9 +216,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       delr_bsbs_norm[1] = delr_bsbs[1] * rinv_bsbs;
       delr_bsbs_norm[2] = delr_bsbs[2] * rinv_bsbs;
 
-      f2 = F2(r_bsbs, k_xst[atype][btype], cut_xst_0[atype][btype],
-           cut_xst_lc[atype][btype], cut_xst_hc[atype][btype], cut_xst_lo[atype][btype], cut_xst_hi[atype][btype],
-           b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c[atype][btype]);
+      f2 = F2(r_bsbs, k_xst[atype][btype], cut_xst_0[atype][btype], cut_xst_lc[atype][btype],
+              cut_xst_hc[atype][btype], cut_xst_lo[atype][btype], cut_xst_hi[atype][btype],
+              b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c[atype][btype]);
 
       // early rejection criterium
       if (f2 != 0.0) {
@@ -229,7 +229,7 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta1 = acos(cost1);
 
       f4t1 = F4(theta1, a_xst1[atype][btype], theta_xst1_0[atype][btype], dtheta_xst1_ast[atype][btype],
-             b_xst1[atype][btype], dtheta_xst1_c[atype][btype]);
+                b_xst1[atype][btype], dtheta_xst1_c[atype][btype]);
 
       // early rejection criterium
       if (f4t1 != 0.0) {
@@ -240,7 +240,7 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta2 = acos(cost2);
 
       f4t2 = F4(theta2, a_xst2[atype][btype], theta_xst2_0[atype][btype], dtheta_xst2_ast[atype][btype],
-             b_xst2[atype][btype], dtheta_xst2_c[atype][btype]);
+                b_xst2[atype][btype], dtheta_xst2_c[atype][btype]);
 
       // early rejection criterium
       if (f4t2 != 0.0) {
@@ -251,17 +251,17 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta3 = acos(cost3);
 
       f4t3 = F4(theta3, a_xst3[atype][btype], theta_xst3_0[atype][btype], dtheta_xst3_ast[atype][btype],
-             b_xst3[atype][btype], dtheta_xst3_c[atype][btype]);
+                b_xst3[atype][btype], dtheta_xst3_c[atype][btype]);
 
       // early rejection criterium
       if (f4t3 != 0.0) {
 
-      az[0] = nz_xtrct[a][0];
-      az[1] = nz_xtrct[a][1];
-      az[2] = nz_xtrct[a][2];
-      bz[0] = nz_xtrct[b][0];
-      bz[1] = nz_xtrct[b][1];
-      bz[2] = nz_xtrct[b][2];
+      az[0] = nxyz_xtrct[a][6];
+      az[1] = nxyz_xtrct[a][7];
+      az[2] = nxyz_xtrct[a][8];
+      bz[0] = nxyz_xtrct[b][6];
+      bz[1] = nxyz_xtrct[b][7];
+      bz[2] = nxyz_xtrct[b][8];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
@@ -270,9 +270,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta4p = MY_PI - theta4;
 
       f4t4 = F4(theta4, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
-             b_xst4[atype][btype], dtheta_xst4_c[atype][btype]) +
+                b_xst4[atype][btype], dtheta_xst4_c[atype][btype]) +
              F4(theta4p, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
-             b_xst4[atype][btype], dtheta_xst4_c[atype][btype]);
+                b_xst4[atype][btype], dtheta_xst4_c[atype][btype]);
 
       // early rejection criterium
       if (f4t4 != 0.0) {
@@ -284,9 +284,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta7p = MY_PI - theta7;
 
       f4t7 = F4(theta7, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
-             b_xst7[atype][btype], dtheta_xst7_c[atype][btype]) +
+                b_xst7[atype][btype], dtheta_xst7_c[atype][btype]) +
              F4(theta7p, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
-             b_xst7[atype][btype], dtheta_xst7_c[atype][btype]);
+                b_xst7[atype][btype], dtheta_xst7_c[atype][btype]);
 
       // early rejection criterium
       if (f4t7 != 0.0) {
@@ -298,9 +298,9 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       theta8p = MY_PI -theta8;
 
       f4t8 = F4(theta8, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
-             b_xst8[atype][btype], dtheta_xst8_c[atype][btype]) +
+                b_xst8[atype][btype], dtheta_xst8_c[atype][btype]) +
              F4(theta8p, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
-             b_xst8[atype][btype], dtheta_xst8_c[atype][btype]);
+                b_xst8[atype][btype], dtheta_xst8_c[atype][btype]);
 
 
       evdwl = f2 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
@@ -310,35 +310,32 @@ void PairOxdnaXstk::compute(int eflag, int vflag)
       if (evdwl != 0.0) {
 
       df2 = DF2(r_bsbs, k_xst[atype][btype], cut_xst_0[atype][btype],
-            cut_xst_lc[atype][btype], cut_xst_hc[atype][btype], cut_xst_lo[atype][btype], cut_xst_hi[atype][btype],
-            b_xst_lo[atype][btype], b_xst_hi[atype][btype]);
+                cut_xst_lc[atype][btype], cut_xst_hc[atype][btype], cut_xst_lo[atype][btype],
+                cut_xst_hi[atype][btype], b_xst_lo[atype][btype], b_xst_hi[atype][btype]);
 
       df4t1 = DF4(theta1, a_xst1[atype][btype], theta_xst1_0[atype][btype], dtheta_xst1_ast[atype][btype],
-              b_xst1[atype][btype], dtheta_xst1_c[atype][btype])/sin(theta1);
+                  b_xst1[atype][btype], dtheta_xst1_c[atype][btype])/sin(theta1);
 
       df4t2 = DF4(theta2, a_xst2[atype][btype], theta_xst2_0[atype][btype], dtheta_xst2_ast[atype][btype],
-              b_xst2[atype][btype], dtheta_xst2_c[atype][btype])/sin(theta2);
+                  b_xst2[atype][btype], dtheta_xst2_c[atype][btype])/sin(theta2);
 
       df4t3 = DF4(theta3, a_xst3[atype][btype], theta_xst3_0[atype][btype], dtheta_xst3_ast[atype][btype],
-              b_xst3[atype][btype], dtheta_xst3_c[atype][btype])/sin(theta3);
+                  b_xst3[atype][btype], dtheta_xst3_c[atype][btype])/sin(theta3);
 
-      rsint = 1.0/sin(theta4);
-      df4t4 = DF4(theta4, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
-              b_xst4[atype][btype], dtheta_xst4_c[atype][btype])*rsint -
-              DF4(theta4p, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
-              b_xst4[atype][btype], dtheta_xst4_c[atype][btype])*rsint;
+      df4t4 = (DF4(theta4, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
+                   b_xst4[atype][btype], dtheta_xst4_c[atype][btype]) -
+               DF4(theta4p, a_xst4[atype][btype], theta_xst4_0[atype][btype], dtheta_xst4_ast[atype][btype],
+                   b_xst4[atype][btype], dtheta_xst4_c[atype][btype]))/sin(theta4);
 
-      rsint = 1.0/sin(theta7);
-      df4t7 = DF4(theta7, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
-              b_xst7[atype][btype], dtheta_xst7_c[atype][btype])*rsint -
-              DF4(theta7p, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
-              b_xst7[atype][btype], dtheta_xst7_c[atype][btype])*rsint;
+      df4t7 = (DF4(theta7, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
+                   b_xst7[atype][btype], dtheta_xst7_c[atype][btype]) -
+               DF4(theta7p, a_xst7[atype][btype], theta_xst7_0[atype][btype], dtheta_xst7_ast[atype][btype],
+                   b_xst7[atype][btype], dtheta_xst7_c[atype][btype]))/sin(theta7);
 
-      rsint = 1.0/sin(theta8);
-      df4t8 = DF4(theta8, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
-              b_xst8[atype][btype], dtheta_xst8_c[atype][btype])*rsint -
-              DF4(theta8p, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
-              b_xst8[atype][btype], dtheta_xst8_c[atype][btype])*rsint;
+      df4t8 = (DF4(theta8, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
+                   b_xst8[atype][btype], dtheta_xst8_c[atype][btype]) -
+               DF4(theta8p, a_xst8[atype][btype], theta_xst8_0[atype][btype], dtheta_xst8_ast[atype][btype],
+                   b_xst8[atype][btype], dtheta_xst8_c[atype][btype]))/sin(theta8);
 
       // force, torque and virial contribution for forces between h-bonding sites
 
@@ -874,6 +871,19 @@ void PairOxdnaXstk::coeff(int narg, char **arg)
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/xstk" + utils::errorurl(21));
 
+}
+
+/* ----------------------------------------------------------------------
+   init specific to this pair style
+------------------------------------------------------------------------- */
+void PairOxdnaXstk::init_style()
+{
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  else fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
+
+  neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
 /* ----------------------------------------------------------------------

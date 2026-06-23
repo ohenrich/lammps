@@ -20,12 +20,15 @@
 #include "atom.h"
 #include "comm.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "math_const.h"
 #include "math_extra.h"
 #include "memory.h"
 #include "mf_oxdna.h"
+#include "modify.h"
 #include "neigh_list.h"
+#include "neighbor.h"
 #include "nucleotide_oxdna.h"
 #include "potential_file_reader.h"
 
@@ -127,7 +130,7 @@ inline void PairOxdna2Coaxstk::compute_backbone_site(double e1[3], double /*e2*/
   double /*e3*/[3], double rbk[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.backbone_site(e1, NULL, NULL, rbk);
+  oxdna1.backbone_site(e1, nullptr, nullptr, rbk);
 }
 
 /* ----------------------------------------------------------------------
@@ -138,7 +141,7 @@ inline void PairOxdna2Coaxstk::compute_stacking_site(double e1[3], double /*e2*/
     double /*e3*/[3], double rstk[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.stacking_site(e1, NULL, NULL, rstk);
+  oxdna1.stacking_site(e1, nullptr, nullptr, rstk);
 }
 
 /* ----------------------------------------------------------------------
@@ -180,10 +183,11 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
   tagint *id3p = atom->id3p;
   tagint *id5p = atom->id5p;
 
-  int a,b,ia,ib,anum,bnum,atype,aktype,btype,bktype;
+  int a,b,ia,ib,anum,bnum,atype,btype;
+  double k_cxst_ab;
 
   double f2,f4f6t1,f4t4,f4t5,f4t6;
-  double df2,df4f6t1,df4t4,df4t5,df4t6,rsint;
+  double df2,df4f6t1,df4t4,df4t5,df4t6;
 
   evdwl = 0.0;
   ev_init(eflag,vflag);
@@ -193,22 +197,23 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  // n(x/z)_xtrct = extracted local unit vectors from oxdna_excv
-  int dim;
-  nx_xtrct = (double **) force->pair->extract("nx",dim);
-  nz_xtrct = (double **) force->pair->extract("nz",dim);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
 
   for (ia = 0; ia < anum; ia++) {
 
     a = alist[ia];
-    atype = type[a];
-    aktype = atype;
 
-    ax[0] = nx_xtrct[a][0];
-    ax[1] = nx_xtrct[a][1];
-    ax[2] = nx_xtrct[a][2];
+    // a has to be terminal nucleotide
+    if(id3p[a]!=-1 && id5p[a]!=-1) continue;
+
+    atype = type[a];
+
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
 
     // vector COM a - stacking site a
     compute_stacking_site(ax,ay,az,ra_cstk);
@@ -225,19 +230,14 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
       factor_lj = special_lj[sbmask(b)]; // = 0 for nearest neighbors
       b &= NEIGHMASK;
 
+      // b has to be terminal nucleotide
+      if(id3p[b]!=-1 && id5p[b]!=-1) continue;
+
       btype = type[b];
-      bktype = btype;
 
-      // directionality test for base step-dependent coaxial stacking strength
-      // if a -> b is 3' -> 5' swap types
-      if(id3p[a]==-1 && id5p[b]==-1) {
-        aktype = btype;
-        bktype = atype;
-      }
-
-      bx[0] = nx_xtrct[b][0];
-      bx[1] = nx_xtrct[b][1];
-      bx[2] = nx_xtrct[b][2];
+      bx[0] = nxyz_xtrct[b][0];
+      bx[1] = nxyz_xtrct[b][1];
+      bx[2] = nxyz_xtrct[b][2];
 
       // vector COM b - stacking site b
       compute_stacking_site(bx,by,bz,rb_cstk);
@@ -285,12 +285,12 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
       // early rejection criterium
       if (f4f6t1 != 0.0) {
 
-      az[0] = nz_xtrct[a][0];
-      az[1] = nz_xtrct[a][1];
-      az[2] = nz_xtrct[a][2];
-      bz[0] = nz_xtrct[b][0];
-      bz[1] = nz_xtrct[b][1];
-      bz[2] = nz_xtrct[b][2];
+      az[0] = nxyz_xtrct[a][6];
+      az[1] = nxyz_xtrct[a][7];
+      az[2] = nxyz_xtrct[a][8];
+      bz[0] = nxyz_xtrct[b][6];
+      bz[1] = nxyz_xtrct[b][7];
+      bz[2] = nxyz_xtrct[b][8];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
@@ -298,6 +298,9 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
       theta4 = acos(cost4);
 
       f4t4 = F4(theta4, a_cxst4[atype][btype], theta_cxst4_0[atype][btype],
+                dtheta_cxst4_ast[atype][btype], b_cxst4[atype][btype],
+                dtheta_cxst4_c[atype][btype]) +
+             F4(theta4, a_cxst4[atype][btype], MY_PI - theta_cxst4_0[atype][btype],
                 dtheta_cxst4_ast[atype][btype], b_cxst4[atype][btype],
                 dtheta_cxst4_c[atype][btype]);
 
@@ -327,54 +330,69 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
       theta6p = MY_PI - theta6;
 
       f4t6 = F4(theta6, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
-                dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype], dtheta_cxst6_c[atype][btype]) +
+                dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype],
+                dtheta_cxst6_c[atype][btype]) +
              F4(theta6p, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
-                dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype], dtheta_cxst6_c[atype][btype]);
+                dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype],
+                dtheta_cxst6_c[atype][btype]);
 
       MathExtra::cross3(delr_bkbk_norm,ax,v1tmp);
       cosphi3 = MathExtra::dot3(delr_stkstk_norm,v1tmp);
       if (cosphi3 >  1.0) cosphi3 =  1.0;
       if (cosphi3 < -1.0) cosphi3 = -1.0;
 
-      f2 = F2(r_stkstk, k_cxst[aktype][bktype], cut_cxst_0[atype][btype],
-              cut_cxst_lc[atype][btype], cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype],
-              cut_cxst_hi[atype][btype], b_cxst_lo[atype][btype], b_cxst_hi[atype][btype],
-              cut_cxst_c[atype][btype]);
+      // directionality test for base step-dependent coaxial stacking strength
+      // if a -> b is 5' -> 3' retain types
+      if(id5p[a]==-1 && id3p[b]==-1) {
+        k_cxst_ab = k_cxst[atype][btype];
+      }
+      // if a -> b is 3' -> 5' swap types
+      else if(id3p[a]==-1 && id5p[b]==-1) {
+        k_cxst_ab = k_cxst[btype][atype];
+      }
+      // otherwise mix types
+      else {
+        k_cxst_ab = 0.5*(k_cxst[atype][btype]+k_cxst[btype][atype]);
+      }
+
+      f2 = F2(r_stkstk, k_cxst_ab, cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
+              cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
+              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype]);
 
       evdwl = f2 * f4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
 
       // early rejection criterium
       if (evdwl != 0.0) {
 
-      df2 = DF2(r_stkstk, k_cxst[aktype][bktype], cut_cxst_0[atype][btype],
+      df2 = DF2(r_stkstk, k_cxst_ab, cut_cxst_0[atype][btype],
                 cut_cxst_lc[atype][btype], cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype],
                 cut_cxst_hi[atype][btype], b_cxst_lo[atype][btype], b_cxst_hi[atype][btype]);
 
-      rsint = 1.0/sin(theta1);
-      df4f6t1 = DF4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
+      df4f6t1 = (DF4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
                     dtheta_cxst1_ast[atype][btype], b_cxst1[atype][btype],
-                    dtheta_cxst1_c[atype][btype])*rsint +
-                DF6(theta1, AA_cxst1[atype][btype], BB_cxst1[atype][btype])*rsint;
+                    dtheta_cxst1_c[atype][btype]) +
+                 DF6(theta1, AA_cxst1[atype][btype], BB_cxst1[atype][btype]))/sin(theta1);
 
-      df4t4 = DF4(theta4, a_cxst4[atype][btype], theta_cxst4_0[atype][btype],
+      df4t4 = (DF4(theta4, a_cxst4[atype][btype], theta_cxst4_0[atype][btype],
                   dtheta_cxst4_ast[atype][btype], b_cxst4[atype][btype],
-                  dtheta_cxst4_c[atype][btype])/sin(theta4);
+                  dtheta_cxst4_c[atype][btype]) +
+               DF4(theta4, a_cxst4[atype][btype], MY_PI - theta_cxst4_0[atype][btype],
+                  dtheta_cxst4_ast[atype][btype], b_cxst4[atype][btype],
+                  dtheta_cxst4_c[atype][btype]))/sin(theta4);
 
-      rsint = 1.0/sin(theta5);
-      df4t5 = DF4(theta5, a_cxst5[atype][btype], theta_cxst5_0[atype][btype],
+      df4t5 = (DF4(theta5, a_cxst5[atype][btype], theta_cxst5_0[atype][btype],
                   dtheta_cxst5_ast[atype][btype],
-                  b_cxst5[atype][btype], dtheta_cxst5_c[atype][btype])*rsint -
-              DF4(theta5p, a_cxst5[atype][btype], theta_cxst5_0[atype][btype],
+                  b_cxst5[atype][btype], dtheta_cxst5_c[atype][btype]) -
+               DF4(theta5p, a_cxst5[atype][btype], theta_cxst5_0[atype][btype],
                   dtheta_cxst5_ast[atype][btype], b_cxst5[atype][btype],
-                  dtheta_cxst5_c[atype][btype])*rsint;
+                  dtheta_cxst5_c[atype][btype]))/sin(theta5);
 
-      rsint = 1.0/sin(theta6);
-      df4t6 = DF4(theta6, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
+      df4t6 = (DF4(theta6, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
                   dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype],
-                  dtheta_cxst6_c[atype][btype])*rsint -
-              DF4(theta6p, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
+                  dtheta_cxst6_c[atype][btype]) -
+               DF4(theta6p, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
                   dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype],
-                  dtheta_cxst6_c[atype][btype])*rsint;
+                  dtheta_cxst6_c[atype][btype]))/sin(theta6);
 
       // force, torque and virial contribution for forces between stacking sites
 
@@ -747,27 +765,27 @@ void PairOxdna2Coaxstk::coeff(int narg, char **arg)
   for (int i = ilo; i <= ihi; i++) {
     imod4 = i%4;
     if (imod4 == 0) imod4 = 4;
-      
+
     for (int j = jlo; j <= jhi; j++) {
       jmod4 = j%4;
       if (jmod4 == 0) jmod4 = 4;
-          
+
       k_cxst[i][j] = k_cxst_one * eta_cxst[imod4-1][jmod4-1];
-            
-    } 
-  }  
+
+    }
+  }
 
   // uniform parameters
   b_cxst_lo_one = 0.25 * (cut_cxst_lo_one - cut_cxst_0_one) * (cut_cxst_lo_one - cut_cxst_0_one)/
         (0.5 * (cut_cxst_lo_one - cut_cxst_0_one) * (cut_cxst_lo_one - cut_cxst_0_one) -
          0.5 * (cut_cxst_0_one -cut_cxst_c_one) * (cut_cxst_0_one - cut_cxst_c_one));
-        
+
   cut_cxst_lc_one = cut_cxst_lo_one - 0.5 * (cut_cxst_lo_one - cut_cxst_0_one)/b_cxst_lo_one;
-  
+
   b_cxst_hi_one = 0.25 * (cut_cxst_hi_one - cut_cxst_0_one) * (cut_cxst_hi_one - cut_cxst_0_one)/
         (0.5 * (cut_cxst_hi_one - cut_cxst_0_one) * (cut_cxst_hi_one - cut_cxst_0_one) -
          0.5 * (cut_cxst_0_one -cut_cxst_c_one) * (cut_cxst_0_one - cut_cxst_c_one));
-  
+
   cut_cxst_hc_one = cut_cxst_hi_one - 0.5* (cut_cxst_hi_one - cut_cxst_0_one)/b_cxst_hi_one;
 
   b_cxst1_one = a_cxst1_one*a_cxst1_one*dtheta_cxst1_ast_one*dtheta_cxst1_ast_one/(1-a_cxst1_one*dtheta_cxst1_ast_one*dtheta_cxst1_ast_one);
@@ -828,6 +846,19 @@ void PairOxdna2Coaxstk::coeff(int narg, char **arg)
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna2/coaxstk" + utils::errorurl(21));
 
+}
+
+/* ----------------------------------------------------------------------
+   init specific to this pair style
+------------------------------------------------------------------------- */
+void PairOxdna2Coaxstk::init_style()
+{
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  else fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
+
+  neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
 /* ----------------------------------------------------------------------

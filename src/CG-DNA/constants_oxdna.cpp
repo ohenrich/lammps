@@ -83,7 +83,6 @@ void ConstantsOxdna::set_real_units()
   // electrostatic parameters in real units
   lambda_dh_one_prefactor = +0.05624154892;        // = C1 * 8.518 * sqrt(k_B/4.142e-20)
   qeff_dh_pf_one_prefactor = +4.15079634587587;    // = C2 * 5.961689060210325 * 8.518
-
 };
 
-}
+}    // namespace LAMMPS_NS

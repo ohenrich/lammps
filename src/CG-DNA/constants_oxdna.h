@@ -72,8 +72,7 @@ class ConstantsOxdna : protected Pointers {
 
   // electrostatic parameters
   static double lambda_dh_one_prefactor, qeff_dh_pf_one_prefactor;
-
 };
 
-}
+}    // namespace LAMMPS_NS
 #endif

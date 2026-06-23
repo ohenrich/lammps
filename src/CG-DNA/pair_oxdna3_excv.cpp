@@ -21,15 +21,17 @@
 #include "comm.h"
 #include "error.h"
 #include "potential_file_reader.h"
+#include "math_special.h"
 
 #include <cmath>
 #include <cstring>
 #include <cassert>
 
 using namespace LAMMPS_NS;
+using namespace MathSpecial;
 
 /* ----------------------------------------------------------------------
-   set coeffs 
+   set coeffs
 ------------------------------------------------------------------------- */
 
 void PairOxdna3Excv::coeff(int narg, char **arg)
@@ -58,10 +60,10 @@ void PairOxdna3Excv::coeff(int narg, char **arg)
   double epsilon_bsbs_one, sigma_bsbs_one;
   double cut_bsbs_ast_one, cut_bsbs_c_one, b_bsbs_one;
 
-  for (int i = 0; i <= nhi; i++) {
+  for (int i = 0; i <= nhi; i++) { // type 0 for terminal j
     for (int j = 0; j <= nhi; j++) {
       for (int k = 0; k <= nhi; k++) {
-        for (int l = 0; l <= nhi; l++) {
+        for (int l = 0; l <= nhi; l++) { // type 0 for terminal k
           sigma4_bsbs[i][j][k][l] = 0.0;
           cut4_bsbs_ast[i][j][k][l] = 0.0;
         }
@@ -149,14 +151,14 @@ void PairOxdna3Excv::coeff(int narg, char **arg)
         for (int l = nlo; l <= nhi; l++) {
           sigma4_bsbs[0][j][k][l] /= nhi;
           cut4_bsbs_ast[0][j][k][l] /= nhi;
- 
+
         }
       }
     }
     for (int j = nlo; j <= nhi; j++) {
       for (int k = nlo; k <= nhi; k++) {
-        sigma4_bsbs[0][j][k][0] /= pow(nhi,2);
-        cut4_bsbs_ast[0][j][k][0] /= pow(nhi,2);
+        sigma4_bsbs[0][j][k][0] /= powint(nhi,2);
+        cut4_bsbs_ast[0][j][k][0] /= powint(nhi,2);
       }
     }
 

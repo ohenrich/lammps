@@ -22,11 +22,14 @@
 #include "comm.h"
 #include "constants_oxdna.h"
 #include "error.h"
+#include "fix_oxdna_lrf.h"
 #include "force.h"
 #include "math_extra.h"
 #include "memory.h"
 #include "mf_oxdna.h"
+#include "modify.h"
 #include "neigh_list.h"
+#include "neighbor.h"
 #include "potential_file_reader.h"
 
 #include <cmath>
@@ -67,6 +70,7 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) : Pair(lmp)
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
 
+  idc = nullptr;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -138,7 +142,7 @@ inline void PairOxdnaHbond::compute_base_site(int /*type*/, double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rbs[3]) const
 {
   NucleotideOxdna1 oxdna1;
-  oxdna1.base_site<0>(e1, NULL, NULL, rbs);
+  oxdna1.base_site<0>(e1, nullptr, nullptr, rbs);
 }
 
 /* ----------------------------------------------------------------------
@@ -188,11 +192,8 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
 
-  // n(x/y/z)_xtrct = extracted local unit vectors from oxdna_excv
-  int dim;
-  nx_xtrct = (double **) force->pair->extract("nx",dim);
-  ny_xtrct = (double **) force->pair->extract("ny",dim);
-  nz_xtrct = (double **) force->pair->extract("nz",dim);
+  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
 
@@ -201,9 +202,9 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
     a = alist[ia];
     atype = type[a];
 
-    ax[0] = nx_xtrct[a][0];
-    ax[1] = nx_xtrct[a][1];
-    ax[2] = nx_xtrct[a][2];
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
 
     // vector COM - base site a
     compute_base_site(atype%4, ax,ay,az,ra_cbs);
@@ -219,9 +220,16 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       btype = type[b];
 
-      bx[0] = nx_xtrct[b][0];
-      bx[1] = nx_xtrct[b][1];
-      bx[2] = nx_xtrct[b][2];
+      if( idc != nullptr ) { // unique base pairing enabled
+      // skip pair if no matching complements, but don't if complement IDs<=0
+        if( idc[a] != atom->tag[b] && idc[b] != atom->tag[a] && idc[a] > 0 && idc[b] > 0 ) {
+          continue;
+        }
+      }
+
+      bx[0] = nxyz_xtrct[b][0];
+      bx[1] = nxyz_xtrct[b][1];
+      bx[2] = nxyz_xtrct[b][2];
 
       // vector COM - base site b
       compute_base_site(btype%4, bx,by,bz,rb_cbs);
@@ -279,12 +287,12 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       // early rejection criterium
       if (f4t3 != 0.0) {
 
-      az[0] = nz_xtrct[a][0];
-      az[1] = nz_xtrct[a][1];
-      az[2] = nz_xtrct[a][2];
-      bz[0] = nz_xtrct[b][0];
-      bz[1] = nz_xtrct[b][1];
-      bz[2] = nz_xtrct[b][2];
+      az[0] = nxyz_xtrct[a][6];
+      az[1] = nxyz_xtrct[a][7];
+      az[2] = nxyz_xtrct[a][8];
+      bz[0] = nxyz_xtrct[b][6];
+      bz[1] = nxyz_xtrct[b][7];
+      bz[2] = nxyz_xtrct[b][8];
 
       cost4 = MathExtra::dot3(az,bz);
       if (cost4 >  1.0) cost4 =  1.0;
@@ -911,6 +919,39 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
   }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/hbond" + utils::errorurl(21));
+
+}
+
+/* ----------------------------------------------------------------------
+   init specific to this pair style
+------------------------------------------------------------------------- */
+void PairOxdnaHbond::init_style()
+{
+  int ifix;
+
+  // initialise fix for local reference frame
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  else fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
+
+  neighbor->add_request(this, NeighConst::REQ_DEFAULT);
+
+  // optionally initialise fix for unique base pairing
+  ifix = modify->find_fix("Basepairs");
+
+  if (ifix < 0) {
+    if (comm->me == 0) utils::logmesg(lmp,"Parsing normal base pairing\n");
+  }
+  else {
+    if (comm->me == 0) utils::logmesg(lmp,"Parsing unique base pairing\n");
+
+    int idx, flag, cols;
+    idx = atom->find_custom("idc", flag, cols);
+    if (idx >= 0 && flag == 0) {
+      idc = atom->ivector[idx];
+    }
+  }
 
 }
 
