@@ -41,7 +41,7 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   int setmask() override;
   void min_setup_pre_force(int);
   void min_pre_force(int) override;
-  void setup_pre_force(int);
+  void setup_pre_force(int) override;
   void pre_force(int) override;
 
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.

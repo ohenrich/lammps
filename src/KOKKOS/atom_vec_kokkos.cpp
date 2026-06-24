@@ -1573,7 +1573,8 @@ struct AtomVecKokkos_PackBorder {
   const typename AT::t_kkfloat_1d_4_randomread _sp;
   typename AT::t_kkfloat_1d_randomread _radius,_rmass;
   typename AT::t_kkfloat_1d_randomread _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d_randomread _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d_randomread _id3p,_id5p;
+  typename AT::t_kkfloat_1d_randomread _qeff;
   double _dx,_dy,_dz;
   uint64_t _datamask;
 
@@ -1668,7 +1669,7 @@ struct AtomVecKokkos_PackBorder {
       if (_datamask & CG_DNA_MASK) {
         _buf(i,m++) = d_ubuf(_id3p(j)).d;
         _buf(i,m++) = d_ubuf(_id5p(j)).d;
-        _buf(i,m++) = d_ubuf(_qeff(j)).d;
+        _buf(i,m++) = _qeff(j);
       }
     }
   }
@@ -1771,7 +1772,8 @@ struct AtomVecKokkos_UnpackBorder {
   typename AT::t_kkfloat_1d_4 _sp;
   typename AT::t_kkfloat_1d _radius,_rmass;
   typename AT::t_kkfloat_1d _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d _id3p,_id5p;
+  typename AT::t_kkfloat_1d _qeff;
   int _first;
   uint64_t _datamask;
 
@@ -1856,7 +1858,7 @@ struct AtomVecKokkos_UnpackBorder {
       if (_datamask & CG_DNA_MASK) {
         _id3p(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
         _id5p(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
-        _qeff(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
+        _qeff(i+_first) = _buf(i,m++);
       }
     }
   }
@@ -1920,7 +1922,8 @@ struct AtomVecKokkos_PackBorderVel {
   typename AT::t_kkfloat_1d_randomread _radius,_rmass;
   typename AT::t_kkfloat_1d_3_randomread _omega;
   typename AT::t_kkfloat_1d_randomread _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d_randomread _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d_randomread _id3p,_id5p;
+  typename AT::t_kkfloat_1d_randomread _qeff;
   double _dx,_dy,_dz, _dvx, _dvy, _dvz;
   const int _deform_groupbit;
   const uint64_t _datamask;
@@ -2051,7 +2054,7 @@ struct AtomVecKokkos_PackBorderVel {
     if (_datamask & CG_DNA_MASK) {
       _buf(i,m++) = d_ubuf(_id3p(j)).d;
       _buf(i,m++) = d_ubuf(_id5p(j)).d;
-      _buf(i,m++) = d_ubuf(_qeff(j)).d;
+      _buf(i,m++) = _qeff(j);
     }
   }
 };
@@ -2158,7 +2161,8 @@ struct AtomVecKokkos_UnpackBorderVel {
   typename AT::t_kkfloat_1d _radius,_rmass;
   typename AT::t_kkfloat_1d_3 _omega;
   typename AT::t_kkfloat_1d _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d _id3p,_id5p;
+  typename AT::t_kkfloat_1d _qeff;
   int _first;
   uint64_t _datamask;
 
@@ -2269,7 +2273,7 @@ struct AtomVecKokkos_UnpackBorderVel {
       if (_datamask & CG_DNA_MASK) {
         _id3p(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
         _id5p(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
-        _qeff(i+_first) = (tagint) d_ubuf(_buf(i,m++)).i;
+        _qeff(i+_first) = _buf(i,m++);
       }
     }
   }
@@ -2357,7 +2361,8 @@ struct AtomVecKokkos_PackExchangeFunctor {
   typename AT::t_kkfloat_1d_3 _omega;
   typename AT::t_kkfloat_1d_3 _angmom;
   typename AT::t_kkfloat_1d _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d _id3p,_id5p;
+  typename AT::t_kkfloat_1d _qeff;
 
   typename AT::t_double_2d_lr_um _buf;
   typename AT::t_int_1d_const _sendlist;
@@ -2550,7 +2555,7 @@ struct AtomVecKokkos_PackExchangeFunctor {
       if (_datamask & CG_DNA_MASK) {
         _buf(mysend,m++) = d_ubuf(_id3p(i)).d;
         _buf(mysend,m++) = d_ubuf(_id5p(i)).d;
-        _buf(mysend,m++) = d_ubuf(_qeff(i)).d;
+        _buf(mysend,m++) = _qeff(i);
       }
     }
 
@@ -2768,7 +2773,8 @@ struct AtomVecKokkos_UnpackExchangeFunctor {
   typename AT::t_kkfloat_1d_3 _omega;
   typename AT::t_kkfloat_1d_3 _angmom;
   typename AT::t_kkfloat_1d _dpdTheta,_uCond,_uMech,_uChem,_uCG,_uCGnew;
-  typename AT::t_tagint_1d _id3p,_id5p,_qeff;
+  typename AT::t_tagint_1d _id3p,_id5p;
+  typename AT::t_kkfloat_1d _qeff;
 
   typename AT::t_double_2d_lr_um _buf;
   typename AT::t_int_1d _nlocal;
@@ -2963,7 +2969,7 @@ struct AtomVecKokkos_UnpackExchangeFunctor {
         if (_datamask & CG_DNA_MASK) {
           _id3p(i) = (tagint) d_ubuf(_buf(myrecv,m++)).i;
           _id5p(i) = (tagint) d_ubuf(_buf(myrecv,m++)).i;
-          _qeff(i) = (tagint) d_ubuf(_buf(myrecv,m++)).i;
+          _qeff(i) = _buf(myrecv,m++);
         }
       }
     }

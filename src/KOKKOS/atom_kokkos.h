@@ -76,7 +76,8 @@ class AtomKokkos : public Atom {
 
   // CG-DNA package
 
-  DAT::tdual_tagint_1d k_id3p, k_id5p, k_qeff;
+  DAT::tdual_tagint_1d k_id3p, k_id5p;
+  DAT::ttransform_kkfloat_1d k_qeff;
 
   AtomKokkos(class LAMMPS *);
   ~AtomKokkos() override;

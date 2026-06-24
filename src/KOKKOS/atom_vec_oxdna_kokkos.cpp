@@ -84,7 +84,7 @@ void AtomVecOxdnaKokkos::grow_pointers()
   h_id5p = atomKK->k_id5p.view_host();
   qeff = atomKK->qeff;
   d_qeff = atomKK->k_qeff.view_device();
-  h_qeff = atomKK->k_qeff.view_host();
+  h_qeff = atomKK->k_qeff.view_hostkk();
 }
 
 /* ----------------------------------------------------------------------
@@ -127,14 +127,14 @@ void AtomVecOxdnaKokkos::sync_pinned(ExecutionSpace space, uint64_t mask, int as
     if ((mask & CG_DNA_MASK) && atomKK->k_id5p.need_sync_device())
       perform_pinned_copy<DAT::tdual_tagint_1d>(atomKK->k_id5p,space,async_flag);
     if ((mask & CG_DNA_MASK) && atomKK->k_qeff.need_sync_device())
-      perform_pinned_copy<DAT::tdual_tagint_1d>(atomKK->k_qeff,space,async_flag);
+      perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d>(atomKK->k_qeff,space,async_flag);
   } else {
     if ((mask & CG_DNA_MASK) && atomKK->k_id3p.need_sync_host())
       perform_pinned_copy<DAT::tdual_tagint_1d>(atomKK->k_id3p,space,async_flag);
     if ((mask & CG_DNA_MASK) && atomKK->k_id5p.need_sync_host())
       perform_pinned_copy<DAT::tdual_tagint_1d>(atomKK->k_id5p,space,async_flag);
     if ((mask & CG_DNA_MASK) && atomKK->k_qeff.need_sync_host())
-      perform_pinned_copy<DAT::tdual_tagint_1d>(atomKK->k_qeff,space,async_flag);
+      perform_pinned_copy_transform<DAT::ttransform_kkfloat_1d>(atomKK->k_qeff,space,async_flag);
   }
 }
 
