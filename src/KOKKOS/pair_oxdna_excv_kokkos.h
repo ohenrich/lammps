@@ -36,6 +36,9 @@ class FixOxdnaLRFKokkos;  // forward declaration
 template<class DeviceType>
 class FixOxdnaNpairKokkos;  // forward declaration
 
+template<class DeviceType>
+class FixOxdnaPrimeNeighsKokkos;  // forward declaration
+
 template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 struct TagPairOxdnaExcvCompute{};
 
@@ -103,10 +106,12 @@ class PairOxdnaExcvKokkos : public PairOxdnaExcv, public KokkosBase {
   int neighflag;
   int nlocal, eflag, vflag;
   int anum;
+  bigint last_prime_neighs_pair_lastcall;
 
   typename AT::t_neighbors_2d_randomread d_neighbors;
   typename AT::t_int_1d_randomread d_alist;
   typename AT::t_int_1d_randomread d_numneigh;
+  typename AT::t_int_3d_randomread d_prime_neighs_pair;
 
   // s=sugar-phosphate backbone site, b=base site, st=stacking site
   // excluded volume interaction parameters
@@ -131,10 +136,9 @@ class PairOxdnaExcvKokkos : public PairOxdnaExcv, public KokkosBase {
   DAT::tdual_kkfloat_1d_3 k_nx_xtrct, k_ny_xtrct, k_nz_xtrct;
   typename AT::t_kkfloat_1d_3_randomread d_nx_xtrct, d_ny_xtrct, d_nz_xtrct;
 
-  typename AT::t_int_1d_randomread atomtype;
-  typename ArrayTypes<DeviceType>::t_tagint_1d tag;
-  typename ArrayTypes<DeviceType>::t_tagint_1d id5p;
-  typename ArrayTypes<DeviceType>::t_tagint_1d id3p;
+  typename ArrayTypes<DeviceType>::t_tagint_1d_randomread tag;
+  typename ArrayTypes<DeviceType>::t_tagint_1d_randomread id5p;
+  typename ArrayTypes<DeviceType>::t_tagint_1d_randomread id3p;
 
   int map_style;
   DAT::tdual_int_1d k_map_array;
@@ -165,6 +169,7 @@ class PairOxdnaExcvKokkos : public PairOxdnaExcv, public KokkosBase {
 
   FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to oxdna/lrf/kk fix
   FixOxdnaNpairKokkos<DeviceType> *fix_oxdna_npairKK;    // ptr to oxdna/npair/kk fix
+  FixOxdnaPrimeNeighsKokkos<DeviceType> *fix_oxdna_prime_neighsKK;    // ptr to oxdna/prime/neighs/kk fix
 };
 
 }

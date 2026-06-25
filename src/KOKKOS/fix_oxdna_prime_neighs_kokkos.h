@@ -27,7 +27,9 @@ FixStyle(oxdna/prime/neighs/kk/host,FixOxdnaPrimeNeighsKokkos<LMPHostType>);
 
 namespace LAMMPS_NS {
 
-struct TagFixOxdnaPrimeNeighsPrecomputeBondPrimeNeighs {};
+struct TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsBond {}; // fene and stk
+
+struct TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsPair {}; // excv
 
 template<class DeviceType>
 class FixOxdnaPrimeNeighsKokkos : public Fix {
@@ -38,6 +40,7 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   FixOxdnaPrimeNeighsKokkos(class LAMMPS *, int, char **);
   ~FixOxdnaPrimeNeighsKokkos() override;
 
+  void init() override;
   int setmask() override;
   void min_setup_pre_force(int);
   void min_pre_force(int) override;
@@ -45,20 +48,40 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   void pre_force(int) override;
 
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.
-  typename AT::t_int_1d_4 d_bond_prime_neighs;
-  int nbondlist;
+  // As per their order of being called in fene and stk compute.
+  typename AT::t_int_1d_4 d_prime_neighs_bond;
+  // 0-3 : id3p[a], id5p[b], id3p[b], id5p[a] for each pair.
+  // As per their order of being called in excv compute.
+  // Layout matches the native neighlist walk: d_prime_neighs_pair(a,ib,0-3).
+  // Populated by compute_prime_neighs_pair(), called by the pair style from
+  // its compute() using the pair's own neighbor list.
+  DAT::tdual_int_3d k_prime_neighs_pair;
+  typename AT::t_int_3d d_prime_neighs_pair;
+
+  void compute_prime_neighs_pair(class NeighList *neigh_list);
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagFixOxdnaPrimeNeighsPrecomputeBondPrimeNeighs, const int &) const;
+  void operator()(TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsBond, const int &) const;
+
+// NOLINTNEXTLINE
+  KOKKOS_INLINE_FUNCTION
+  void operator()(TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsPair, const int &) const;
 
  private:
   class NeighborKokkos *neighborKK;
 
-  typename AT::t_int_2d_lr bondlist;
   typename AT::t_tagint_1d tag;
   typename AT::t_tagint_1d id5p;
   typename AT::t_tagint_1d id3p;
+  // For PrimeNeighBond
+  int nbondlist;
+  typename AT::t_int_2d_lr bondlist;
+  // For PrimeNeighPair (set in compute_prime_neighs_pair)
+  int anum;
+  typename AT::t_neighbors_2d_randomread d_neighbors;
+  typename AT::t_int_1d_randomread d_alist;
+  typename AT::t_int_1d_randomread d_numneigh;
 
   int map_style;
   DAT::tdual_int_1d k_map_array;
@@ -66,7 +89,7 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
 
   bigint last_precompute_lastcall;
 
-  void compute_prime_neighs();
+  void compute_prime_neighs_bond();
 };
 
 }    // namespace LAMMPS_NS

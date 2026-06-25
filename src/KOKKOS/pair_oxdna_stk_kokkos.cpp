@@ -95,8 +95,8 @@ void PairOxdnaStkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   type = atomKK->k_type.view<DeviceType>();
   nlocal = atom->nlocal;
   newton_bond = force->newton_bond;
-  nbondlist = fix_oxdna_prime_neighsKK->nbondlist;
-  d_bond_prime_neighs = fix_oxdna_prime_neighsKK->d_bond_prime_neighs;
+  nbondlist = neighborKK->nbondlist;
+  d_prime_neighs_bond = fix_oxdna_prime_neighsKK->d_prime_neighs_bond;
 
   int need_dup = lmp->kokkos->need_dup<DeviceType>();
 
@@ -174,8 +174,8 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
 
   // Use precomputed bond and prime neighbors.
   // NOTE: already in correct order from precompute, so directionality test: a -> b is 3' -> 5' is already satisfied
-  int a = d_bond_prime_neighs(in,0);
-  int b = d_bond_prime_neighs(in,1);
+  int a = d_prime_neighs_bond(in,0);
+  int b = d_prime_neighs_bond(in,1);
   int a3ptype,atype,btype,b5ptype;
 
   KK_FLOAT ra_cstk[3], rb_cstk[3];           // vectors COM-stacking sites in lab frame
@@ -208,17 +208,17 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
   delr_stkstk[2] = x(b,2) + rb_cstk[2] - x(a,2) - ra_cstk[2];
 
   // determine tetramer types
-  // Our bond_prime_neighs ordering (a,b,id3p[a],id5p[b]) from precompute
+  // Our prime_neighs_bond ordering (a,b,id3p[a],id5p[b]) from precompute
   // is assigned such that we preserve the vanilla oxDNA convention of:
   // 3'neighbor a - a - b - 5'neighbor b
   // throughout the rest of compute.
-  int id3p_local = d_bond_prime_neighs(in,2);
+  int id3p_local = d_prime_neighs_bond(in,2);
   a3ptype = (id3p_local != -1) ? type(id3p_local) : 0;
 
   atype = type(a);
   btype = type(b);
 
-  int id5p_local = d_bond_prime_neighs(in,3);
+  int id5p_local = d_prime_neighs_bond(in,3);
   b5ptype = (id5p_local != -1) ? type(id5p_local) : 0;
 
   rsq_stkstk = delr_stkstk[0]*delr_stkstk[0] + delr_stkstk[1]*delr_stkstk[1] + delr_stkstk[2]*delr_stkstk[2];

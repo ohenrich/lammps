@@ -90,6 +90,7 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
   typename AT::t_int_scalar d_flag;
   HAT::t_int_scalar h_flag;
 
+  int nbondlist;
   int nlocal,newton_bond;
   int eflag,vflag;
 
@@ -110,7 +111,7 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
 
   // Precomputed atom a/b 3'/5' directionality and atom mapping of their 3' and 5' neighbors.
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.
-  typename AT::t_int_1d_4 d_bond_prime_neighs; // single device-space View suffices
+  typename AT::t_int_1d_4_randomread d_prime_neighs_bond; // single device-space View suffices
 };
 
 }    // namespace LAMMPS_NS

@@ -116,8 +116,8 @@ void BondOxdnaFENEKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   neighborKK->k_bondlist.template sync<DeviceType>();
   bondlist = neighborKK->k_bondlist.view<DeviceType>();
-  int nbondlist = fix_oxdna_prime_neighsKK->nbondlist;
-  d_bond_prime_neighs = fix_oxdna_prime_neighsKK->d_bond_prime_neighs;
+  nbondlist = neighborKK->nbondlist;
+  d_prime_neighs_bond = fix_oxdna_prime_neighsKK->d_prime_neighs_bond;
   nlocal = atom->nlocal;
   newton_bond = force->newton_bond;
 
@@ -221,23 +221,23 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
 
   // Use precomputed bond and prime neighbors.
   // NOTE: already in correct order from precompute, so directionality test: a -> b is 3' -> 5' is already satisfied
-  int a = d_bond_prime_neighs(in,0);
-  int b = d_bond_prime_neighs(in,1);
+  int a = d_prime_neighs_bond(in,0);
+  int b = d_prime_neighs_bond(in,1);
   const int type = bondlist(in,2);
   int a3ptype, atype, btype, b5ptype;    // tetramer types
 
   // determine tetramer types
-  // Our bond_prime_neighs ordering (a,b,id3p[a],id5p[b]) from precompute
+  // Our prime_neighs_bond ordering (a,b,id3p[a],id5p[b]) from precompute
   // is assigned such that we preserve the vanilla oxDNA convention of:
   // 3'neighbor a - a - b - 5'neighbor b
   // throughout the rest of compute.
-  int id3p_local = d_bond_prime_neighs(in,2);
+  int id3p_local = d_prime_neighs_bond(in,2);
   a3ptype = (id3p_local != -1) ? atomtype[id3p_local] : 0;
 
   atype = atomtype[a];
   btype = atomtype[b];
 
-  int id5p_local = d_bond_prime_neighs(in,3);
+  int id5p_local = d_prime_neighs_bond(in,3);
   b5ptype = (id5p_local != -1) ? atomtype[id5p_local] : 0;
 
   KK_ACC_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment

@@ -27,6 +27,7 @@
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_npair_kokkos.h"
+#include "fix_oxdna_prime_neighs_kokkos.h"
 #include "mf_oxdna_kokkos.h"
 
 using namespace LAMMPS_NS;
@@ -48,6 +49,8 @@ PairOxdnaExcvKokkos<DeviceType>::PairOxdnaExcvKokkos(LAMMPS *lmp) : PairOxdnaExc
   oxdnaflag = EnabledOXDNAFlag::OXDNA;
   fix_oxdna_lrfKK = nullptr;
   fix_oxdna_npairKK = nullptr;
+  fix_oxdna_prime_neighsKK = nullptr;
+  last_prime_neighs_pair_lastcall = -1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -107,7 +110,7 @@ void PairOxdnaExcvKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   special_lj[2] = force->special_lj[2];
   special_lj[3] = force->special_lj[3];
 
-  atomtype = atomKK->k_type.template view<DeviceType>();
+  tag = atomKK->k_tag.template view<DeviceType>();
   id5p = atomKK->k_id5p.template view<DeviceType>();
   id3p = atomKK->k_id3p.template view<DeviceType>();
 
@@ -127,6 +130,15 @@ void PairOxdnaExcvKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   anum = list->inum;
   d_alist = k_list->d_ilist;
   d_numneigh = k_list->d_numneigh;
+
+  // Precompute 3'/5' neighbor map lookups for the pair neighbor list.
+  // Done here (not in pre_force) so the pair's own list is always used,
+  // ensuring ib-index correspondence between precompute and kernel.
+  if (neighbor->lastcall != last_prime_neighs_pair_lastcall) {
+    fix_oxdna_prime_neighsKK->compute_prime_neighs_pair(list);
+    last_prime_neighs_pair_lastcall = neighbor->lastcall;
+    d_prime_neighs_pair = fix_oxdna_prime_neighsKK->d_prime_neighs_pair;
+  }
 
   int need_dup = lmp->kokkos->need_dup<DeviceType>();
   if (need_dup) {
@@ -572,42 +584,130 @@ void PairOxdnaExcvKokkos<DeviceType>::operator()(TagPairOxdnaExcvCompute<OXDNAFL
     }
 
     // base-base
-    if (rsq_bsbs < d_cutsq_bsbs_c(atype,btype)) {
-      // F3 modulation factor, force and energy calculation
-      evdwl = F3_KK(rsq_bsbs,d_cutsq_bsbs_ast(atype,btype),d_cut_bsbs_c(atype,btype),d_lj1_bsbs(atype,btype),
-                        d_lj2_bsbs(atype,btype),d_epsilon_bsbs(atype,btype),d_b_bsbs(atype,btype),fpair);
-      // force and torque increment calculation
-      delf[0] = fpair * delr_bsbs[0];
-      delf[1] = fpair * delr_bsbs[1];
-      delf[2] = fpair * delr_bsbs[2];
-      delta[0] = ra_cb[1]*delf[2] - ra_cb[2]*delf[1];
-      delta[1] = ra_cb[2]*delf[0] - ra_cb[0]*delf[2];
-      delta[2] = ra_cb[0]*delf[1] - ra_cb[1]*delf[0];
-      ftmp[0] += delf[0];
-      ftmp[1] += delf[1];
-      ftmp[2] += delf[2];
-      ttmp[0] += delta[0];
-      ttmp[1] += delta[1];
-      ttmp[2] += delta[2];
-      if ((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD) && (NEWTON_PAIR || b < nlocal)) {
-        a_f(b,0) -= delf[0];
-        a_f(b,1) -= delf[1];
-        a_f(b,2) -= delf[2];
-        deltb[0] = rb_cb[1]*delf[2] - rb_cb[2]*delf[1];
-        deltb[1] = rb_cb[2]*delf[0] - rb_cb[0]*delf[2];
-        deltb[2] = rb_cb[0]*delf[1] - rb_cb[1]*delf[0];
-        a_torque(b,0) -= deltb[0];
-        a_torque(b,1) -= deltb[1];
-        a_torque(b,2) -= deltb[2];
-      }
-      if (EVFLAG) {
-        if (eflag) {
-          ev.evdwl += (((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD)&&(NEWTON_PAIR||(b<nlocal)))?1.0:0.5)*evdwl;
+    if (tag(a) == id3p(b) && tag(b) == id5p(a)) {
+      const int _3ptype = (d_prime_neighs_pair(a,ib,0) >= 0) ? type(d_prime_neighs_pair(a,ib,0)) : 0;
+      const int _5ptype = (d_prime_neighs_pair(a,ib,1) >= 0) ? type(d_prime_neighs_pair(a,ib,1)) : 0;
+      if (rsq_bsbs < d_cut4sq_bsbs_c(_3ptype,atype,btype,_5ptype)) {
+        // F3 modulation factor, force and energy calculation
+        evdwl = F3_KK(rsq_bsbs,d_cut4sq_bsbs_ast(_3ptype,atype,btype,_5ptype),d_cut4_bsbs_c(_3ptype,atype,btype,_5ptype),
+                          d_lj14_bsbs(_3ptype,atype,btype,_5ptype),d_lj24_bsbs(_3ptype,atype,btype,_5ptype),
+                          d_epsilon_bsbs(atype,btype),d_b4_bsbs(_3ptype,atype,btype,_5ptype),fpair);
+        // force and torque increment calculation
+        delf[0] = fpair * delr_bsbs[0];
+        delf[1] = fpair * delr_bsbs[1];
+        delf[2] = fpair * delr_bsbs[2];
+        delta[0] = ra_cb[1]*delf[2] - ra_cb[2]*delf[1];
+        delta[1] = ra_cb[2]*delf[0] - ra_cb[0]*delf[2];
+        delta[2] = ra_cb[0]*delf[1] - ra_cb[1]*delf[0];
+        ftmp[0] += delf[0];
+        ftmp[1] += delf[1];
+        ftmp[2] += delf[2];
+        ttmp[0] += delta[0];
+        ttmp[1] += delta[1];
+        ttmp[2] += delta[2];
+        if ((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD) && (NEWTON_PAIR || b < nlocal)) {
+          a_f(b,0) -= delf[0];
+          a_f(b,1) -= delf[1];
+          a_f(b,2) -= delf[2];
+          deltb[0] = rb_cb[1]*delf[2] - rb_cb[2]*delf[1];
+          deltb[1] = rb_cb[2]*delf[0] - rb_cb[0]*delf[2];
+          deltb[2] = rb_cb[0]*delf[1] - rb_cb[1]*delf[0];
+          a_torque(b,0) -= deltb[0];
+          a_torque(b,1) -= deltb[1];
+          a_torque(b,2) -= deltb[2];
         }
+        if (EVFLAG) {
+          if (eflag) {
+            ev.evdwl += (((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD)&&(NEWTON_PAIR||(b<nlocal)))?1.0:0.5)*evdwl;
+          }
 
-        if (vflag_either || eflag_atom) {
-          this->template ev_tally_xyz<NEIGHFLAG,NEWTON_PAIR>(ev,a,b,evdwl,\
-          delf[0],delf[1],delf[2],x(a,0)-x(b,0), x(a,1)-x(b,1), x(a,2)-x(b,2));
+          if (vflag_either || eflag_atom) {
+            this->template ev_tally_xyz<NEIGHFLAG,NEWTON_PAIR>(ev,a,b,evdwl,\
+            delf[0],delf[1],delf[2],x(a,0)-x(b,0), x(a,1)-x(b,1), x(a,2)-x(b,2));
+          }
+        }
+      }
+    } else if (tag(a) == id5p(b) && tag(b) == id3p(a)) {
+      const int _3ptype = (d_prime_neighs_pair(a,ib,2) >= 0) ? type(d_prime_neighs_pair(a,ib,2)) : 0;
+      const int _5ptype = (d_prime_neighs_pair(a,ib,3) >= 0) ? type(d_prime_neighs_pair(a,ib,3)) : 0;
+      if (rsq_bsbs < d_cut4sq_bsbs_c(_3ptype,btype,atype,_5ptype)) {
+        // F3 modulation factor, force and energy calculation
+        evdwl = F3_KK(rsq_bsbs,d_cut4sq_bsbs_ast(_3ptype,btype,atype,_5ptype),d_cut4_bsbs_c(_3ptype,btype,atype,_5ptype),
+                          d_lj14_bsbs(_3ptype,btype,atype,_5ptype),d_lj24_bsbs(_3ptype,btype,atype,_5ptype),
+                          d_epsilon_bsbs(btype,atype),d_b4_bsbs(_3ptype,btype,atype,_5ptype),fpair);
+        // force and torque increment calculation
+        delf[0] = fpair * delr_bsbs[0];
+        delf[1] = fpair * delr_bsbs[1];
+        delf[2] = fpair * delr_bsbs[2];
+        delta[0] = ra_cb[1]*delf[2] - ra_cb[2]*delf[1];
+        delta[1] = ra_cb[2]*delf[0] - ra_cb[0]*delf[2];
+        delta[2] = ra_cb[0]*delf[1] - ra_cb[1]*delf[0];
+        ftmp[0] += delf[0];
+        ftmp[1] += delf[1];
+        ftmp[2] += delf[2];
+        ttmp[0] += delta[0];
+        ttmp[1] += delta[1];
+        ttmp[2] += delta[2];
+        if ((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD) && (NEWTON_PAIR || b < nlocal)) {
+          a_f(b,0) -= delf[0];
+          a_f(b,1) -= delf[1];
+          a_f(b,2) -= delf[2];
+          deltb[0] = rb_cb[1]*delf[2] - rb_cb[2]*delf[1];
+          deltb[1] = rb_cb[2]*delf[0] - rb_cb[0]*delf[2];
+          deltb[2] = rb_cb[0]*delf[1] - rb_cb[1]*delf[0];
+          a_torque(b,0) -= deltb[0];
+          a_torque(b,1) -= deltb[1];
+          a_torque(b,2) -= deltb[2];
+        }
+        if (EVFLAG) {
+          if (eflag) {
+            ev.evdwl += (((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD)&&(NEWTON_PAIR||(b<nlocal)))?1.0:0.5)*evdwl;
+          }
+
+          if (vflag_either || eflag_atom) {
+            this->template ev_tally_xyz<NEIGHFLAG,NEWTON_PAIR>(ev,a,b,evdwl,\
+            delf[0],delf[1],delf[2],x(a,0)-x(b,0), x(a,1)-x(b,1), x(a,2)-x(b,2));
+          }
+        }
+      }
+    } else {
+      if (rsq_bsbs < d_cutsq_bsbs_c(atype,btype)) {
+        // F3 modulation factor, force and energy calculation
+        evdwl = F3_KK(rsq_bsbs,d_cutsq_bsbs_ast(atype,btype),d_cut_bsbs_c(atype,btype),d_lj1_bsbs(atype,btype),
+                          d_lj2_bsbs(atype,btype),d_epsilon_bsbs(atype,btype),d_b_bsbs(atype,btype),fpair);
+        // force and torque increment calculation
+        delf[0] = fpair * delr_bsbs[0];
+        delf[1] = fpair * delr_bsbs[1];
+        delf[2] = fpair * delr_bsbs[2];
+        delta[0] = ra_cb[1]*delf[2] - ra_cb[2]*delf[1];
+        delta[1] = ra_cb[2]*delf[0] - ra_cb[0]*delf[2];
+        delta[2] = ra_cb[0]*delf[1] - ra_cb[1]*delf[0];
+        ftmp[0] += delf[0];
+        ftmp[1] += delf[1];
+        ftmp[2] += delf[2];
+        ttmp[0] += delta[0];
+        ttmp[1] += delta[1];
+        ttmp[2] += delta[2];
+        if ((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD) && (NEWTON_PAIR || b < nlocal)) {
+          a_f(b,0) -= delf[0];
+          a_f(b,1) -= delf[1];
+          a_f(b,2) -= delf[2];
+          deltb[0] = rb_cb[1]*delf[2] - rb_cb[2]*delf[1];
+          deltb[1] = rb_cb[2]*delf[0] - rb_cb[0]*delf[2];
+          deltb[2] = rb_cb[0]*delf[1] - rb_cb[1]*delf[0];
+          a_torque(b,0) -= deltb[0];
+          a_torque(b,1) -= deltb[1];
+          a_torque(b,2) -= deltb[2];
+        }
+        if (EVFLAG) {
+          if (eflag) {
+            ev.evdwl += (((NEIGHFLAG==HALF || NEIGHFLAG==HALFTHREAD)&&(NEWTON_PAIR||(b<nlocal)))?1.0:0.5)*evdwl;
+          }
+
+          if (vflag_either || eflag_atom) {
+            this->template ev_tally_xyz<NEIGHFLAG,NEWTON_PAIR>(ev,a,b,evdwl,\
+            delf[0],delf[1],delf[2],x(a,0)-x(b,0), x(a,1)-x(b,1), x(a,2)-x(b,2));
+          }
         }
       }
     }
@@ -750,6 +850,16 @@ void PairOxdnaExcvKokkos<DeviceType>::init_style()
   if (!fix_oxdna_npairKK) {
     fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(modify->add_fix("npair_kk all oxdna/npair/kk"));
   }
+
+  auto prime_fixes = modify->get_fix_by_style("^oxdna/prime/neighs/kk");
+  if (prime_fixes.size() == 0) {
+    fix_oxdna_prime_neighsKK =
+      dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(modify->add_fix("prime_neighs_kk all oxdna/prime/neighs/kk"));
+  } else {
+    fix_oxdna_prime_neighsKK = dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(prime_fixes[0]);
+  }
+
+  if (!fix_oxdna_prime_neighsKK) error->all(FLERR, "Fix oxdna/prime/neighs/kk not found");
 }
 
 /* ---------------------------------------------------------------------- */
