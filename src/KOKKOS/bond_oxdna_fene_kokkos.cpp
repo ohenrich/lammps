@@ -71,19 +71,19 @@ template<class DeviceType>
 void BondOxdnaFENEKokkos<DeviceType>::init_style()
 {
   fix_oxdna_lrfKK = nullptr;
-  auto fixes = modify->get_fix_by_style("^oxdna/lrf/kk");
-  if (fixes.size() == 0) error->all(FLERR, "Fix oxdna/lrf/kk not found. Ensure pair ox*na*/excv/kk is present");
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF/kk");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF/kk not found. Ensure pair ox*na*/excv/kk is present");
   else fix_oxdna_lrfKK = dynamic_cast<FixOxdnaLRFKokkos<DeviceType> *>(fixes[0]);
 
-  auto prime_fixes = modify->get_fix_by_style("^oxdna/prime/neighs/kk");
+  auto prime_fixes = modify->get_fix_by_style("^OXDNA/PRIME_NEIGHS/kk");
   if (prime_fixes.size() == 0)
     fix_oxdna_prime_neighsKK =
-      dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(modify->add_fix("prime_neighs_kk all oxdna/prime/neighs/kk"));
+      dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(modify->add_fix("prime_neighs_kk all OXDNA/PRIME_NEIGHS/kk"));
   else
     fix_oxdna_prime_neighsKK = dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(prime_fixes[0]);
 
   if (!fix_oxdna_prime_neighsKK)
-    error->all(FLERR, "Fix oxdna/prime/neighs/kk not found");
+    error->all(FLERR, "Fix OXDNA/PRIME_NEIGHS/kk not found");
 }
 
 /* ---------------------------------------------------------------------- */

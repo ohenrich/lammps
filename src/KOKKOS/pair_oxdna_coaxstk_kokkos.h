@@ -157,7 +157,7 @@ class PairOxdnaCoaxstkKokkos : public PairOxdnaCoaxstk, public KokkosBase {
  
   friend void pair_virial_fdotr_compute<PairOxdnaCoaxstkKokkos>(PairOxdnaCoaxstkKokkos*);
 
-  FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to oxdna/lrf/kk fix
+  FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to OXDNA/LRF/kk fix
 };
 
 }

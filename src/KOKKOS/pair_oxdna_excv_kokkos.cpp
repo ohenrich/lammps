@@ -842,24 +842,24 @@ void PairOxdnaExcvKokkos<DeviceType>::init_style()
   request->set_kokkos_device(std::is_same_v<DeviceType,LMPDeviceType>);
   if (neighflag == FULL) request->enable_full();
 
-  // ensure fix oxdna/lrf/kk is added for backward-compatability
+  // ensure fix OXDNA/LRF/kk is added for backward-compatability
   if (!fix_oxdna_lrfKK) {
-    fix_oxdna_lrfKK = dynamic_cast<FixOxdnaLRFKokkos<DeviceType> *>(modify->add_fix("lrf_kk all oxdna/lrf/kk"));
+    fix_oxdna_lrfKK = dynamic_cast<FixOxdnaLRFKokkos<DeviceType> *>(modify->add_fix("lrf_kk all OXDNA/LRF/kk"));
   }
-  // ensure fix oxdna/npair/kk is added
+  // ensure fix OXDNA/NPAIR/kk is added
   if (!fix_oxdna_npairKK) {
-    fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(modify->add_fix("npair_kk all oxdna/npair/kk"));
+    fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(modify->add_fix("npair_kk all OXDNA/NPAIR/kk"));
   }
 
-  auto prime_fixes = modify->get_fix_by_style("^oxdna/prime/neighs/kk");
+  auto prime_fixes = modify->get_fix_by_style("^OXDNA/PRIME_NEIGHS/kk");
   if (prime_fixes.size() == 0) {
     fix_oxdna_prime_neighsKK =
-      dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(modify->add_fix("prime_neighs_kk all oxdna/prime/neighs/kk"));
+      dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(modify->add_fix("prime_neighs_kk all OXDNA/PRIME_NEIGHS/kk"));
   } else {
     fix_oxdna_prime_neighsKK = dynamic_cast<FixOxdnaPrimeNeighsKokkos<DeviceType> *>(prime_fixes[0]);
   }
 
-  if (!fix_oxdna_prime_neighsKK) error->all(FLERR, "Fix oxdna/prime/neighs/kk not found");
+  if (!fix_oxdna_prime_neighsKK) error->all(FLERR, "Fix OXDNA/PRIME_NEIGHS/kk not found");
 }
 
 /* ---------------------------------------------------------------------- */

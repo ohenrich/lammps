@@ -13,9 +13,9 @@
 
 #ifdef FIX_CLASS
 // clang-format off
-FixStyle(oxdna/prime/neighs/kk,FixOxdnaPrimeNeighsKokkos<LMPDeviceType>);
-FixStyle(oxdna/prime/neighs/kk/device,FixOxdnaPrimeNeighsKokkos<LMPDeviceType>);
-FixStyle(oxdna/prime/neighs/kk/host,FixOxdnaPrimeNeighsKokkos<LMPHostType>);
+FixStyle(OXDNA/PRIME_NEIGHS/kk,FixOxdnaPrimeNeighsKokkos<LMPDeviceType>);
+FixStyle(OXDNA/PRIME_NEIGHS/kk/device,FixOxdnaPrimeNeighsKokkos<LMPDeviceType>);
+FixStyle(OXDNA/PRIME_NEIGHS/kk/host,FixOxdnaPrimeNeighsKokkos<LMPHostType>);
 // clang-format on
 #else
 

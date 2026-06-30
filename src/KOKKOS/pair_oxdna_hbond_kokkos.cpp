@@ -1300,18 +1300,18 @@ void PairOxdnaHbondKokkos<DeviceType>::init_style()
   if (neighflag == FULL) request->enable_full();
 
   fix_oxdna_lrfKK = nullptr;
-  auto fixes = modify->get_fix_by_style("^oxdna/lrf/kk");
-  if (fixes.size() == 0) error->all(FLERR, "Fix oxdna/lrf/kk not found. Ensure pair ox*na*/excv/kk is present");
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF/kk");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF/kk not found. Ensure pair ox*na*/excv/kk is present");
   else fix_oxdna_lrfKK = dynamic_cast<FixOxdnaLRFKokkos<DeviceType> *>(fixes[0]);
 
   fix_oxdna_npairKK = nullptr;
-  auto npair_fixes = modify->get_fix_by_style("^oxdna/npair/kk");
+  auto npair_fixes = modify->get_fix_by_style("^OXDNA/NPAIR/kk");
   if (npair_fixes.size() == 0) {
-    fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(modify->add_fix("npair_kk all oxdna/npair/kk"));
+    fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(modify->add_fix("npair_kk all OXDNA/NPAIR/kk"));
   } else {
     fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(npair_fixes[0]);
   }
-  if (!fix_oxdna_npairKK) error->all(FLERR, "Fix oxdna/npair/kk lookup failed");
+  if (!fix_oxdna_npairKK) error->all(FLERR, "Fix OXDNA/NPAIR/kk lookup failed");
 }
 
 /* ---------------------------------------------------------------------- */

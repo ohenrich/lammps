@@ -13,9 +13,9 @@
 
 #ifdef FIX_CLASS
 // clang-format off
-FixStyle(oxdna/npair/kk,FixOxdnaNpairKokkos<LMPDeviceType>);
-FixStyle(oxdna/npair/kk/device,FixOxdnaNpairKokkos<LMPDeviceType>);
-FixStyle(oxdna/npair/kk/host,FixOxdnaNpairKokkos<LMPHostType>);
+FixStyle(OXDNA/NPAIR/kk,FixOxdnaNpairKokkos<LMPDeviceType>);
+FixStyle(OXDNA/NPAIR/kk/device,FixOxdnaNpairKokkos<LMPDeviceType>);
+FixStyle(OXDNA/NPAIR/kk/host,FixOxdnaNpairKokkos<LMPHostType>);
 // clang-format on
 #else
 

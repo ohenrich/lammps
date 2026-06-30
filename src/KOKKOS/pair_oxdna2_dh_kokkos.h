@@ -135,7 +135,7 @@ class PairOxdna2DhKokkos : public PairOxdna2Dh, public KokkosBase {
  
   friend void pair_virial_fdotr_compute<PairOxdna2DhKokkos>(PairOxdna2DhKokkos*);
 
-  FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to oxdna/lrf/kk fix
+  FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to OXDNA/LRF/kk fix
 };
 
 }

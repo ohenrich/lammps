@@ -60,7 +60,7 @@ template<class DeviceType>
 void FixOxdnaLRFKokkos<DeviceType>::init()
 {
   avecEllipKK = dynamic_cast<AtomVecEllipsoidKokkos *>(atom->style_match("ellipsoid"));
-  if (!avecEllipKK) error->all(FLERR, "Fix oxdna/lrf/kk requires atom style ellipsoid/kk");
+  if (!avecEllipKK) error->all(FLERR, "Fix OXDNA/LRF/kk requires atom style ellipsoid/kk");
 }
 
 /* ---------------------------------------------------------------------- */
