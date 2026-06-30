@@ -296,16 +296,16 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
   if constexpr (OXDNAFLAG==OXDNA2) {
     constexpr KK_FLOAT d_cs_x = -0.34;
     constexpr KK_FLOAT d_cs_y = +0.3408;
-    ra_cs[0] = fma(d_cs_x, d_nx_xtrct(a,0), d_cs_y*d_ny_xtrct(a,0));
-    ra_cs[1] = fma(d_cs_x, d_nx_xtrct(a,1), d_cs_y*d_ny_xtrct(a,1));
-    ra_cs[2] = fma(d_cs_x, d_nx_xtrct(a,2), d_cs_y*d_ny_xtrct(a,2));
+    ra_cs[0] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,0), d_cs_y*d_ny_xtrct(a,0));
+    ra_cs[1] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,1), d_cs_y*d_ny_xtrct(a,1));
+    ra_cs[2] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,2), d_cs_y*d_ny_xtrct(a,2));
   } else {
     // OXRNA2
     constexpr KK_FLOAT d_cs_x = -0.4;
     constexpr KK_FLOAT d_cs_z = +0.2;
-    ra_cs[0] = fma(d_cs_x, d_nx_xtrct(a,0), d_cs_z*d_nz_xtrct(a,0));
-    ra_cs[1] = fma(d_cs_x, d_nx_xtrct(a,1), d_cs_z*d_nz_xtrct(a,1));
-    ra_cs[2] = fma(d_cs_x, d_nx_xtrct(a,2), d_cs_z*d_nz_xtrct(a,2));
+    ra_cs[0] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,0), d_cs_z*d_nz_xtrct(a,0));
+    ra_cs[1] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,1), d_cs_z*d_nz_xtrct(a,1));
+    ra_cs[2] = Kokkos::fma(d_cs_x, d_nx_xtrct(a,2), d_cs_z*d_nz_xtrct(a,2));
   }
 
   rtmp_s[0] = x(a,0)+ra_cs[0];
@@ -335,22 +335,22 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
     if constexpr (OXDNAFLAG==OXDNA2) {
       constexpr KK_FLOAT d_cs_x = -0.34;
       constexpr KK_FLOAT d_cs_y = +0.3408;
-      rb_cs[0] = fma(d_cs_x, d_nx_xtrct(b,0), d_cs_y*d_ny_xtrct(b,0));
-      rb_cs[1] = fma(d_cs_x, d_nx_xtrct(b,1), d_cs_y*d_ny_xtrct(b,1));
-      rb_cs[2] = fma(d_cs_x, d_nx_xtrct(b,2), d_cs_y*d_ny_xtrct(b,2));
+      rb_cs[0] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,0), d_cs_y*d_ny_xtrct(b,0));
+      rb_cs[1] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,1), d_cs_y*d_ny_xtrct(b,1));
+      rb_cs[2] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,2), d_cs_y*d_ny_xtrct(b,2));
     } else {
       constexpr KK_FLOAT d_cs_x = -0.4;
       constexpr KK_FLOAT d_cs_z = +0.2;
-      rb_cs[0] = fma(d_cs_x, d_nx_xtrct(b,0), d_cs_z*d_nz_xtrct(b,0));
-      rb_cs[1] = fma(d_cs_x, d_nx_xtrct(b,1), d_cs_z*d_nz_xtrct(b,1));
-      rb_cs[2] = fma(d_cs_x, d_nx_xtrct(b,2), d_cs_z*d_nz_xtrct(b,2));
+      rb_cs[0] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,0), d_cs_z*d_nz_xtrct(b,0));
+      rb_cs[1] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,1), d_cs_z*d_nz_xtrct(b,1));
+      rb_cs[2] = Kokkos::fma(d_cs_x, d_nx_xtrct(b,2), d_cs_z*d_nz_xtrct(b,2));
     }
 
     // vector backbone site b to a
     delr[0] = rtmp_s[0] - x(b,0) - rb_cs[0];
     delr[1] = rtmp_s[1] - x(b,1) - rb_cs[1];
     delr[2] = rtmp_s[2] - x(b,2) - rb_cs[2];
-    rsq = fma(delr[2], delr[2], fma(delr[1], delr[1], delr[0] * delr[0]));
+    rsq = Kokkos::fma(delr[2], delr[2], Kokkos::fma(delr[1], delr[1], delr[0] * delr[0]));
 
     if (rsq > d_cutsq_dh_c(atype, btype)) continue; // Note the switch of sign, > vs <=, due to using continue
 
@@ -392,9 +392,9 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
     ftmp_a[0] += delf[0];
     ftmp_a[1] += delf[1];
     ftmp_a[2] += delf[2];
-    delta[0] = fma(ra_cs[1], delf[2], -ra_cs[2]*delf[1]);
-    delta[1] = fma(ra_cs[2], delf[0], -ra_cs[0]*delf[2]);
-    delta[2] = fma(ra_cs[0], delf[1], -ra_cs[1]*delf[0]);
+    delta[0] = Kokkos::fma(ra_cs[1], delf[2], -ra_cs[2]*delf[1]);
+    delta[1] = Kokkos::fma(ra_cs[2], delf[0], -ra_cs[0]*delf[2]);
+    delta[2] = Kokkos::fma(ra_cs[0], delf[1], -ra_cs[1]*delf[0]);
     ttmp_a[0] += delta[0];
     ttmp_a[1] += delta[1];
     ttmp_a[2] += delta[2];
@@ -402,9 +402,9 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
       a_f(b,0) -= delf[0];
       a_f(b,1) -= delf[1];
       a_f(b,2) -= delf[2];
-      deltb[0] = fma(rb_cs[1], delf[2], -rb_cs[2]*delf[1]);
-      deltb[1] = fma(rb_cs[2], delf[0], -rb_cs[0]*delf[2]);
-      deltb[2] = fma(rb_cs[0], delf[1], -rb_cs[1]*delf[0]);
+      deltb[0] = Kokkos::fma(rb_cs[1], delf[2], -rb_cs[2]*delf[1]);
+      deltb[1] = Kokkos::fma(rb_cs[2], delf[0], -rb_cs[0]*delf[2]);
+      deltb[2] = Kokkos::fma(rb_cs[0], delf[1], -rb_cs[1]*delf[0]);
       a_torque(b,0) -= deltb[0];
       a_torque(b,1) -= deltb[1];
       a_torque(b,2) -= deltb[2];

@@ -107,7 +107,7 @@ static KK_FLOAT DF2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
 KOKKOS_INLINE_FUNCTION
 static KK_FLOAT F3_KK(KK_FLOAT rsq, KK_FLOAT cutsq_ast, KK_FLOAT cut_c, 
                      KK_FLOAT lj1, KK_FLOAT lj2, KK_FLOAT eps, KK_FLOAT b, 
-                     KK_FLOAT &fpair)
+                     KK_ACC_FLOAT &fpair)
 {
   KK_FLOAT evdwl = 0.0;
 
