@@ -387,6 +387,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
     delr_hb[2] = x(a,2) + ra_chb[2] - x(b,2) - rb_chb[2];
 
     rsq_hb = delr_hb[0]*delr_hb[0] + delr_hb[1]*delr_hb[1] + delr_hb[2]*delr_hb[2];
+    if (rsq_hb <= static_cast<KK_FLOAT>(0.0)) continue;
     r_hb = sqrtf(rsq_hb);
     rinv_hb = 1.0 / r_hb;
 
@@ -1161,6 +1162,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkComputeGPUPair<
 
   rsq_hb = Kokkos::fma(delr_hb[2], delr_hb[2],
            Kokkos::fma(delr_hb[1], delr_hb[1], delr_hb[0] * delr_hb[0]));
+  if (rsq_hb <= static_cast<KK_FLOAT>(0.0)) return;
   rinv_hb = static_cast<KK_FLOAT>(1.0) / sqrtf(rsq_hb);
   r_hb = rsq_hb * rinv_hb;
 
