@@ -178,13 +178,14 @@ void FixOxdnaNpairKokkos<DeviceType>::compute_neigh_screen_to_npair()
   x = atomKK->k_x.view<DeviceType>();
 
   // Derive the COM screen cutoff from the cutoffs registered by the consuming
-  // pair styles (hbond / xstk / coaxstk) in their init_one. screen_cut_max is
-  // max(cut_*_hc) + site-offset margin, so the COM test below never drops an
-  // interacting pair while being as tight as the parameters allow. Fall back to
-  // the historical r < 2.0 (rsq < 4.0) if nothing registered.
-  screen_cutsq = (screen_cut_max > 0.0)
-               ? static_cast<KK_FLOAT>(screen_cut_max * screen_cut_max)
-               : static_cast<KK_FLOAT>(4.0);
+  // pair styles (hbond / xstk / coaxstk) in their init_one, then add the
+  // neighbor skin. Since this screened list is rebuilt only when the neighbor
+  // list rebuilds, a skin margin is required to keep the filtered pair list
+  // valid between rebuilds (same Verlet-list principle as the base neighbor
+  // list itself).
+  const KK_FLOAT base_screen_cut = (screen_cut_max > 0.0) ? screen_cut_max : 2.0;
+  const KK_FLOAT screen_cut_with_skin = base_screen_cut + neighbor->skin;
+  screen_cutsq = screen_cut_with_skin * screen_cut_with_skin;
 
   // Pass 1 (count): "TagFixOxdnaNpairNeighScreen" loops over each atom a and its
   // raw neighbours, runs 'screen_pair_fast' (a cheap CoM distance bool) for each,
