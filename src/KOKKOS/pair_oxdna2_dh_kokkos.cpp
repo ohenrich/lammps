@@ -96,6 +96,7 @@ void PairOxdna2DhKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   f = atomKK->k_f.template view<DeviceType>();
   torque = atomKK->k_torque.template view<DeviceType>();
   type = atomKK->k_type.template view<DeviceType>();
+  qeff = atomKK->k_qeff.template view<DeviceType>();
 
   nlocal = atom->nlocal;
   newton_pair = force->newton_pair;
@@ -320,6 +321,8 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
   ttmp_a[0] = 0.0;
   ttmp_a[1] = 0.0;
   ttmp_a[2] = 0.0;
+
+  const KK_FLOAT qeff_a = qeff(a);
   
   const int bnum = d_numneigh(a);
 
@@ -359,14 +362,14 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
 
     if (r <= d_cut_dh_ast(atype, btype)) {
 
-      const KK_FLOAT qeff = d_qeff_dh_pf(atype, btype);
+      const KK_FLOAT qeff_dh_pf = d_qeff_dh_pf(atype, btype);
       const KK_FLOAT kappa = d_kappa_dh(atype, btype);
       const KK_FLOAT expterm = expf(-kappa * r);
 
-      fpair = qeff * expterm * (kappa + rinv) * rinv * rinv;
+      fpair = qeff_a * qeff(b) * qeff_dh_pf * expterm * (kappa + rinv) * rinv * rinv;
 
       if constexpr (EVFLAG) {
-        evdwl = qeff * expterm * rinv;
+        evdwl = qeff_a * qeff(b) * qeff_dh_pf * expterm * rinv;
       }
 
     } else {
@@ -375,10 +378,10 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
       const KK_FLOAT cut_dh_c = d_cut_dh_c(atype, btype);
       const KK_FLOAT delrcut = cut_dh_c - r;
 
-      fpair = 2.0 * b_dh * delrcut * rinv;
+      fpair = 2.0 * qeff_a * qeff(b) * b_dh * delrcut * rinv;
 
       if constexpr (EVFLAG) {
-        evdwl = b_dh * delrcut * delrcut; // double negative, so safe to keep delrcut as is
+        evdwl = qeff_a * qeff(b) * b_dh * delrcut * delrcut; // double negative, so safe to keep delrcut as is
       }
     }
 

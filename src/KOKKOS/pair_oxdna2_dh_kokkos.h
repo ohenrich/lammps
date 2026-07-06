@@ -77,6 +77,7 @@ class PairOxdna2DhKokkos : public PairOxdna2Dh, public KokkosBase {
   typename AT::t_kkacc_1d_3 f;
   typename AT::t_kkacc_1d_3 torque;
   typename AT::t_int_1d_randomread type;
+  typename AT::t_kkfloat_1d_randomread qeff;
 
   DAT::ttransform_kkacc_1d k_eatom;
   DAT::ttransform_kkacc_1d_6 k_vatom;
