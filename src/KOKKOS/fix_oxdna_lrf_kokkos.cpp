@@ -38,7 +38,7 @@ FixOxdnaLRFKokkos<DeviceType>::FixOxdnaLRFKokkos(LAMMPS *lmp, int narg, char **a
   // style only needs to resync f, torque, energy and virial (which can change between
   // pair/bond styles).
   datamask_read = MASK_MASK | ELLIPSOID_MASK | BONUS_MASK |
-                  X_MASK | F_MASK | TORQUE_MASK | TYPE_MASK | TAG_MASK | CG_DNA_MASK;
+                  X_MASK | TYPE_MASK | TAG_MASK | CG_DNA_MASK;
   datamask_modify = EMPTY_MASK;
 
   MemKK::realloc_kokkos(k_nx, "FixOxdnaLRF:nx", atom->nmax);
