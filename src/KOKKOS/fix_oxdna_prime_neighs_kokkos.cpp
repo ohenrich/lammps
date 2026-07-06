@@ -234,6 +234,10 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::operator()(TagFixOxdnaPrimeNeighsPre
       mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id3p_tag, k_map_hash);
     }
     if (mapped >= 0) id3p_local = mapped;
+    // If a present id3p tag ever fails to map locally, the downstream stk/fene
+    // code will treat it like a terminal neighbor (tetramer type 0). In valid
+    // oxDNA runs this path is expected to be unreachable because bonded context
+    // atoms needed for tetramer typing should also be present as local or ghost.
   }
   d_prime_neighs_bond(in,2) = id3p_local;
 
@@ -248,6 +252,8 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::operator()(TagFixOxdnaPrimeNeighsPre
       mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id5p_tag, k_map_hash);
     }
     if (mapped >= 0) id5p_local = mapped;
+    // Same assumption as above for id5p: a map miss falls back to the terminal
+    // tetramer type sentinel but is expected to be unreachable in normal runs.
   }
   d_prime_neighs_bond(in,3) = id5p_local;
 }
@@ -274,7 +280,7 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::operator()(TagFixOxdnaPrimeNeighsPre
   for (int jj = 0; jj < jnum; jj++) {
     const int btry = d_neighbors(a,jj) & NEIGHMASK;
 
-    int mapped = -1;
+    int mapped = -1; // default to -1 for missing neighbor, which is treated as a terminal neighbor in downstream compute path.
 
     const tagint id3p_a_tag = id3p(a);
     if (id3p_a_tag != -1) {
