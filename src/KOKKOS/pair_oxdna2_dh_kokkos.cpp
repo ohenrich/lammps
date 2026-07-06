@@ -385,7 +385,10 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
       }
     }
 
-    // No factor_lj here since we already have its early exit check near the start of the loop.
+    fpair *= factor_lj;
+    if constexpr (EVFLAG) {
+      evdwl *= factor_lj;
+    }
 
     delf[0] = delr[0] * fpair;
     delf[1] = delr[1] * fpair;
