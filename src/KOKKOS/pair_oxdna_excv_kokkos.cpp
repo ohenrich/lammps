@@ -543,10 +543,10 @@ void PairOxdnaExcvKokkos<DeviceType>::operator()(TagPairOxdnaExcvCompute<OXDNAFL
     }
 
     // base-backbone
-    if (rsq_bs < d_cutsq_bkbs_c(btype,atype)) {
+    if (rsq_bs < d_cutsq_bkbs_c(atype,btype)) {
       // F3 modulation factor, force and energy calculation
-      evdwl = F3_KK(rsq_bs,d_cutsq_bkbs_ast(btype,atype),d_cut_bkbs_c(btype,atype),d_lj1_bkbs(btype,atype),
-                        d_lj2_bkbs(btype,atype),d_epsilon_bkbs(btype,atype),d_b_bkbs(btype,atype),fpair);
+      evdwl = F3_KK(rsq_bs,d_cutsq_bkbs_ast(atype,btype),d_cut_bkbs_c(atype,btype),d_lj1_bkbs(atype,btype),
+                        d_lj2_bkbs(atype,btype),d_epsilon_bkbs(atype,btype),d_b_bkbs(atype,btype),fpair);
       // force and torque increment calculation
       delf[0] = fpair * delr_bs[0];
       delf[1] = fpair * delr_bs[1];
