@@ -70,6 +70,10 @@ BondOxdnaFENEKokkos<DeviceType>::~BondOxdnaFENEKokkos()
 template<class DeviceType>
 void BondOxdnaFENEKokkos<DeviceType>::init_style()
 {
+  if (force->special_lj[1] != 0.0 || force->special_lj[2] != 1.0 || force->special_lj[3] != 1.0)
+    error->all(FLERR, "Must use 'special_bonds lj 0 1 1' with bond style oxdna/fene/kk, oxdna2/fene/kk, " \
+                      "oxdna3/fene/kk or oxrna2/fene/kk");
+
   fix_oxdna_lrfKK = nullptr;
   auto fixes = modify->get_fix_by_style("^OXDNA/LRF/kk");
   if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF/kk not found. Ensure pair ox*na*/excv/kk is present");
