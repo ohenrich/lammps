@@ -48,7 +48,7 @@ PairOxdna2CoaxstkKokkos<DeviceType>::PairOxdna2CoaxstkKokkos(LAMMPS *lmp) : Pair
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
   // change between pair/bond styles. 
-  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK | CG_DNA_MASK;
+  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
   screened_pair_count = 0;
