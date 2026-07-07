@@ -188,7 +188,7 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  bool coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st, const KK_FLOAT &k_cxst_ab,
+  bool coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st, const KK_FLOAT &prime_cxst_ab,
     KK_FLOAT &f2, KK_FLOAT &df2) const;
 
 // NOLINTNEXTLINE

@@ -285,7 +285,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   KK_FLOAT cosphi3;
 
   KK_FLOAT f2,f4f6t1,f4t4,f4t5,f4t6;
-  KK_FLOAT k_cxst_ab;
+  KK_FLOAT prime_cxst_ab;
   KK_FLOAT df2,df4f6t1,df4t4,df4t5,df4t6;
 
   // a has to be terminal nucleotide
@@ -417,15 +417,15 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 
       // Direction-dependent coaxial stacking strength.
       if (id5p(a) == -1 && id3p(b) == -1) {
-        k_cxst_ab = d_k_cxst(atype,btype);
+        prime_cxst_ab = d_k_cxst(atype,btype);
       } else if (id3p(a) == -1 && id5p(b) == -1) {
-        k_cxst_ab = d_k_cxst(btype,atype);
+        prime_cxst_ab = d_k_cxst(btype,atype);
       } else {
-        k_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
+        prime_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
       }
 
       // f2 = f2 modulation factor
-      f2 = F2_KK(r_stkstk, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
+      f2 = F2_KK(r_stkstk, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
               d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
               d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), 
               d_cut_cxst_c(atype,btype));
@@ -436,7 +436,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // evdwl early rejection criterium
     if (evdwl) {
       // df2 = DF2 modulation factor
-      df2 = DF2_KK(r_stkstk, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
+      df2 = DF2_KK(r_stkstk, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
               d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
               d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
       // df4f6t1 = DF4(theta1,..)/sin(theta1) + DF6(theta1,..)/sin(theta1) modulation factors
@@ -777,14 +777,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_cosphi3_terms(const int &a, co
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st,
-  const KK_FLOAT &k_cxst_ab,
+  const KK_FLOAT &prime_cxst_ab,
   KK_FLOAT &f2, KK_FLOAT &df2) const
 {
-  f2 = F2_KK(r_st, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+  f2 = F2_KK(r_st, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
              d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), d_cut_cxst_c(atype,btype));
   if (f2 == 0.0) return false;
-  df2 = DF2_KK(r_st, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+  df2 = DF2_KK(r_st, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
                d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
                d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
   return true;
@@ -946,7 +946,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   KK_FLOAT theta5,theta5p,cost5;
   KK_FLOAT theta6,theta6p,cost6;
   KK_FLOAT cosphi3;
-  KK_FLOAT k_cxst_ab;
+  KK_FLOAT prime_cxst_ab;
 
   KK_FLOAT f2,f4f6t1,f4t4,f4t5,f4t6;
   KK_FLOAT df2,df4f6t1,df4t4,df4t5,df4t6;
@@ -997,14 +997,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 
   // Direction-dependent coaxial stacking strength.
   if (id5p(a) == -1 && id3p(b) == -1) {
-    k_cxst_ab = d_k_cxst(atype,btype);
+    prime_cxst_ab = d_k_cxst(atype,btype);
   } else if (id3p(a) == -1 && id5p(b) == -1) {
-    k_cxst_ab = d_k_cxst(btype,atype);
+    prime_cxst_ab = d_k_cxst(btype,atype);
   } else {
-    k_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
+    prime_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
   }
 
-  if (!coaxstk_radial_terms(atype,btype,r_stkstk,k_cxst_ab,f2,df2)) return;
+  if (!coaxstk_radial_terms(atype,btype,r_stkstk,prime_cxst_ab,f2,df2)) return;
 
   evdwl = f2 * f4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
 
