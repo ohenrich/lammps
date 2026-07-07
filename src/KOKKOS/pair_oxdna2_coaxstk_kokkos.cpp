@@ -48,7 +48,7 @@ PairOxdna2CoaxstkKokkos<DeviceType>::PairOxdna2CoaxstkKokkos(LAMMPS *lmp) : Pair
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
   // change between pair/bond styles. 
-  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
+  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK | CG_DNA_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
   screened_pair_count = 0;
@@ -101,6 +101,8 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   f = atomKK->k_f.template view<DeviceType>();
   torque = atomKK->k_torque.template view<DeviceType>();
   type = atomKK->k_type.template view<DeviceType>();
+  id5p = atomKK->k_id5p.template view<DeviceType>();
+  id3p = atomKK->k_id3p.template view<DeviceType>();
 
   nlocal = atom->nlocal;
   newton_pair = force->newton_pair;
@@ -269,13 +271,13 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   const int a = d_alist(ia);
   const int atype = type(a);
   // vectors COM-backbone site, COM-stacking site in lab frame
-  KK_FLOAT ra_cs[3], rb_cs[3], ra_cst[3], rb_cst[3];
+  KK_FLOAT ra_cbk[3], rb_cbk[3], ra_cstk[3], rb_cstk[3];
 
   KK_ACC_FLOAT delf[3],delta[3],deltb[3];    // force, torque increment
   KK_ACC_FLOAT evdwl, finc, tpair;           // energy, force, torque
   KK_FLOAT v1tmp[3];
-  KK_FLOAT delr_ss[3],delr_ss_norm[3],rsq_ss,r_ss,rinv_ss;
-  KK_FLOAT delr_st[3],delr_st_norm[3],rsq_st,r_st,rinv_st;
+  KK_FLOAT delr_bkbk[3],delr_bkbk_norm[3],rsq_bkbk,r_bkbk,rinv_bkbk;
+  KK_FLOAT delr_stkstk[3],delr_stkstk_norm[3],rsq_stkstk,r_stkstk,rinv_stkstk;
   KK_FLOAT theta1,theta1p,t1dir[3],cost1;
   KK_FLOAT theta4,t4dir[3],cost4;
   KK_FLOAT theta5,theta5p,t5dir[3],cost5;
@@ -283,17 +285,24 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   KK_FLOAT cosphi3;
 
   KK_FLOAT f2,f4f6t1,f4t4,f4t5,f4t6;
+  KK_FLOAT k_cxst_ab;
   KK_FLOAT df2,df4f6t1,df4t4,df4t5,df4t6;
 
+  // a has to be terminal nucleotide
+  // NOTE: this is the same as 'continue' in vanilla code, but since within the functor this is effectively the outer a-loop,
+  // we just return to skip the rest of the functor for this a.
+  if (id3p(a) != -1 && id5p(a) != -1) return;
+
   // vector COM-backbone site a, COM-stacking site a
-  constexpr KK_FLOAT d_cs=-0.4;
-  constexpr KK_FLOAT d_cst=+0.34;
-  ra_cst[0] = d_cst*d_nx_xtrct(a,0);
-  ra_cst[1] = d_cst*d_nx_xtrct(a,1);
-  ra_cst[2] = d_cst*d_nx_xtrct(a,2);
-  ra_cs[0] = d_cs*d_nx_xtrct(a,0);
-  ra_cs[1] = d_cs*d_nx_xtrct(a,1);
-  ra_cs[2] = d_cs*d_nx_xtrct(a,2);
+  // TODO: for oxDNA3, will need to template these
+  constexpr KK_FLOAT d_cbk=-0.4;
+  constexpr KK_FLOAT d_cstk=+0.34;
+  ra_cbk[0] = d_cbk*d_nx_xtrct(a,0);
+  ra_cbk[1] = d_cbk*d_nx_xtrct(a,1);
+  ra_cbk[2] = d_cbk*d_nx_xtrct(a,2);
+  ra_cstk[0] = d_cstk*d_nx_xtrct(a,0);
+  ra_cstk[1] = d_cstk*d_nx_xtrct(a,1);
+  ra_cstk[2] = d_cstk*d_nx_xtrct(a,2);
   
   const int bnum = d_numneigh(a);
 
@@ -304,41 +313,46 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     b &= NEIGHMASK;
     const int btype = type(b);
 
-    // vector COM b - stacking site b --- (st)
-    rb_cst[0] = d_cst*d_nx_xtrct(b,0);
-    rb_cst[1] = d_cst*d_nx_xtrct(b,1);
-    rb_cst[2] = d_cst*d_nx_xtrct(b,2);
+    // b has to be terminal nucleotide
+    if(id3p(b)!=-1 && id5p(b)!=-1) continue;
+
+    // vector COM b - stacking site b
+    // TODO: for oxDNA3, will need to template these
+    rb_cstk[0] = d_cstk*d_nx_xtrct(b,0);
+    rb_cstk[1] = d_cstk*d_nx_xtrct(b,1);
+    rb_cstk[2] = d_cstk*d_nx_xtrct(b,2);
 
     // vector stacking site b to a
-    delr_st[0] = x(a,0) + ra_cst[0] - x(b,0) - rb_cst[0];
-    delr_st[1] = x(a,1) + ra_cst[1] - x(b,1) - rb_cst[1];
-    delr_st[2] = x(a,2) + ra_cst[2] - x(b,2) - rb_cst[2];
+    delr_stkstk[0] = x(a,0) + ra_cstk[0] - x(b,0) - rb_cstk[0];
+    delr_stkstk[1] = x(a,1) + ra_cstk[1] - x(b,1) - rb_cstk[1];
+    delr_stkstk[2] = x(a,2) + ra_cstk[2] - x(b,2) - rb_cstk[2];
 
-    rsq_st = delr_st[0]*delr_st[0] + delr_st[1]*delr_st[1] + delr_st[2]*delr_st[2];
-    r_st = sqrtf(rsq_st);
-    rinv_st = 1.0 / r_st;
+    rsq_stkstk = delr_stkstk[0]*delr_stkstk[0] + delr_stkstk[1]*delr_stkstk[1] + delr_stkstk[2]*delr_stkstk[2];
+    r_stkstk = sqrtf(rsq_stkstk);
+    rinv_stkstk = 1.0 / r_stkstk;
 
-    delr_st_norm[0] = delr_st[0] * rinv_st;
-    delr_st_norm[1] = delr_st[1] * rinv_st;
-    delr_st_norm[2] = delr_st[2] * rinv_st;
+    delr_stkstk_norm[0] = delr_stkstk[0] * rinv_stkstk;
+    delr_stkstk_norm[1] = delr_stkstk[1] * rinv_stkstk;
+    delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
-    // vector COM b - backbone site b --- (ss)
-    rb_cs[0] = d_cs*d_nx_xtrct(b,0);
-    rb_cs[1] = d_cs*d_nx_xtrct(b,1);
-    rb_cs[2] = d_cs*d_nx_xtrct(b,2);
+    // vector COM b - backbone site b
+    // TODO: for oxDNA3, will need to template these
+    rb_cbk[0] = d_cbk*d_nx_xtrct(b,0);
+    rb_cbk[1] = d_cbk*d_nx_xtrct(b,1);
+    rb_cbk[2] = d_cbk*d_nx_xtrct(b,2);
 
     // vector backbone site b to a
-    delr_ss[0] = x(a,0) + ra_cs[0] - x(b,0) - rb_cs[0];
-    delr_ss[1] = x(a,1) + ra_cs[1] - x(b,1) - rb_cs[1];
-    delr_ss[2] = x(a,2) + ra_cs[2] - x(b,2) - rb_cs[2];
+    delr_bkbk[0] = x(a,0) + ra_cbk[0] - x(b,0) - rb_cbk[0];
+    delr_bkbk[1] = x(a,1) + ra_cbk[1] - x(b,1) - rb_cbk[1];
+    delr_bkbk[2] = x(a,2) + ra_cbk[2] - x(b,2) - rb_cbk[2];
 
-    rsq_ss = delr_ss[0]*delr_ss[0] + delr_ss[1]*delr_ss[1] + delr_ss[2]*delr_ss[2];
-    r_ss = sqrtf(rsq_ss);
-    rinv_ss = 1.0 / r_ss;
+    rsq_bkbk = delr_bkbk[0]*delr_bkbk[0] + delr_bkbk[1]*delr_bkbk[1] + delr_bkbk[2]*delr_bkbk[2];
+    r_bkbk = sqrtf(rsq_bkbk);
+    rinv_bkbk = 1.0 / r_bkbk;
 
-    delr_ss_norm[0] = delr_ss[0] * rinv_ss;
-    delr_ss_norm[1] = delr_ss[1] * rinv_ss;
-    delr_ss_norm[2] = delr_ss[2] * rinv_ss;
+    delr_bkbk_norm[0] = delr_bkbk[0] * rinv_bkbk;
+    delr_bkbk_norm[1] = delr_bkbk[1] * rinv_bkbk;
+    delr_bkbk_norm[2] = delr_bkbk[2] * rinv_bkbk;
 
     cost1 = -(d_nx_xtrct(a,0) * d_nx_xtrct(b,0) + d_nx_xtrct(a,1) * d_nx_xtrct(b,1) + d_nx_xtrct(a,2) * d_nx_xtrct(b,2));
     if (cost1 >  1.0) cost1 =  1.0;
@@ -362,12 +376,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       theta4 = acos(cost4);
       // f4t4 = f4 modulation factor
       f4t4 = F4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
+              d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) +
+             F4_KK(theta4, d_a_cxst4(atype,btype), MY_PI - d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
               d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype));
     // end of f4f6t1
 
     // f4t4 early rejection criterium
     if (f4t4) {
-      cost5 = (d_nz_xtrct(a,0)*delr_st_norm[0] + d_nz_xtrct(a,1)*delr_st_norm[1] + d_nz_xtrct(a,2)*delr_st_norm[2]);
+      cost5 = (d_nz_xtrct(a,0)*delr_stkstk_norm[0] + d_nz_xtrct(a,1)*delr_stkstk_norm[1] + d_nz_xtrct(a,2)*delr_stkstk_norm[2]);
       if (cost5 > 1.0) cost5 = 1.0;
       if (cost5 < -1.0) cost5 = -1.0;
       theta5 = acos(cost5);
@@ -381,7 +397,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 
     // f4t5 early rejection criterium
     if (f4t5) {
-      cost6 = d_nz_xtrct(b,0)*delr_st_norm[0] + d_nz_xtrct(b,1)*delr_st_norm[1] + d_nz_xtrct(b,2)*delr_st_norm[2];
+      cost6 = d_nz_xtrct(b,0)*delr_stkstk_norm[0] + d_nz_xtrct(b,1)*delr_stkstk_norm[1] + d_nz_xtrct(b,2)*delr_stkstk_norm[2];
       if (cost6 > 1.0) cost6 = 1.0;
       if (cost6 < -1.0) cost6 = -1.0;
       theta6 = acos(cost6);
@@ -392,14 +408,24 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
              F4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
               d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype));
 
-      v1tmp[0] = delr_ss_norm[1] * d_nx_xtrct(a,2) - delr_ss_norm[2] * d_nx_xtrct(a,1);
-      v1tmp[1] = delr_ss_norm[2] * d_nx_xtrct(a,0) - delr_ss_norm[0] * d_nx_xtrct(a,2);
-      v1tmp[2] = delr_ss_norm[0] * d_nx_xtrct(a,1) - delr_ss_norm[1] * d_nx_xtrct(a,0);
-      cosphi3 = v1tmp[0] * delr_st_norm[0] + v1tmp[1] * delr_st_norm[1] + v1tmp[2] * delr_st_norm[2];
+      v1tmp[0] = delr_bkbk_norm[1] * d_nx_xtrct(a,2) - delr_bkbk_norm[2] * d_nx_xtrct(a,1);
+      v1tmp[1] = delr_bkbk_norm[2] * d_nx_xtrct(a,0) - delr_bkbk_norm[0] * d_nx_xtrct(a,2);
+      v1tmp[2] = delr_bkbk_norm[0] * d_nx_xtrct(a,1) - delr_bkbk_norm[1] * d_nx_xtrct(a,0);
+      cosphi3 = v1tmp[0] * delr_stkstk_norm[0] + v1tmp[1] * delr_stkstk_norm[1] + v1tmp[2] * delr_stkstk_norm[2];
       if (cosphi3 > 1.0) cosphi3 = 1.0;
       if (cosphi3 < -1.0) cosphi3 = -1.0;
+
+      // Direction-dependent coaxial stacking strength.
+      if (id5p(a) == -1 && id3p(b) == -1) {
+        k_cxst_ab = d_k_cxst(atype,btype);
+      } else if (id3p(a) == -1 && id5p(b) == -1) {
+        k_cxst_ab = d_k_cxst(btype,atype);
+      } else {
+        k_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
+      }
+
       // f2 = f2 modulation factor
-      f2 = F2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
+      f2 = F2_KK(r_stkstk, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
               d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
               d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), 
               d_cut_cxst_c(atype,btype));
@@ -410,16 +436,18 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // evdwl early rejection criterium
     if (evdwl) {
       // df2 = DF2 modulation factor
-      df2 = DF2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
+      df2 = DF2_KK(r_stkstk, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
               d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
               d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
       // df4f6t1 = DF4(theta1,..)/sin(theta1) + DF6(theta1,..)/sin(theta1) modulation factors
       df4f6t1 = ( DF4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
                      d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) + \
               DF6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype)) ) / sin(theta1);
-      // df4t4 = DF4 modulation factor
-      df4t4 = DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
-                     d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) / sin(theta4);
+      // df4t4 = DF4(theta4,..)/sin(theta4) + DF4(theta4, mirrored theta0)/sin(theta4)
+      df4t4 = ( DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype),
+              d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) +
+            DF4_KK(theta4, d_a_cxst4(atype,btype), MY_PI - d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype),
+              d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) ) / sin(theta4);
       // df4t5 = DF4(theta5,..)/sin(theta5) - DF4(theta5p,..)/sin(theta5) modulation factors
       df4t5 = ( DF4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
                      d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) - \
@@ -446,30 +474,30 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       deltb[2] = 0.0;
 
       // radial force
-      finc  = -df2 * f4f6t1 * f4t4 * f4t5 * f4t6 * rinv_st * factor_lj;
+      finc  = -df2 * f4f6t1 * f4t4 * f4t5 * f4t6 * rinv_stkstk * factor_lj;
 
-      delf[0] += delr_st[0] * finc;
-      delf[1] += delr_st[1] * finc;
-      delf[2] += delr_st[2] * finc;
+      delf[0] += delr_stkstk[0] * finc;
+      delf[1] += delr_stkstk[1] * finc;
+      delf[2] += delr_stkstk[2] * finc;
 
       // theta5 force
       if (theta5 && theta5p) {
 
-        finc  = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * rinv_st * factor_lj;
+        finc  = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * rinv_stkstk * factor_lj;
 
-        delf[0] += (delr_st_norm[0]*cost5 - d_nz_xtrct(a,0)) * finc;
-        delf[1] += (delr_st_norm[1]*cost5 - d_nz_xtrct(a,1)) * finc;
-        delf[2] += (delr_st_norm[2]*cost5 - d_nz_xtrct(a,2)) * finc;
+        delf[0] += (delr_stkstk_norm[0]*cost5 - d_nz_xtrct(a,0)) * finc;
+        delf[1] += (delr_stkstk_norm[1]*cost5 - d_nz_xtrct(a,1)) * finc;
+        delf[2] += (delr_stkstk_norm[2]*cost5 - d_nz_xtrct(a,2)) * finc;
       }
 
       // theta6 force
       if (theta6 && theta6p) {
 
-        finc  = -f2 * f4f6t1* f4t4 * f4t5 * df4t6 * rinv_st * factor_lj;
+        finc  = -f2 * f4f6t1* f4t4 * f4t5 * df4t6 * rinv_stkstk * factor_lj;
 
-        delf[0] += (delr_st_norm[0]*cost6 - d_nz_xtrct(b,0)) * finc;
-        delf[1] += (delr_st_norm[1]*cost6 - d_nz_xtrct(b,1)) * finc;
-        delf[2] += (delr_st_norm[2]*cost6 - d_nz_xtrct(b,2)) * finc;
+        delf[0] += (delr_stkstk_norm[0]*cost6 - d_nz_xtrct(b,0)) * finc;
+        delf[1] += (delr_stkstk_norm[1]*cost6 - d_nz_xtrct(b,1)) * finc;
+        delf[2] += (delr_stkstk_norm[2]*cost6 - d_nz_xtrct(b,2)) * finc;
       }
 
       // increment forces and torques
@@ -477,9 +505,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       a_f(a,0) += delf[0];
       a_f(a,1) += delf[1];
       a_f(a,2) += delf[2];
-      delta[0] = ra_cst[1]*delf[2] - ra_cst[2]*delf[1];
-      delta[1] = ra_cst[2]*delf[0] - ra_cst[0]*delf[2];
-      delta[2] = ra_cst[0]*delf[1] - ra_cst[1]*delf[0];
+      delta[0] = ra_cstk[1]*delf[2] - ra_cstk[2]*delf[1];
+      delta[1] = ra_cstk[2]*delf[0] - ra_cstk[0]*delf[2];
+      delta[2] = ra_cstk[0]*delf[1] - ra_cstk[1]*delf[0];
       a_torque(a,0) += delta[0];
       a_torque(a,1) += delta[1];
       a_torque(a,2) += delta[2];
@@ -488,9 +516,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
         a_f(b,0) -= delf[0];
         a_f(b,1) -= delf[1];
         a_f(b,2) -= delf[2];
-        deltb[0] = rb_cst[1]*delf[2] - rb_cst[2]*delf[1];
-        deltb[1] = rb_cst[2]*delf[0] - rb_cst[0]*delf[2];
-        deltb[2] = rb_cst[0]*delf[1] - rb_cst[1]*delf[0];
+        deltb[0] = rb_cstk[1]*delf[2] - rb_cstk[2]*delf[1];
+        deltb[1] = rb_cstk[2]*delf[0] - rb_cstk[0]*delf[2];
+        deltb[2] = rb_cstk[0]*delf[1] - rb_cstk[1]*delf[0];
         a_torque(b,0) -= deltb[0];
         a_torque(b,1) -= deltb[1];
         a_torque(b,2) -= deltb[2];
@@ -553,9 +581,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 
         tpair = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * factor_lj;
 
-        t5dir[0] = delr_st_norm[1] * d_nz_xtrct(a,2) - delr_st_norm[2] * d_nz_xtrct(a,1);
-        t5dir[1] = delr_st_norm[2] * d_nz_xtrct(a,0) - delr_st_norm[0] * d_nz_xtrct(a,2);
-        t5dir[2] = delr_st_norm[0] * d_nz_xtrct(a,1) - delr_st_norm[1] * d_nz_xtrct(a,0);
+        t5dir[0] = delr_stkstk_norm[1] * d_nz_xtrct(a,2) - delr_stkstk_norm[2] * d_nz_xtrct(a,1);
+        t5dir[1] = delr_stkstk_norm[2] * d_nz_xtrct(a,0) - delr_stkstk_norm[0] * d_nz_xtrct(a,2);
+        t5dir[2] = delr_stkstk_norm[0] * d_nz_xtrct(a,1) - delr_stkstk_norm[1] * d_nz_xtrct(a,0);
         delta[0] += t5dir[0] * tpair;
         delta[1] += t5dir[1] * tpair;
         delta[2] += t5dir[2] * tpair;
@@ -565,9 +593,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 
         tpair = -f2 * f4f6t1 * f4t4 * f4t5 * df4t6 * factor_lj;
 
-        t6dir[0] = delr_st_norm[1] * d_nz_xtrct(b,2) - delr_st_norm[2] * d_nz_xtrct(b,1);
-        t6dir[1] = delr_st_norm[2] * d_nz_xtrct(b,0) - delr_st_norm[0] * d_nz_xtrct(b,2);
-        t6dir[2] = delr_st_norm[0] * d_nz_xtrct(b,1) - delr_st_norm[1] * d_nz_xtrct(b,0);
+        t6dir[0] = delr_stkstk_norm[1] * d_nz_xtrct(b,2) - delr_stkstk_norm[2] * d_nz_xtrct(b,1);
+        t6dir[1] = delr_stkstk_norm[2] * d_nz_xtrct(b,0) - delr_stkstk_norm[0] * d_nz_xtrct(b,2);
+        t6dir[2] = delr_stkstk_norm[0] * d_nz_xtrct(b,1) - delr_stkstk_norm[1] * d_nz_xtrct(b,0);
         deltb[0] -= t6dir[0] * tpair;
         deltb[1] -= t6dir[1] * tpair;
         deltb[2] -= t6dir[2] * tpair;
@@ -613,23 +641,28 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta1_terms(const int &atype,
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
   KK_FLOAT &theta1, KK_FLOAT &theta1p, KK_FLOAT &f4f6t1, KK_FLOAT &df4f6t1) const
 {
+  const KK_FLOAT a1 = d_a_cxst1(atype,btype);
+  const KK_FLOAT t10 = d_theta_cxst1_0(atype,btype);
+  const KK_FLOAT dt1a = d_dtheta_cxst1_ast(atype,btype);
+  const KK_FLOAT b1 = d_b_cxst1(atype,btype);
+  const KK_FLOAT dt1c = d_dtheta_cxst1_c(atype,btype);
+  const KK_FLOAT aa1 = d_AA_cxst1(atype,btype);
+  const KK_FLOAT bb1 = d_BB_cxst1(atype,btype);
+
   KK_FLOAT cost1 = -Kokkos::fma(a_nx[2], b_nx[2], Kokkos::fma(a_nx[1], b_nx[1], a_nx[0] * b_nx[0]));
   if (cost1 >  1.0) cost1 =  1.0;
   if (cost1 < -1.0) cost1 = -1.0;
   theta1 = acos(cost1);
   theta1p = 2 * MY_PI_KK - theta1;
 
-  f4f6t1 = F4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
-                 d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) +
-           F6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype));
+  f4f6t1 = F4_KK(theta1, a1, t10, dt1a, b1, dt1c) + F6_KK(theta1, aa1, bb1);
+  if (f4f6t1 == 0.0) return false;
 
   // df4f6t1 = (DF4 + DF6) / sin(theta1)
   KK_FLOAT sin1_sq = Kokkos::fma(-cost1, cost1, static_cast<KK_FLOAT>(1.0));
   if (sin1_sq <= 0.0) return false;
   KK_FLOAT sin1 = sqrtf(sin1_sq);
-  df4f6t1 = ( DF4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
-                  d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) +
-               DF6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype)) ) / sin1;
+  df4f6t1 = (DF4_KK(theta1, a1, t10, dt1a, b1, dt1c) + DF6_KK(theta1, aa1, bb1)) / sin1;
 
   return true;
 }
@@ -640,77 +673,103 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta4_terms(const int &atype,
   const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
   KK_FLOAT &theta4, KK_FLOAT &f4t4, KK_FLOAT &df4t4) const
 {
+  const KK_FLOAT a4 = d_a_cxst4(atype,btype);
+  const KK_FLOAT t40 = d_theta_cxst4_0(atype,btype);
+  const KK_FLOAT dt4a = d_dtheta_cxst4_ast(atype,btype);
+  const KK_FLOAT b4 = d_b_cxst4(atype,btype);
+  const KK_FLOAT dt4c = d_dtheta_cxst4_c(atype,btype);
+
   KK_FLOAT cost4 = Kokkos::fma(a_nz[2], b_nz[2], Kokkos::fma(a_nz[1], b_nz[1], a_nz[0] * b_nz[0]));
   if (cost4 > 1.0) cost4 = 1.0;
   if (cost4 < -1.0) cost4 = -1.0;
   theta4 = acos(cost4);
-  f4t4 = F4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype,btype), d_dtheta_cxst4_ast(atype,btype),
-              d_b_cxst4(atype,btype), d_dtheta_cxst4_c(atype,btype));
+  f4t4 = F4_KK(theta4, a4, t40, dt4a, b4, dt4c) +
+         F4_KK(theta4, a4, MY_PI - t40, dt4a, b4, dt4c);
+  if (f4t4 == 0.0) return false;
 
   KK_FLOAT sin4_sq = Kokkos::fma(-cost4, cost4, static_cast<KK_FLOAT>(1.0));
   if (sin4_sq <= 0.0) return false;
-  df4t4 = DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype,btype), d_dtheta_cxst4_ast(atype,btype),
-                 d_b_cxst4(atype,btype), d_dtheta_cxst4_c(atype,btype)) / sqrtf(sin4_sq);
+  df4t4 = ( DF4_KK(theta4, a4, t40, dt4a, b4, dt4c) +
+            DF4_KK(theta4, a4, MY_PI - t40, dt4a, b4, dt4c) ) / sqrtf(sin4_sq);
   return true;
 }
 
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta5_terms(const int &atype, const int &btype, const KK_FLOAT (&a_nz)[3],
-  const KK_FLOAT (&delr_st_norm)[3], KK_FLOAT &theta5, KK_FLOAT &theta5p, KK_FLOAT &f4t5, KK_FLOAT &df4t5, KK_FLOAT &cost5) const
+  const KK_FLOAT (&delr_stkstk_norm)[3], KK_FLOAT &theta5, KK_FLOAT &theta5p, KK_FLOAT &f4t5, KK_FLOAT &df4t5, KK_FLOAT &cost5) const
 {
-  cost5 = Kokkos::fma(a_nz[2], delr_st_norm[2], Kokkos::fma(a_nz[1], delr_st_norm[1], a_nz[0] * delr_st_norm[0]));
+  const KK_FLOAT a5 = d_a_cxst5(atype,btype);
+  const KK_FLOAT t50 = d_theta_cxst5_0(atype,btype);
+  const KK_FLOAT dt5a = d_dtheta_cxst5_ast(atype,btype);
+  const KK_FLOAT b5 = d_b_cxst5(atype,btype);
+  const KK_FLOAT dt5c = d_dtheta_cxst5_c(atype,btype);
+
+  cost5 = Kokkos::fma(a_nz[2], delr_stkstk_norm[2], Kokkos::fma(a_nz[1], delr_stkstk_norm[1], a_nz[0] * delr_stkstk_norm[0]));
   if (cost5 > 1.0) cost5 = 1.0;
   if (cost5 < -1.0) cost5 = -1.0;
   theta5 = acos(cost5);
   theta5p = MY_PI_KK - theta5;
-  f4t5 = F4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
-          d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) +
-         F4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
-          d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype));
+  f4t5 = F4_KK(theta5, a5, t50, dt5a, b5, dt5c) +
+         F4_KK(theta5p, a5, t50, dt5a, b5, dt5c);
+  if (f4t5 == 0.0) return false;
 
   KK_FLOAT sin5_sq = Kokkos::fma(-cost5, cost5, static_cast<KK_FLOAT>(1.0));
   if (sin5_sq <= 0.0) return false;
-  df4t5 = ( DF4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
-                 d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) -
-             DF4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
-                 d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) ) / sqrtf(sin5_sq);
+  df4t5 = ( DF4_KK(theta5, a5, t50, dt5a, b5, dt5c) -
+            DF4_KK(theta5p, a5, t50, dt5a, b5, dt5c) ) / sqrtf(sin5_sq);
   return true;
 }
 
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta6_terms(const int &atype, const int &btype, const KK_FLOAT (&b_nz)[3],
-  const KK_FLOAT (&delr_st_norm)[3], KK_FLOAT &theta6, KK_FLOAT &theta6p, KK_FLOAT &f4t6, KK_FLOAT &df4t6, KK_FLOAT &cost6) const
+  const KK_FLOAT (&delr_stkstk_norm)[3], KK_FLOAT &theta6, KK_FLOAT &theta6p, KK_FLOAT &f4t6, KK_FLOAT &df4t6, KK_FLOAT &cost6) const
 {
-  cost6 = Kokkos::fma(b_nz[2], delr_st_norm[2], Kokkos::fma(b_nz[1], delr_st_norm[1], b_nz[0] * delr_st_norm[0]));
+  const KK_FLOAT a6 = d_a_cxst6(atype,btype);
+  const KK_FLOAT t60 = d_theta_cxst6_0(atype,btype);
+  const KK_FLOAT dt6a = d_dtheta_cxst6_ast(atype,btype);
+  const KK_FLOAT b6 = d_b_cxst6(atype,btype);
+  const KK_FLOAT dt6c = d_dtheta_cxst6_c(atype,btype);
+
+  cost6 = Kokkos::fma(b_nz[2], delr_stkstk_norm[2], Kokkos::fma(b_nz[1], delr_stkstk_norm[1], b_nz[0] * delr_stkstk_norm[0]));
   if (cost6 > 1.0) cost6 = 1.0;
   if (cost6 < -1.0) cost6 = -1.0;
   theta6 = acos(cost6);
   theta6p = MY_PI_KK - theta6;
-  f4t6 = F4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
-          d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) +
-         F4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
-          d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype));
+  f4t6 = F4_KK(theta6, a6, t60, dt6a, b6, dt6c) +
+         F4_KK(theta6p, a6, t60, dt6a, b6, dt6c);
+  if (f4t6 == 0.0) return false;
 
   KK_FLOAT sin6_sq = Kokkos::fma(-cost6, cost6, static_cast<KK_FLOAT>(1.0));
   if (sin6_sq <= 0.0) return false;
-  df4t6 = ( DF4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
-                 d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) -
-             DF4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
-                 d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) ) / sqrtf(sin6_sq);
+  df4t6 = ( DF4_KK(theta6, a6, t60, dt6a, b6, dt6c) -
+            DF4_KK(theta6p, a6, t60, dt6a, b6, dt6c) ) / sqrtf(sin6_sq);
   return true;
 }
 
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
-void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_cosphi3_terms(const KK_FLOAT (&delr_ss_norm)[3], const KK_FLOAT (&a_nx)[3],
-  const KK_FLOAT (&delr_st_norm)[3], KK_FLOAT &cosphi3) const
+void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_cosphi3_terms(const int &a, const int &b,
+  const KK_FLOAT (&ra_cbk)[3], const KK_FLOAT (&rb_cbk)[3], const KK_FLOAT (&a_nx)[3],
+  const KK_FLOAT (&delr_stkstk_norm)[3], KK_FLOAT &cosphi3) const
 {
-  KK_FLOAT v1tmp0 = delr_ss_norm[1] * a_nx[2] - delr_ss_norm[2] * a_nx[1];
-  KK_FLOAT v1tmp1 = delr_ss_norm[2] * a_nx[0] - delr_ss_norm[0] * a_nx[2];
-  KK_FLOAT v1tmp2 = delr_ss_norm[0] * a_nx[1] - delr_ss_norm[1] * a_nx[0];
-  cosphi3 = Kokkos::fma(v1tmp2, delr_st_norm[2], Kokkos::fma(v1tmp1, delr_st_norm[1], v1tmp0 * delr_st_norm[0]));
+  KK_FLOAT delr_bkbk[3], delr_bkbk_norm[3];
+  delr_bkbk[0] = x(a,0) + ra_cbk[0] - x(b,0) - rb_cbk[0];
+  delr_bkbk[1] = x(a,1) + ra_cbk[1] - x(b,1) - rb_cbk[1];
+  delr_bkbk[2] = x(a,2) + ra_cbk[2] - x(b,2) - rb_cbk[2];
+
+  KK_FLOAT rsq_bkbk = Kokkos::fma(delr_bkbk[0], delr_bkbk[0],
+                    Kokkos::fma(delr_bkbk[1], delr_bkbk[1], delr_bkbk[2] * delr_bkbk[2]));
+  KK_FLOAT rinv_bkbk = 1.0 / sqrtf(rsq_bkbk);
+  delr_bkbk_norm[0] = delr_bkbk[0] * rinv_bkbk;
+  delr_bkbk_norm[1] = delr_bkbk[1] * rinv_bkbk;
+  delr_bkbk_norm[2] = delr_bkbk[2] * rinv_bkbk;
+
+  KK_FLOAT v1tmp0 = delr_bkbk_norm[1] * a_nx[2] - delr_bkbk_norm[2] * a_nx[1];
+  KK_FLOAT v1tmp1 = delr_bkbk_norm[2] * a_nx[0] - delr_bkbk_norm[0] * a_nx[2];
+  KK_FLOAT v1tmp2 = delr_bkbk_norm[0] * a_nx[1] - delr_bkbk_norm[1] * a_nx[0];
+  cosphi3 = Kokkos::fma(v1tmp2, delr_stkstk_norm[2], Kokkos::fma(v1tmp1, delr_stkstk_norm[1], v1tmp0 * delr_stkstk_norm[0]));
   if (cosphi3 > 1.0) cosphi3 = 1.0;
   if (cosphi3 < -1.0) cosphi3 = -1.0;
 }
@@ -718,13 +777,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_cosphi3_terms(const KK_FLOAT (
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st,
+  const KK_FLOAT &k_cxst_ab,
   KK_FLOAT &f2, KK_FLOAT &df2) const
 {
-  f2 = F2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
-              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
-              d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), d_cut_cxst_c(atype,btype));
+  f2 = F2_KK(r_st, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+             d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
+             d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), d_cut_cxst_c(atype,btype));
   if (f2 == 0.0) return false;
-  df2 = DF2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+  df2 = DF2_KK(r_st, k_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
                d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
                d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
   return true;
@@ -736,8 +796,8 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_force_contrib(const KK_FLOAT &
   const KK_FLOAT &f4t4, const KK_FLOAT &f4t5, const KK_FLOAT &f4t6, const KK_FLOAT &df4t5, const KK_FLOAT &df4t6, const KK_FLOAT &rinv_st,
   const KK_FLOAT &factor_lj, const KK_FLOAT &cost5, const KK_FLOAT &cost6,
   const KK_FLOAT &theta5, const KK_FLOAT &theta5p, const KK_FLOAT &theta6, const KK_FLOAT &theta6p,
-  const KK_FLOAT (&delr_st)[3], const KK_FLOAT (&delr_st_norm)[3], const KK_FLOAT (&a_nz)[3],
-  const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&ra_cst)[3], const KK_FLOAT (&rb_cst)[3],
+  const KK_FLOAT (&delr_stkstk)[3], const KK_FLOAT (&delr_stkstk_norm)[3], const KK_FLOAT (&a_nz)[3],
+  const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&ra_cstk)[3], const KK_FLOAT (&rb_cstk)[3],
   KK_ACC_FLOAT (&delf)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const
 {
   delf[0] = delf[1] = delf[2] = 0.0;
@@ -748,35 +808,35 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_force_contrib(const KK_FLOAT &
   product = product * f4t5;
   product = product * f4t6;
   KK_FLOAT finc = -df2 * product * rinv_st * factor_lj;
-  delf[0] = Kokkos::fma(delr_st[0], finc, delf[0]);
-  delf[1] = Kokkos::fma(delr_st[1], finc, delf[1]);
-  delf[2] = Kokkos::fma(delr_st[2], finc, delf[2]);
+  delf[0] = Kokkos::fma(delr_stkstk[0], finc, delf[0]);
+  delf[1] = Kokkos::fma(delr_stkstk[1], finc, delf[1]);
+  delf[2] = Kokkos::fma(delr_stkstk[2], finc, delf[2]);
 
   // theta5
   if (theta5 && theta5p) {
     KK_FLOAT prod5 = f4f6t1 * f4t4 * df4t5 * f4t6;
     KK_FLOAT finc5 = -f2 * prod5 * rinv_st * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_st_norm[0], cost5, -a_nz[0]), finc5, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_st_norm[1], cost5, -a_nz[1]), finc5, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_st_norm[2], cost5, -a_nz[2]), finc5, delf[2]);
+    delf[0] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[0], cost5, -a_nz[0]), finc5, delf[0]);
+    delf[1] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[1], cost5, -a_nz[1]), finc5, delf[1]);
+    delf[2] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[2], cost5, -a_nz[2]), finc5, delf[2]);
   }
 
   // theta6
   if (theta6 && theta6p) {
     KK_FLOAT prod6 = f4f6t1 * f4t4 * f4t5 * df4t6;
     KK_FLOAT finc6 = -f2 * prod6 * rinv_st * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_st_norm[0], cost6, -b_nz[0]), finc6, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_st_norm[1], cost6, -b_nz[1]), finc6, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_st_norm[2], cost6, -b_nz[2]), finc6, delf[2]);
+    delf[0] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[0], cost6, -b_nz[0]), finc6, delf[0]);
+    delf[1] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[1], cost6, -b_nz[1]), finc6, delf[1]);
+    delf[2] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[2], cost6, -b_nz[2]), finc6, delf[2]);
   }
 
   // r x f torques
-  delta[0] = Kokkos::fma(ra_cst[1], delf[2], - ra_cst[2] * delf[1]);
-  delta[1] = Kokkos::fma(ra_cst[2], delf[0], - ra_cst[0] * delf[2]);
-  delta[2] = Kokkos::fma(ra_cst[0], delf[1], - ra_cst[1] * delf[0]);
-  deltb[0] = Kokkos::fma(rb_cst[1], delf[2], - rb_cst[2] * delf[1]);
-  deltb[1] = Kokkos::fma(rb_cst[2], delf[0], - rb_cst[0] * delf[2]);
-  deltb[2] = Kokkos::fma(rb_cst[0], delf[1], - rb_cst[1] * delf[0]);
+  delta[0] = Kokkos::fma(ra_cstk[1], delf[2], - ra_cstk[2] * delf[1]);
+  delta[1] = Kokkos::fma(ra_cstk[2], delf[0], - ra_cstk[0] * delf[2]);
+  delta[2] = Kokkos::fma(ra_cstk[0], delf[1], - ra_cstk[1] * delf[0]);
+  deltb[0] = Kokkos::fma(rb_cstk[1], delf[2], - rb_cstk[2] * delf[1]);
+  deltb[1] = Kokkos::fma(rb_cstk[2], delf[0], - rb_cstk[0] * delf[2]);
+  deltb[2] = Kokkos::fma(rb_cstk[0], delf[1], - rb_cstk[1] * delf[0]);
 }
 
 template<class DeviceType>
@@ -786,7 +846,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   const KK_FLOAT &factor_lj, const KK_FLOAT &theta1, const KK_FLOAT &theta1p, const KK_FLOAT &theta4, const KK_FLOAT &theta5,
   const KK_FLOAT &theta5p, const KK_FLOAT &theta6, const KK_FLOAT &theta6p,
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3], const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
-  const KK_FLOAT (&delr_st_norm)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const
+  const KK_FLOAT (&delr_stkstk_norm)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const
 {
   // theta1
   if (theta1 && theta1p) {
@@ -819,9 +879,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   // theta5
   if (theta5 && theta5p) {
     KK_FLOAT tpair = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * factor_lj;
-    KK_FLOAT t5x = Kokkos::fma(delr_st_norm[1], a_nz[2], - delr_st_norm[2] * a_nz[1]);
-    KK_FLOAT t5y = Kokkos::fma(delr_st_norm[2], a_nz[0], - delr_st_norm[0] * a_nz[2]);
-    KK_FLOAT t5z = Kokkos::fma(delr_st_norm[0], a_nz[1], - delr_st_norm[1] * a_nz[0]);
+    KK_FLOAT t5x = Kokkos::fma(delr_stkstk_norm[1], a_nz[2], - delr_stkstk_norm[2] * a_nz[1]);
+    KK_FLOAT t5y = Kokkos::fma(delr_stkstk_norm[2], a_nz[0], - delr_stkstk_norm[0] * a_nz[2]);
+    KK_FLOAT t5z = Kokkos::fma(delr_stkstk_norm[0], a_nz[1], - delr_stkstk_norm[1] * a_nz[0]);
     delta[0] = Kokkos::fma(t5x, tpair, delta[0]);
     delta[1] = Kokkos::fma(t5y, tpair, delta[1]);
     delta[2] = Kokkos::fma(t5z, tpair, delta[2]);
@@ -830,9 +890,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   // theta6
   if (theta6 && theta6p) {
     KK_FLOAT tpair = -f2 * f4f6t1 * f4t4 * f4t5 * df4t6 * factor_lj;
-    KK_FLOAT t6x = Kokkos::fma(delr_st_norm[1], b_nz[2], - delr_st_norm[2] * b_nz[1]);
-    KK_FLOAT t6y = Kokkos::fma(delr_st_norm[2], b_nz[0], - delr_st_norm[0] * b_nz[2]);
-    KK_FLOAT t6z = Kokkos::fma(delr_st_norm[0], b_nz[1], - delr_st_norm[1] * b_nz[0]);
+    KK_FLOAT t6x = Kokkos::fma(delr_stkstk_norm[1], b_nz[2], - delr_stkstk_norm[2] * b_nz[1]);
+    KK_FLOAT t6y = Kokkos::fma(delr_stkstk_norm[2], b_nz[0], - delr_stkstk_norm[0] * b_nz[2]);
+    KK_FLOAT t6z = Kokkos::fma(delr_stkstk_norm[0], b_nz[1], - delr_stkstk_norm[1] * b_nz[0]);
     deltb[0] = Kokkos::fma(-t6x, tpair, deltb[0]);
     deltb[1] = Kokkos::fma(-t6y, tpair, deltb[1]);
     deltb[2] = Kokkos::fma(-t6z, tpair, deltb[2]);
@@ -860,193 +920,103 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   // "pair >> 32" shifts the pair to the right by 32 bits, so the upper 32 bits
   // becomes the lower 32 bits to recover the atom-a index.
   const int a = static_cast<int>(pair >> 32);
-  const int atype = type(a);
   // "pair & 0xffffffffu" keeps only the lower 32 bits to recover the atom-b index.
   int b = static_cast<int>(pair & 0xffffffffu);
   const KK_FLOAT factor_lj = special_lj[sbmask(b)];
   if (!factor_lj) return;
   b &= NEIGHMASK;
+
+  // a has to be terminal nucleotide
+  if(id3p[a]!=-1 && id5p[a]!=-1) return;
+  // b has to be terminal nucleotide
+  if(id3p[b]!=-1 && id5p[b]!=-1) return;
+
+  const int atype = type(a);
   const int btype = type(b);
 
   // vectors COM-backbone site, COM-stacking site in lab frame
-  KK_FLOAT ra_cs[3], rb_cs[3], ra_cst[3], rb_cst[3];
+  KK_FLOAT ra_cbk[3], rb_cbk[3], ra_cstk[3], rb_cstk[3];
 
   KK_ACC_FLOAT delf[3],delta[3],deltb[3];    // force, torque increment
   KK_ACC_FLOAT evdwl;                        // energy
-  KK_FLOAT v1tmp[3];
-  KK_FLOAT delr_ss[3],delr_ss_norm[3],rsq_ss,r_ss,rinv_ss;
-  KK_FLOAT delr_st[3],delr_st_norm[3],rsq_st,r_st,rinv_st;
-  KK_FLOAT theta1,theta1p,cost1;
-  KK_FLOAT theta4,cost4;
+  KK_FLOAT delr_stkstk[3],delr_stkstk_norm[3],rsq_stkstk,r_stkstk,rinv_stkstk; 
+  // NOTE: delr_bkbk[]3, etc is scoped out into coaxstk_cosphi3_terms to reduce register pressure
+  KK_FLOAT theta1,theta1p;
+  KK_FLOAT theta4;
   KK_FLOAT theta5,theta5p,cost5;
   KK_FLOAT theta6,theta6p,cost6;
   KK_FLOAT cosphi3;
+  KK_FLOAT k_cxst_ab;
 
   KK_FLOAT f2,f4f6t1,f4t4,f4t5,f4t6;
   KK_FLOAT df2,df4f6t1,df4t4,df4t5,df4t6;
 
+  // single loads for local axes to reduce repeated global reads
+  const KK_FLOAT a_nx_loc[3] = { d_nx_xtrct(a,0), d_nx_xtrct(a,1), d_nx_xtrct(a,2) };
+  const KK_FLOAT b_nx_loc[3] = { d_nx_xtrct(b,0), d_nx_xtrct(b,1), d_nx_xtrct(b,2) };
+  const KK_FLOAT a_nz_loc[3] = { d_nz_xtrct(a,0), d_nz_xtrct(a,1), d_nz_xtrct(a,2) };
+  const KK_FLOAT b_nz_loc[3] = { d_nz_xtrct(b,0), d_nz_xtrct(b,1), d_nz_xtrct(b,2) };
+
   // vector COM-backbone site a, COM-stacking site a
-  constexpr KK_FLOAT d_cs=-0.4;
-  constexpr KK_FLOAT d_cst=+0.34;
-  // single loads for local axes to reduce repeated reads
-  const KK_FLOAT a_nx0 = d_nx_xtrct(a,0);
-  const KK_FLOAT a_nx1 = d_nx_xtrct(a,1);
-  const KK_FLOAT a_nx2 = d_nx_xtrct(a,2);
-  const KK_FLOAT b_nx0 = d_nx_xtrct(b,0);
-  const KK_FLOAT b_nx1 = d_nx_xtrct(b,1);
-  const KK_FLOAT b_nx2 = d_nx_xtrct(b,2);
-  const KK_FLOAT a_nz0 = d_nz_xtrct(a,0);
-  const KK_FLOAT a_nz1 = d_nz_xtrct(a,1);
-  const KK_FLOAT a_nz2 = d_nz_xtrct(a,2);
-  const KK_FLOAT b_nz0 = d_nz_xtrct(b,0);
-  const KK_FLOAT b_nz1 = d_nz_xtrct(b,1);
-  const KK_FLOAT b_nz2 = d_nz_xtrct(b,2);
-
-  ra_cst[0] = d_cst*a_nx0;
-  ra_cst[1] = d_cst*a_nx1;
-  ra_cst[2] = d_cst*a_nx2;
-  ra_cs[0] = d_cs*a_nx0;
-  ra_cs[1] = d_cs*a_nx1;
-  ra_cs[2] = d_cs*a_nx2;
-
-  // vector COM b - stacking site b --- (st)
-  rb_cst[0] = d_cst*b_nx0;
-  rb_cst[1] = d_cst*b_nx1;
-  rb_cst[2] = d_cst*b_nx2;
+  // TODO: for oxDNA3, will need to template these
+  constexpr KK_FLOAT d_cbk=-0.4;
+  constexpr KK_FLOAT d_cstk=+0.34;
+  ra_cstk[0] = d_cstk*a_nx_loc[0];
+  ra_cstk[1] = d_cstk*a_nx_loc[1];
+  ra_cstk[2] = d_cstk*a_nx_loc[2];
+  ra_cbk[0] = d_cbk*a_nx_loc[0];
+  ra_cbk[1] = d_cbk*a_nx_loc[1];
+  ra_cbk[2] = d_cbk*a_nx_loc[2];
+  rb_cstk[0] = d_cstk*b_nx_loc[0];
+  rb_cstk[1] = d_cstk*b_nx_loc[1];
+  rb_cstk[2] = d_cstk*b_nx_loc[2];
+  rb_cbk[0] = d_cbk*b_nx_loc[0];
+  rb_cbk[1] = d_cbk*b_nx_loc[1];
+  rb_cbk[2] = d_cbk*b_nx_loc[2];
 
   // vector stacking site b to a
-  delr_st[0] = x(a,0) + ra_cst[0] - x(b,0) - rb_cst[0];
-  delr_st[1] = x(a,1) + ra_cst[1] - x(b,1) - rb_cst[1];
-  delr_st[2] = x(a,2) + ra_cst[2] - x(b,2) - rb_cst[2];
-
-  rsq_st = Kokkos::fma(delr_st[0], delr_st[0], Kokkos::fma(delr_st[1], delr_st[1], delr_st[2]*delr_st[2]));
-  r_st = sqrtf(rsq_st);
-  rinv_st = 1.0 / r_st;
-
-  delr_st_norm[0] = delr_st[0] * rinv_st;
-  delr_st_norm[1] = delr_st[1] * rinv_st;
-  delr_st_norm[2] = delr_st[2] * rinv_st;
-
-  // vector COM b - backbone site b --- (ss)
-  rb_cs[0] = d_cs * b_nx0;
-  rb_cs[1] = d_cs * b_nx1;
-  rb_cs[2] = d_cs * b_nx2;
-
-  // vector backbone site b to a
-  delr_ss[0] = x(a,0) + ra_cs[0] - x(b,0) - rb_cs[0];
-  delr_ss[1] = x(a,1) + ra_cs[1] - x(b,1) - rb_cs[1];
-  delr_ss[2] = x(a,2) + ra_cs[2] - x(b,2) - rb_cs[2];
-
-  rsq_ss = Kokkos::fma(delr_ss[0], delr_ss[0], Kokkos::fma(delr_ss[1], delr_ss[1], delr_ss[2]*delr_ss[2]));
-  r_ss = sqrtf(rsq_ss);
-  rinv_ss = 1.0 / r_ss;
-
-  delr_ss_norm[0] = delr_ss[0] * rinv_ss;
-  delr_ss_norm[1] = delr_ss[1] * rinv_ss;
-  delr_ss_norm[2] = delr_ss[2] * rinv_ss;
-
-  cost1 = -(Kokkos::fma(a_nx0, b_nx0, Kokkos::fma(a_nx1, b_nx1, a_nx2 * b_nx2)));
-  if (cost1 >  1.0) cost1 =  1.0;
-  if (cost1 < -1.0) cost1 = -1.0;
-  theta1 = acos(cost1);
-  theta1p = 2.0 * MY_PI_KK - theta1;
+  // stkstk is needed for theta5/6 and radial terms, so we do not scope out....
+  delr_stkstk[0] = x(a,0) + ra_cstk[0] - x(b,0) - rb_cstk[0];
+  delr_stkstk[1] = x(a,1) + ra_cstk[1] - x(b,1) - rb_cstk[1];
+  delr_stkstk[2] = x(a,2) + ra_cstk[2] - x(b,2) - rb_cstk[2];
+  rsq_stkstk = Kokkos::fma(delr_stkstk[0], delr_stkstk[0], Kokkos::fma(delr_stkstk[1], delr_stkstk[1], delr_stkstk[2]*delr_stkstk[2]));
+  r_stkstk = sqrtf(rsq_stkstk);
+  rinv_stkstk = 1.0 / r_stkstk;
+  delr_stkstk_norm[0] = delr_stkstk[0] * rinv_stkstk;
+  delr_stkstk_norm[1] = delr_stkstk[1] * rinv_stkstk;
+  delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
+  // .... but bkbk (vector backbone site b to a) is only needed for cosphi3, so we scope out to reduce register pressure
 
   // beginning of modulation factors
+  if (!coaxstk_theta1_terms(atype,btype,a_nx_loc,b_nx_loc,theta1,theta1p,f4f6t1,df4f6t1)) return;
+  if (!coaxstk_theta4_terms(atype,btype,a_nz_loc,b_nz_loc,theta4,f4t4,df4t4)) return;
+  if (!coaxstk_theta5_terms(atype,btype,a_nz_loc,delr_stkstk_norm,theta5,theta5p,f4t5,df4t5,cost5)) return;
+  if (!coaxstk_theta6_terms(atype,btype,b_nz_loc,delr_stkstk_norm,theta6,theta6p,f4t6,df4t6,cost6)) return;
+  // cosphi3 is just scoped out for sake of register pressure, but does not feature any early exit criteria
+  coaxstk_cosphi3_terms(a, b, ra_cbk, rb_cbk, a_nx_loc, delr_stkstk_norm, cosphi3);
 
-  // f4f6t1 = f4(theta1,..) + f6(theta1,..) modulation factors
-  f4f6t1 = F4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
-    d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) + \
-    F6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype));
+  // Direction-dependent coaxial stacking strength.
+  if (id5p(a) == -1 && id3p(b) == -1) {
+    k_cxst_ab = d_k_cxst(atype,btype);
+  } else if (id3p(a) == -1 && id5p(b) == -1) {
+    k_cxst_ab = d_k_cxst(btype,atype);
+  } else {
+    k_cxst_ab = 0.5 * (d_k_cxst(atype,btype) + d_k_cxst(btype,atype));
+  }
 
-  // start early-reject style checks
-  if (!f4f6t1) return;
-
-  // theta4 calculation
-  cost4 = Kokkos::fma(a_nz0, b_nz0, Kokkos::fma(a_nz1, b_nz1, a_nz2*b_nz2));
-  if (cost4 > 1.0) cost4 = 1.0;
-  if (cost4 < -1.0) cost4 = -1.0;
-  theta4 = acos(cost4);
-  // f4t4 = f4 modulation factor
-  f4t4 = F4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
-    d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype));
-  if (!f4t4) return;
-
-  cost5 = Kokkos::fma(a_nz0, delr_st_norm[0], Kokkos::fma(a_nz1, delr_st_norm[1], a_nz2*delr_st_norm[2]));
-  if (cost5 > 1.0) cost5 = 1.0;
-  if (cost5 < -1.0) cost5 = -1.0;
-  theta5 = acos(cost5);
-  theta5p = MY_PI_KK - theta5;
-  // f4t5 = f4(theta5,..) + f4(theta5p,..) modulation factors
-  f4t5 = F4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
-    d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) + \
-    F4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
-    d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype));
-  if (!f4t5) return;
-
-  cost6 = Kokkos::fma(b_nz0, delr_st_norm[0], Kokkos::fma(b_nz1, delr_st_norm[1], b_nz2*delr_st_norm[2]));
-  if (cost6 > 1.0) cost6 = 1.0;
-  if (cost6 < -1.0) cost6 = -1.0;
-  theta6 = acos(cost6);
-  theta6p = MY_PI_KK - theta6;
-  // f4t6 = f4(theta6,..) + f4(theta6p,..) modulation factors
-  f4t6 = F4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
-    d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) + \
-    F4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
-    d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype));
-
-  v1tmp[0] = Kokkos::fma(delr_ss_norm[1], a_nx2, -delr_ss_norm[2] * a_nx1);
-  v1tmp[1] = Kokkos::fma(delr_ss_norm[2], a_nx0, -delr_ss_norm[0] * a_nx2);
-  v1tmp[2] = Kokkos::fma(delr_ss_norm[0], a_nx1, -delr_ss_norm[1] * a_nx0);
-  cosphi3 = Kokkos::fma(v1tmp[0], delr_st_norm[0], Kokkos::fma(v1tmp[1], delr_st_norm[1], v1tmp[2]*delr_st_norm[2]));
-  if (cosphi3 > 1.0) cosphi3 = 1.0;
-  if (cosphi3 < -1.0) cosphi3 = -1.0;
-  // f2 = f2 modulation factor
-  f2 = F2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
-    d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
-    d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), 
-    d_cut_cxst_c(atype,btype));
+  if (!coaxstk_radial_terms(atype,btype,r_stkstk,k_cxst_ab,f2,df2)) return;
 
   evdwl = f2 * f4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
 
-  if (!evdwl) return;
-  // df2 = DF2 modulation factor
-  df2 = DF2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
-          d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
-          d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
-  // df4f6t1 = DF4(theta1,..)/sin(theta1) + DF6(theta1,..)/sin(theta1) modulation factors
-  df4f6t1 = ( DF4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
-                  d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) + \
-          DF6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype)) ) / sin(theta1);
-  // df4t4 = DF4 modulation factor
-  df4t4 = DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
-                  d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) / sin(theta4);
-  // df4t5 = DF4(theta5,..)/sin(theta5) - DF4(theta5p,..)/sin(theta5) modulation factors
-  df4t5 = ( DF4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
-                  d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) - \
-          DF4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
-                  d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) ) / sin(theta5);
-  // df4t6 = DF4(theta6,..)/sin(theta6) - DF4(theta6p,..)/sin(theta6) modulation factors
-  df4t6 = ( DF4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
-                  d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) - \
-          DF4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
-                  d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) ) / sin(theta6);
-
   // force, torque, and viral contributions for forces between h-bonding sites
 
-  // prepare local axis extracts for GPU (use scalars to avoid repeated reads)
-  const KK_FLOAT a_nx_loc[3] = { a_nx0, a_nx1, a_nx2 };
-  const KK_FLOAT b_nx_loc[3] = { b_nx0, b_nx1, b_nx2 };
-  const KK_FLOAT a_nz_loc[3] = { a_nz0, a_nz1, a_nz2 };
-  const KK_FLOAT b_nz_loc[3] = { b_nz0, b_nz1, b_nz2 };
-
-  // compute force and r x f torques via staged helper
   delf[0] = delf[1] = delf[2] = 0.0;
   delta[0] = delta[1] = delta[2] = 0.0;
   deltb[0] = deltb[1] = deltb[2] = 0.0;
 
-coaxstk_force_contrib(df2,f2,f4f6t1,f4t4,f4t5,f4t6,df4t5,df4t6,
-      rinv_st,factor_lj,cost5,cost6,theta5,theta5p,theta6,theta6p,
-      delr_st,delr_st_norm,a_nz_loc,b_nz_loc,ra_cst,rb_cst,delf,delta,deltb);
+  coaxstk_force_contrib(df2,f2,f4f6t1,f4t4,f4t5,f4t6,df4t5,df4t6,
+      rinv_stkstk,factor_lj,cost5,cost6,theta5,theta5p,theta6,theta6p,
+      delr_stkstk,delr_stkstk_norm,a_nz_loc,b_nz_loc,ra_cstk,rb_cstk,delf,delta,deltb);
 
   // increment forces and torques
   a_f(a,0) += delf[0];
@@ -1086,7 +1056,7 @@ coaxstk_force_contrib(df2,f2,f4f6t1,f4t4,f4t5,f4t6,df4t5,df4t6,
   // compute pure torques via staged torque helper
   coaxstk_torque_contrib(f2,df4f6t1,f4f6t1,f4t4,f4t5,f4t6,df4t4,df4t5,df4t6,factor_lj,
     theta1,theta1p,theta4,theta5,theta5p,theta6,theta6p,
-    a_nx_loc,b_nx_loc,a_nz_loc,b_nz_loc,delr_st_norm,delta,deltb);
+    a_nx_loc,b_nx_loc,a_nz_loc,b_nz_loc,delr_stkstk_norm,delta,deltb);
 
   // increment torques
   a_torque(a,0) += delta[0];

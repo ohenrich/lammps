@@ -149,6 +149,8 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
   // per-atom arrays for local unit vectors - ny not needed here
   DAT::tdual_kkfloat_1d_3 k_nx_xtrct, /*k_ny_xtrct,*/ k_nz_xtrct;
   typename AT::t_kkfloat_1d_3_randomread d_nx_xtrct, /*d_ny_xtrct,*/ d_nz_xtrct;
+  typename AT::t_tagint_1d_randomread id5p;
+  typename AT::t_tagint_1d_randomread id3p;
 
   int first;
   typename AT::t_int_1d d_sendlist;
@@ -186,7 +188,7 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  bool coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st,
+  bool coaxstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_st, const KK_FLOAT &k_cxst_ab,
     KK_FLOAT &f2, KK_FLOAT &df2) const;
 
 // NOLINTNEXTLINE
@@ -203,18 +205,18 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  bool coaxstk_theta5_terms(const int &atype, const int &btype, const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&delr_st_norm)[3],
+  bool coaxstk_theta5_terms(const int &atype, const int &btype, const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&delr_stkstk_norm)[3],
     KK_FLOAT &theta5, KK_FLOAT &theta5p, KK_FLOAT &f4t5, KK_FLOAT &df4t5, KK_FLOAT &cost5) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  bool coaxstk_theta6_terms(const int &atype, const int &btype, const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&delr_st_norm)[3],
+  bool coaxstk_theta6_terms(const int &atype, const int &btype, const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&delr_stkstk_norm)[3],
     KK_FLOAT &theta6, KK_FLOAT &theta6p, KK_FLOAT &f4t6, KK_FLOAT &df4t6, KK_FLOAT &cost6) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void coaxstk_cosphi3_terms(const KK_FLOAT (&delr_ss_norm)[3], const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&delr_st_norm)[3],
-    KK_FLOAT &cosphi3) const;
+  void coaxstk_cosphi3_terms(const int &a, const int &b, const KK_FLOAT (&ra_cbk)[3], const KK_FLOAT (&rb_cbk)[3],
+                             const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&delr_stkstk_norm)[3], KK_FLOAT &cosphi3) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
@@ -222,8 +224,8 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
     const KK_FLOAT &f4t4, const KK_FLOAT &f4t5, const KK_FLOAT &f4t6, const KK_FLOAT &df4t5, const KK_FLOAT &df4t6, const KK_FLOAT &rinv_st,
     const KK_FLOAT &factor_lj, const KK_FLOAT &cost5, const KK_FLOAT &cost6,
     const KK_FLOAT &theta5, const KK_FLOAT &theta5p, const KK_FLOAT &theta6, const KK_FLOAT &theta6p,
-    const KK_FLOAT (&delr_st)[3], const KK_FLOAT (&delr_st_norm)[3], const KK_FLOAT (&a_nz)[3],
-    const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&ra_cst)[3], const KK_FLOAT (&rb_cst)[3],
+    const KK_FLOAT (&delr_stkstk)[3], const KK_FLOAT (&delr_stkstk_norm)[3], const KK_FLOAT (&a_nz)[3],
+    const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&ra_cstk)[3], const KK_FLOAT (&rb_cstk)[3],
     KK_ACC_FLOAT (&delf)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const;
 
 // NOLINTNEXTLINE
@@ -233,7 +235,7 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
     const KK_FLOAT &theta1, const KK_FLOAT &theta1p, const KK_FLOAT &theta4, const KK_FLOAT &theta5,
     const KK_FLOAT &theta5p, const KK_FLOAT &theta6, const KK_FLOAT &theta6p,
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3], const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
-    const KK_FLOAT (&delr_st_norm)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const;
+    const KK_FLOAT (&delr_stkstk_norm)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const;
 
 };
 
