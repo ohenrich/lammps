@@ -366,10 +366,11 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
       const KK_FLOAT kappa = d_kappa_dh(atype, btype);
       const KK_FLOAT expterm = expf(-kappa * r);
 
-      fpair = qeff_a * qeff(b) * qeff_dh_pf * expterm * (kappa + rinv) * rinv * rinv;
+      const KK_FLOAT qeff_b = qeff(b);
+      fpair = qeff_a * qeff_b * qeff_dh_pf * expterm * (kappa + rinv) * rinv * rinv;
 
       if constexpr (EVFLAG) {
-        evdwl = qeff_a * qeff(b) * qeff_dh_pf * expterm * rinv;
+        evdwl = qeff_a * qeff_b * qeff_dh_pf * expterm * rinv;
       }
 
     } else {
@@ -378,10 +379,11 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
       const KK_FLOAT cut_dh_c = d_cut_dh_c(atype, btype);
       const KK_FLOAT delrcut = cut_dh_c - r;
 
-      fpair = 2.0 * qeff_a * qeff(b) * b_dh * delrcut * rinv;
+      const KK_FLOAT qeff_b = qeff(b);
+      fpair = 2.0 * qeff_a * qeff_b * b_dh * delrcut * rinv;
 
       if constexpr (EVFLAG) {
-        evdwl = qeff_a * qeff(b) * b_dh * delrcut * delrcut; // double negative, so safe to keep delrcut as is
+        evdwl = qeff_a * qeff_b * b_dh * delrcut * delrcut; // double negative, so safe to keep delrcut as is
       }
     }
 
@@ -648,7 +650,6 @@ KOKKOS_INLINE_FUNCTION
 int PairOxdna2DhKokkos<DeviceType>::sbmask(const int& j) const {
   return j >> SBBITS & 3;
 }
-
 
 namespace LAMMPS_NS {
 template class PairOxdna2DhKokkos<LMPDeviceType>;
