@@ -110,10 +110,14 @@ void AtomVecOxdnaKokkos::sync(ExecutionSpace space, uint64_t mask)
     if (mask & CG_DNA_MASK) atomKK->k_id3p.sync_device();
     if (mask & CG_DNA_MASK) atomKK->k_id5p.sync_device();
     if (mask & CG_DNA_MASK) atomKK->k_qeff.sync_device();
-  } else {
+  } else if (space == Host) {
     if (mask & CG_DNA_MASK) atomKK->k_id3p.sync_host();
     if (mask & CG_DNA_MASK) atomKK->k_id5p.sync_host();
     if (mask & CG_DNA_MASK) atomKK->k_qeff.sync_host();
+  } else if (space == HostKK) {
+    if (mask & CG_DNA_MASK) atomKK->k_id3p.sync_host();
+    if (mask & CG_DNA_MASK) atomKK->k_id5p.sync_host();
+    if (mask & CG_DNA_MASK) atomKK->k_qeff.sync_hostkk();
   }
 }
 
@@ -146,9 +150,13 @@ void AtomVecOxdnaKokkos::modified(ExecutionSpace space, uint64_t mask)
     if (mask & CG_DNA_MASK) atomKK->k_id3p.modify_device();
     if (mask & CG_DNA_MASK) atomKK->k_id5p.modify_device();
     if (mask & CG_DNA_MASK) atomKK->k_qeff.modify_device();
-  } else {
+  } else if (space == Host) {
     if (mask & CG_DNA_MASK) atomKK->k_id3p.modify_host();
     if (mask & CG_DNA_MASK) atomKK->k_id5p.modify_host();
     if (mask & CG_DNA_MASK) atomKK->k_qeff.modify_host();
+  } else if (space == HostKK) {
+    if (mask & CG_DNA_MASK) atomKK->k_id3p.modify_host();
+    if (mask & CG_DNA_MASK) atomKK->k_id5p.modify_host();
+    if (mask & CG_DNA_MASK) atomKK->k_qeff.modify_hostkk();
   }
 }
