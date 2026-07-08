@@ -3122,7 +3122,11 @@ uint64_t AtomVecKokkos::field2mask(std::string field)
     return DUCHEM_MASK;
   // CG-DNA package
   else if (field == "id3p")
-    return CG_DNA_MASK; // all CG-DNA fields use same mask
+    return CG_DNA_MASK;
+  else if (field == "id5p")
+    return CG_DNA_MASK;
+  else if (field == "qeff")
+    return CG_DNA_MASK;
   else
     return EMPTY_MASK;
 }
