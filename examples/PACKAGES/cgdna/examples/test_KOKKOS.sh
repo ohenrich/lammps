@@ -4,6 +4,7 @@ DATE='12Mar26'
 REL_TOL=5e-8
 REL_TOL_GPU=1e-7
 UNITS=lj
+HIP_TEST_FLAG=false # true/false to enable/disable HIP build and test
 
 LMPDIR=/media/lewis/PhD/GH_lammps
 BUILDDIR_KK_SERIAL=$LMPDIR/build/oxdnaKK_mpi_only
@@ -137,14 +138,18 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
   cmake ../../cmake -C $CMAKEDIR_KK_SERIAL | tee -a $EXDIR/test_KOKKOS.log
   cmake --build . -j 8 | tee -a $EXDIR/test_KOKKOS.log
 
-  echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
-  echo '# KOKKOS - HIP+OpenMP Build' | tee -a $EXDIR/test_KOKKOS.log
-  echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
-  echo '# Compiling executable in' $BUILDDIR_KK_HIP_OMP | tee -a $EXDIR/test_KOKKOS.log
-  cd $BUILDDIR_KK_HIP_OMP
-  # rm -rf $BUILDDIR_KK_HIP_OMP # TOGGLE FOR CLEAN BUILD
-  cmake ../../cmake -C $CMAKEDIR_KK_HIP_OMP | tee -a $EXDIR/test_KOKKOS.log
-  cmake --build . -j 8 | tee -a $EXDIR/test_KOKKOS.log
+  if [ "$HIP_TEST_FLAG" = true ]; then
+    echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
+    echo '# KOKKOS - HIP+OpenMP Build' | tee -a $EXDIR/test_KOKKOS.log
+    echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
+    echo '# Compiling executable in' $BUILDDIR_KK_HIP_OMP | tee -a $EXDIR/test_KOKKOS.log
+    cd $BUILDDIR_KK_HIP_OMP
+    # rm -rf $BUILDDIR_KK_HIP_OMP # TOGGLE FOR CLEAN BUILD
+    cmake ../../cmake -C $CMAKEDIR_KK_HIP_OMP | tee -a $EXDIR/test_KOKKOS.log
+    cmake --build . -j 8 | tee -a $EXDIR/test_KOKKOS.log
+  else
+    echo '# Skipping HIP build (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
   echo '# KOKKOS - CUDA+OpenMP Build' | tee -a $EXDIR/test_KOKKOS.log
@@ -268,6 +273,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -317,6 +323,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
@@ -478,6 +488,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -527,6 +538,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
@@ -683,6 +698,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -732,6 +748,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
@@ -888,6 +908,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -937,6 +958,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
@@ -1093,6 +1118,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -1142,6 +1168,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
@@ -1303,6 +1333,7 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
+  if [ "$HIP_TEST_FLAG" = true ]; then
   ### HIP ###
   rm -rf ./lmp
   cp $BUILDDIR_KK_HIP_OMP/lmp .
@@ -1352,6 +1383,10 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
       if (failed == 0) print "# HIP g1t2 passed"
     }
   ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
+
+  else
+  echo '# Skipping HIP test block (HIP_TEST_FLAG=false)' | tee -a $EXDIR/test_KOKKOS.log
+  fi
 
   ### CUDA ###
   rm -rf ./lmp
