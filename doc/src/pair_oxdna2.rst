@@ -299,3 +299,5 @@ none
 .. _Ouldridge2:
 
 **(Ouldridge)** T.E. Ouldridge, A.A. Louis, J.P.K. Doye, J. Chem. Phys. 134, 085101 (2011).
+
+**(Ratajczyk)** E. Ratajczyk, P. Sulc, A. Turberfield, J. Doye, A, Louis, J. Chem. Phys. 11, 115101 (2024).
