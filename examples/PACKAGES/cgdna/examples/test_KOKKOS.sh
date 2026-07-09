@@ -1,19 +1,111 @@
 #! /bin/bash
 
 DATE='12Mar26'
-REL_TOL=5e-7
-REL_TOL_GPU=1e-4
+REL_TOL=5e-8
+REL_TOL_GPU=1e-7
 UNITS=lj
 
-LMPDIR=/media/lewis/PhD/GH_lammps/
+LMPDIR=/media/lewis/PhD/GH_lammps
 BUILDDIR_KK_SERIAL=$LMPDIR/build/oxdnaKK_mpi_only
 CMAKEDIR_KK_SERIAL=../../cmake/MINE_OXDNA/kokkos-serial.cmake
 BUILDDIR_KK_HIP_OMP=$LMPDIR/build/oxdnaKK_amd
 CMAKEDIR_KK_HIP_OMP=../../cmake/MINE_OXDNA/kokkos-amd-omp.cmake
-BUILDDIR_KK_CUDA_OMP=$LMPDIR/build/CUDA_OMP_oxdnaKK
+BUILDDIR_KK_CUDA_OMP=$LMPDIR/build/double_prec_CUDAg1t2
 CMAKEDIR_KK_CUDA_OMP=../../cmake/MINE_OXDNA/CUDA_OMP.cmake
 
-if [ $# -eq 1 ] && [ $1 = run ]; then
+USE_DOUBLE_MATHS_OPS=0
+RESTORE_DOUBLE_MATHS_OPS=0
+declare -a DOUBLE_MATHS_FILES=()
+
+find_double_maths_files() {
+  mapfile -t DOUBLE_MATHS_FILES < <(
+    cd "$LMPDIR/src/KOKKOS" &&
+      find . -type f -exec grep -l 'sqrtf(\|expf(' {} + | sort
+  )
+}
+
+ensure_double_maths_files_clean() {
+  local rel_file repo_file
+
+  for rel_file in "${DOUBLE_MATHS_FILES[@]}"; do
+    repo_file="src/KOKKOS/${rel_file#./}"
+    if ! git -C "$LMPDIR" diff --quiet -- "$repo_file"; then
+      echo "# Refusing double_maths_ops because $repo_file has local changes" | tee -a "$EXDIR/test_KOKKOS.log"
+      return 1
+    fi
+  done
+}
+
+enable_double_maths_ops() {
+  local rel_file
+
+  if [[ "$USE_DOUBLE_MATHS_OPS" -ne 1 ]]; then
+    return
+  fi
+
+  echo '#' | tee -a "$EXDIR/test_KOKKOS.log"
+  echo '# double_maths_ops enabled: temporarily replacing sqrtf/expf with sqrt/exp' | tee -a "$EXDIR/test_KOKKOS.log"
+
+  find_double_maths_files
+
+  if [[ ${#DOUBLE_MATHS_FILES[@]} -eq 0 ]]; then
+    echo '# No src/KOKKOS files currently contain sqrtf/expf. Nothing to override.' | tee -a "$EXDIR/test_KOKKOS.log"
+    return
+  fi
+
+  ensure_double_maths_files_clean || exit 1
+
+  trap 'restore_double_maths_state "$?"' EXIT
+  RESTORE_DOUBLE_MATHS_OPS=1
+
+  cd "$LMPDIR/src/KOKKOS" || exit 1
+  echo '# The following files will be restored with git restore after the run:' | tee -a "$EXDIR/test_KOKKOS.log"
+  for rel_file in "${DOUBLE_MATHS_FILES[@]}"; do
+    echo "#   - $rel_file" | tee -a "$EXDIR/test_KOKKOS.log"
+    sed -i -e 's/sqrtf(/sqrt(/g' -e 's/expf(/exp(/g' "$rel_file"
+  done
+  echo "# Total files modified: ${#DOUBLE_MATHS_FILES[@]}" | tee -a "$EXDIR/test_KOKKOS.log"
+}
+
+restore_double_maths_state() {
+  local exit_code="$1"
+
+  trap - EXIT
+  restore_double_maths_now
+  exit "$exit_code"
+}
+
+restore_double_maths_now() {
+  local rel_file repo_file
+
+  if [[ "$RESTORE_DOUBLE_MATHS_OPS" -ne 1 ]]; then
+    return
+  fi
+
+  echo '# Restoring original sqrtf/expf calls with git restore' | tee -a "$EXDIR/test_KOKKOS.log"
+
+  for rel_file in "${DOUBLE_MATHS_FILES[@]}"; do
+    repo_file="src/KOKKOS/${rel_file#./}"
+    git -C "$LMPDIR" restore -- "$repo_file" || return 1
+  done
+
+  RESTORE_DOUBLE_MATHS_OPS=0
+}
+
+if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
+
+  if [[ $# -eq 2 ]]; then
+    if [[ $2 = double_maths_ops ]]; then
+      USE_DOUBLE_MATHS_OPS=1
+    else
+      echo "# Unknown run option: $2"
+      echo '# Supported form: ./test_KOKKOS.sh run [double_maths_ops]'
+      exit 1
+    fi
+  elif [[ $# -gt 2 ]]; then
+    echo '# Supported form: ./test_KOKKOS.sh run [double_maths_ops]'
+    exit 1
+  fi
 
   if [ $UNITS = lj ]; then 
     EXDIR=$LMPDIR/examples/PACKAGES/cgdna/examples/lj_units
@@ -30,6 +122,11 @@ if [ $# -eq 1 ] && [ $1 = run ]; then
     exit 1
 
   fi
+
+  enable_double_maths_ops
+  cd $EXDIR
+
+  # Start building the KOKKOS executables
   
   echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
   echo '# KOKKOS - Serial Only Build' | tee -a $EXDIR/test_KOKKOS.log
@@ -60,8 +157,14 @@ if [ $# -eq 1 ] && [ $1 = run ]; then
 
   #exit 1 # DEBUG
 
+  echo | tee -a $EXDIR/test_KOKKOS.log
+  echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
+  echo '# Starting Tests' | tee -a $EXDIR/test_KOKKOS.log
+  echo '######################################################' | tee -a $EXDIR/test_KOKKOS.log
+  echo | tee -a $EXDIR/test_KOKKOS.log
+
   ######################################################
-  printf '\n# Running oxDNA duplex1 NVE test\n' | tee -a $EXDIR/test_KOKKOS.log
+  printf '# Running oxDNA duplex1 NVE test\n' | tee -a $EXDIR/test_KOKKOS.log
   cd $EXDIR/oxDNA/duplex1
   mkdir test
   cd test
@@ -1983,6 +2086,13 @@ if [ $# -eq 1 ] && [ $1 = run ]; then
   # ' 2>&1 | tee -a $EXDIR/test_KOKKOS.log
 
  ######################################################
+
+  echo | tee -a $EXDIR/test_KOKKOS.log
+  echo '# Finished All Tests' | tee -a $EXDIR/test_KOKKOS.log
+  echo | tee -a $EXDIR/test_KOKKOS.log
+
+  restore_double_maths_now
+  trap - EXIT
 
   echo | tee -a $EXDIR/test_KOKKOS.log
   echo '# Done' | tee -a $EXDIR/test_KOKKOS.log
