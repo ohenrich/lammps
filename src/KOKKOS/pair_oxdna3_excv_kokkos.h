@@ -23,6 +23,7 @@ PairStyle(oxdna3/excv/kk/host,PairOxdna3ExcvKokkos<LMPHostType>);
 #define LMP_PAIR_OXDNA3_EXCV_KOKKOS_H
 
 #include "pair_oxdna_excv_kokkos.h"
+#include "pair_oxdna3_excv.h"
 
 namespace LAMMPS_NS {
 
@@ -31,12 +32,62 @@ class PairOxdna3ExcvKokkos : public PairOxdnaExcvKokkos<DeviceType> {
  public:
   PairOxdna3ExcvKokkos(class LAMMPS *);
   ~PairOxdna3ExcvKokkos() {}
+   void coeff(int, char **) override;
 };
 
 template<class DeviceType>
 PairOxdna3ExcvKokkos<DeviceType>::PairOxdna3ExcvKokkos(LAMMPS *lmp) : PairOxdnaExcvKokkos<DeviceType>(lmp)
 {
-   this->oxdnaflag = PairOxdnaExcvKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+    this->oxdnaflag = PairOxdnaExcvKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA2;
+}
+
+template<class DeviceType>
+void PairOxdna3ExcvKokkos<DeviceType>::coeff(int narg, char **arg)
+{
+   PairOxdna3Excv::coeff_oxdna3_common(this, narg, arg);
+
+   int ilo, ihi, jlo, jhi, nlo, nhi;
+   utils::bounds(FLERR, arg[0], 1, this->atom->ntypes, ilo, ihi, this->error);
+   utils::bounds(FLERR, arg[1], 1, this->atom->ntypes, jlo, jhi, this->error);
+
+   assert((ilo == jlo) & (ihi == jhi));
+   nlo = ilo;
+   nhi = ihi;
+
+   for (int i = 0; i <= nhi; i++) {
+      for (int j = nlo; j <= nhi; j++) {
+         for (int k = nlo; k <= nhi; k++) {
+            for (int l = 0; l <= nhi; l++) {
+               this->k_sigma4_bsbs.view_host()(i, j, k, l) = this->sigma4_bsbs[i][j][k][l];
+               this->k_cut4_bsbs_ast.view_host()(i, j, k, l) = this->cut4_bsbs_ast[i][j][k][l];
+               this->k_cut4sq_bsbs_ast.view_host()(i, j, k, l) = this->cut4sq_bsbs_ast[i][j][k][l];
+               this->k_lj14_bsbs.view_host()(i, j, k, l) = this->lj14_bsbs[i][j][k][l];
+               this->k_lj24_bsbs.view_host()(i, j, k, l) = this->lj24_bsbs[i][j][k][l];
+               this->k_b4_bsbs.view_host()(i, j, k, l) = this->b4_bsbs[i][j][k][l];
+               this->k_cut4_bsbs_c.view_host()(i, j, k, l) = this->cut4_bsbs_c[i][j][k][l];
+               this->k_cut4sq_bsbs_c.view_host()(i, j, k, l) = this->cut4sq_bsbs_c[i][j][k][l];
+            }
+         }
+      }
+   }
+
+   this->k_sigma4_bsbs.template modify<LMPHostType>();
+   this->k_cut4_bsbs_ast.template modify<LMPHostType>();
+   this->k_cut4sq_bsbs_ast.template modify<LMPHostType>();
+   this->k_lj14_bsbs.template modify<LMPHostType>();
+   this->k_lj24_bsbs.template modify<LMPHostType>();
+   this->k_b4_bsbs.template modify<LMPHostType>();
+   this->k_cut4_bsbs_c.template modify<LMPHostType>();
+   this->k_cut4sq_bsbs_c.template modify<LMPHostType>();
+
+   this->k_sigma4_bsbs.template sync<DeviceType>();
+   this->k_cut4_bsbs_ast.template sync<DeviceType>();
+   this->k_cut4sq_bsbs_ast.template sync<DeviceType>();
+   this->k_lj14_bsbs.template sync<DeviceType>();
+   this->k_lj24_bsbs.template sync<DeviceType>();
+   this->k_b4_bsbs.template sync<DeviceType>();
+   this->k_cut4_bsbs_c.template sync<DeviceType>();
+   this->k_cut4sq_bsbs_c.template sync<DeviceType>();
 }
 }    // namespace LAMMPS_NS
 
