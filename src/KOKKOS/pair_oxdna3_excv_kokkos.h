@@ -38,7 +38,7 @@ class PairOxdna3ExcvKokkos : public PairOxdnaExcvKokkos<DeviceType> {
 template<class DeviceType>
 PairOxdna3ExcvKokkos<DeviceType>::PairOxdna3ExcvKokkos(LAMMPS *lmp) : PairOxdnaExcvKokkos<DeviceType>(lmp)
 {
-    this->oxdnaflag = PairOxdnaExcvKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA2;
+    this->oxdnaflag = PairOxdnaExcvKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
 }
 
 template<class DeviceType>
@@ -89,6 +89,7 @@ void PairOxdna3ExcvKokkos<DeviceType>::coeff(int narg, char **arg)
    this->k_cut4_bsbs_c.template sync<DeviceType>();
    this->k_cut4sq_bsbs_c.template sync<DeviceType>();
 }
+
 }    // namespace LAMMPS_NS
 
 #endif
