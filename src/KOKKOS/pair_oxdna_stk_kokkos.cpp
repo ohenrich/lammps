@@ -807,16 +807,14 @@ double PairOxdnaStkKokkos<DeviceType>::init_one(int i, int j)
   return cutone;
 }
 
-/* ---------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+   Helper function to set the tetramer Kokkos views within ::coeff
+   Is used within child stk/kk classes too.
+------------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaStkKokkos<DeviceType>::coeff(int narg, char **arg)
+void PairOxdnaStkKokkos<DeviceType>::coeff_set_tetramers_kokkos(int narg, char **arg)
 {
-  PairOxdnaStk::coeff(narg,arg);
-
-  // The tetramer Kokkos views are set here within ::coeff, and the
-  // non-tetramer Kokkos views are set within ::init_one
-
   int ilo,ihi,jlo,jhi,nlo,nhi;
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
@@ -872,6 +870,19 @@ void PairOxdnaStkKokkos<DeviceType>::coeff(int narg, char **arg)
   k_dtheta_st4_ast.template sync<DeviceType>();
   k_b_st4.template sync<DeviceType>();
   k_dtheta_st4_c.template sync<DeviceType>();
+}
+
+/* ----------------------------------------------------------------------
+   The tetramer Kokkos views are set here within ::coeff, and the
+   non-tetramer Kokkos views are set within ::init_one
+------------------------------------------------------------------------- */
+
+template<class DeviceType>
+void PairOxdnaStkKokkos<DeviceType>::coeff(int narg, char **arg)
+{
+  PairOxdnaStk::coeff(narg,arg);
+
+  coeff_set_tetramers_kokkos(narg,arg);
 }
 
 /* ----------------------------------------------------------------------

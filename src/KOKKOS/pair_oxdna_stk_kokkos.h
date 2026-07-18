@@ -73,6 +73,8 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
 
  protected:
 
+  void coeff_set_tetramers_kokkos(int narg, char **arg);
+
   class NeighborKokkos *neighborKK;
 
   typename AT::t_kkfloat_1d_3_lr_randomread x;

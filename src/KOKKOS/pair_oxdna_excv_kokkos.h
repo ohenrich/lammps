@@ -83,6 +83,8 @@ class PairOxdnaExcvKokkos : public PairOxdnaExcv, public KokkosBase {
   int sbmask(const int& j) const;
 
  protected:
+
+  void coeff_set_tetramers_kokkos(int narg, char **arg);
  
   int oxdnaflag;
   enum EnabledOXDNAFlag{OXDNA=1,OXDNA2=2,OXRNA2=4,OXDNA3=8};

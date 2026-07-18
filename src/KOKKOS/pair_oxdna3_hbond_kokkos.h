@@ -13,41 +13,36 @@
 
 #ifdef PAIR_CLASS
 // clang-format off
-PairStyle(oxdna3/excv/kk,PairOxdna3ExcvKokkos<LMPDeviceType>);
-PairStyle(oxdna3/excv/kk/device,PairOxdna3ExcvKokkos<LMPDeviceType>);
-PairStyle(oxdna3/excv/kk/host,PairOxdna3ExcvKokkos<LMPHostType>);
+PairStyle(oxdna3/hbond/kk,PairOxdna3HbondKokkos<LMPDeviceType>);
+PairStyle(oxdna3/hbond/kk/device,PairOxdna3HbondKokkos<LMPDeviceType>);
+PairStyle(oxdna3/hbond/kk/host,PairOxdna3HbondKokkos<LMPHostType>);
 // clang-format on
 #else
 
-#ifndef LMP_PAIR_OXDNA3_EXCV_KOKKOS_H
-#define LMP_PAIR_OXDNA3_EXCV_KOKKOS_H
+#ifndef LMP_PAIR_OXDNA3_HBOND_KOKKOS_H
+#define LMP_PAIR_OXDNA3_HBOND_KOKKOS_H
 
-#include "pair_oxdna_excv_kokkos.h"
-#include "pair_oxdna3_excv.h"
+#include "pair_oxdna_hbond_kokkos.h"
+#include "pair_oxdna3_hbond.h"
 
 namespace LAMMPS_NS {
 
 template<class DeviceType>
-class PairOxdna3ExcvKokkos : public PairOxdnaExcvKokkos<DeviceType> {
+class PairOxdna3HbondKokkos : public PairOxdnaHbondKokkos<DeviceType> {
  public:
-  PairOxdna3ExcvKokkos(class LAMMPS *);
-  ~PairOxdna3ExcvKokkos() {}
+  PairOxdna3HbondKokkos(class LAMMPS *);
+  ~PairOxdna3HbondKokkos() {}
    void coeff(int, char **) override;
 };
 
 template<class DeviceType>
-PairOxdna3ExcvKokkos<DeviceType>::PairOxdna3ExcvKokkos(LAMMPS *lmp) : PairOxdnaExcvKokkos<DeviceType>(lmp)
+PairOxdna3HbondKokkos<DeviceType>::PairOxdna3HbondKokkos(LAMMPS *lmp) : PairOxdnaHbondKokkos<DeviceType>(lmp)
 {
-    this->oxdnaflag = PairOxdnaExcvKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+    this->oxdnaflag = PairOxdnaHbondKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
 }
 
 template<class DeviceType>
-void PairOxdna3ExcvKokkos<DeviceType>::coeff(int narg, char **arg)
-{
-   PairOxdna3Excv::coeff_oxdna3_common(this, narg, arg);
-
-   this->coeff_set_tetramers_kokkos(narg, arg);
-}
+void PairOxdna3HbondKokkos<DeviceType>::coeff(int narg, char **arg) { PairOxdna3Hbond::coeff_oxdna3_common(this, narg, arg); }
 
 }    // namespace LAMMPS_NS
 
