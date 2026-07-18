@@ -49,7 +49,8 @@ PairOxdnaHbondKokkos<DeviceType>::PairOxdnaHbondKokkos(LAMMPS *lmp) : PairOxdnaH
   // change between pair/bond styles. 
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
-
+  
+  oxdnaflag = EnabledOXDNAFlag::OXDNA;
   screened_pair_count = 0;
 }
 

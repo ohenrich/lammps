@@ -97,6 +97,9 @@ class PairOxdnaHbondKokkos : public PairOxdnaHbond, public KokkosBase {
 
  protected:
 
+  int oxdnaflag;
+  enum EnabledOXDNAFlag{OXDNA=1,OXRNA2=2,OXDNA3=4};
+
   typename AT::t_kkfloat_1d_3_lr_randomread x;
   typename AT::t_kkacc_1d_3 f;
   typename AT::t_kkacc_1d_3 torque;

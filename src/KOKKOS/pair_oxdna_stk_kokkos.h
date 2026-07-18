@@ -75,6 +75,9 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
 
   void coeff_set_tetramers_kokkos(int narg, char **arg);
 
+  int oxdnaflag;
+  enum EnabledOXDNAFlag{OXDNA=1,OXDNA3=2};
+
   class NeighborKokkos *neighborKK;
 
   typename AT::t_kkfloat_1d_3_lr_randomread x;
