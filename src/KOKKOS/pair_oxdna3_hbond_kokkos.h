@@ -38,6 +38,7 @@ class PairOxdna3HbondKokkos : public PairOxdnaHbondKokkos<DeviceType> {
 template<class DeviceType>
 PairOxdna3HbondKokkos<DeviceType>::PairOxdna3HbondKokkos(LAMMPS *lmp) : PairOxdnaHbondKokkos<DeviceType>(lmp)
 {
+   PairOxdna3Hbond::init_alpha_hb_oxdna3(this);
     this->oxdnaflag = PairOxdnaHbondKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
 }
 
