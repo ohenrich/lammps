@@ -52,3 +52,22 @@ PairOxdna3Coaxstk::PairOxdna3Coaxstk(LAMMPS *lmp) : PairOxdna2Coaxstk(lmp)
   writedata = 0;
   trim_flag = 0;
 }
+
+/* ----------------------------------------------------------------------
+    set coeffs - introduces new function to handle KOKKOS compatibility.
+    Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
+    function. The structure here avoids messy inheritance issues in KOKKOS
+    by not calling "PairOxdna3Coaxstk::coeff" directly. We can also avoid
+    code duplication of coeff within KOKKOS using this approach.
+
+    "coeff_oxdna3_common" is static and takes a pointer to the base class
+    PairOxdna2Coaxstk, which means it can be called from both the vanilla and
+    KOKKOS versions.
+------------------------------------------------------------------------- */
+
+void PairOxdna3Coaxstk::coeff_oxdna3_common(PairOxdna2Coaxstk *oxdna2_coaxstk, int narg, char **arg)
+{
+   oxdna2_coaxstk->PairOxdna2Coaxstk::coeff(narg, arg);
+}
+
+void PairOxdna3Coaxstk::coeff(int narg, char **arg) { coeff_oxdna3_common(this, narg, arg); }

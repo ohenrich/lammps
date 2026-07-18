@@ -36,6 +36,7 @@ class PairOxdna3Stk : public PairOxdnaStk {
     NucleotideOxdna3 oxdna3;
     oxdna3.stacking_site(e1, nullptr, nullptr, rstk);
   };
+  static void coeff_oxdna3_common(PairOxdnaStk *, int, char **);
   void coeff(int, char **) override;
 };
 

@@ -14,7 +14,7 @@
    Contributing author: Oliver Henrich (University of Strathclyde, Glasgow)
 ------------------------------------------------------------------------- */
 
-#include "oxdna_fene_oxdna3_fene.h"
+#include "bond_oxdna3_fene.h"
 #include "constants_oxdna.h"
 #include "nucleotide_oxdna.h"
 
@@ -51,7 +51,7 @@ void BondOxdna3Fene::coeff_oxdna3_common(BondOxdnaFene *oxdna_fene, int narg, ch
   if (!oxdna_fene->allocated) oxdna_fene->allocate();
 
   int ilo, ihi;
-  utils::bounds(FLERR, arg[0], 1, oxdna_fene->atom->noxdna_fenetypes, ilo, ihi, oxdna_fene->error);
+  utils::bounds(FLERR, arg[0], 1, oxdna_fene->atom->nbondtypes, ilo, ihi, oxdna_fene->error);
 
   int n = oxdna_fene->atom->ntypes;
   if (n > 4)

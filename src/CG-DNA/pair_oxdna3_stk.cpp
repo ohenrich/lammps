@@ -71,25 +71,36 @@ PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 }
 
 /* ----------------------------------------------------------------------
-   set coeffs for one or more type pairs
+  set coeffs - introduces new function to handle KOKKOS compatibility.
+  Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
+  function. The structure here avoids messy inheritance issues in KOKKOS
+  by not calling "PairOxdna3Stk::coeff" directly. We can also avoid
+  code duplication of coeff within KOKKOS using this approach.
+
+  "coeff_oxdna3_common" is static and takes a pointer to the base class
+  PairOxdnaStk, which means it can be called from both the vanilla and
+  KOKKOS versions.
+  Can't use "coeff" directly since it is non-static - calling it would
+  require an instance of the PairOxdna3Stk class, which is fine for vanilla
+  but not for KOKKOS as we don't want KOKKOS to be a child class of PairOxdna3Stk.
 ------------------------------------------------------------------------- */
 
-void PairOxdna3Stk::coeff(int narg, char **arg)
+void PairOxdna3Stk::coeff_oxdna3_common(PairOxdnaStk *oxdna_stk, int narg, char **arg)
 {
   int count;
 
-  if (narg != 4) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk, use potential file" + utils::errorurl(21));
-  if (!allocated) allocate();
+  if (narg != 4) oxdna_stk->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk, use potential file" + utils::errorurl(21));
+  if (!oxdna_stk->allocated) oxdna_stk->allocate();
 
   int ilo,ihi,jlo,jhi,nlo,nhi;
-  utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
-  utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
+  utils::bounds(FLERR,arg[0],1,oxdna_stk->atom->ntypes,ilo,ihi,oxdna_stk->error);
+  utils::bounds(FLERR,arg[1],1,oxdna_stk->atom->ntypes,jlo,jhi,oxdna_stk->error);
 
   assert((ilo == jlo) & (ihi == jhi));
   nlo = ilo;
   nhi = ihi;
 
-  if (nhi > 4) error->all(FLERR, "pair oxdna3/stk does not support more than 4 atom types for A, C, G and T");
+  if (nhi > 4) oxdna_stk->error->all(FLERR, "pair oxdna3/stk does not support more than 4 atom types for A, C, G and T");
 
   // stacking interaction
   count = 0;
@@ -106,25 +117,25 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
   double a_st1_one, cosphi_st1_ast_one, b_st1_one, cosphi_st1_c_one;
   double a_st2_one, cosphi_st2_ast_one, b_st2_one, cosphi_st2_c_one;
 
-  T = utils::numeric(FLERR,arg[2],false,lmp);
+  T = utils::numeric(FLERR,arg[2],false,oxdna_stk->lmp);
 
   for (int i = 0; i <= nhi; i++) { // type 0 for terminal j
     for (int j = 0; j <= nhi; j++) {
       for (int k = 0; k <= nhi; k++) {
         for (int l = 0; l <= nhi; l++) { // type 0 for terminal k
-          cut_st_0[i][j][k][l] = 0.0;
-          cut_st_c[i][j][k][l] = 0.0;
-          cut_st_lo[i][j][k][l] = 0.0;
-          cut_st_hi[i][j][k][l] = 0.0;
-          a_st4[i][j][k][l] = 0.0;
-          dtheta_st4_ast[i][j][k][l] = 0.0;
+          oxdna_stk->cut_st_0[i][j][k][l] = 0.0;
+          oxdna_stk->cut_st_c[i][j][k][l] = 0.0;
+          oxdna_stk->cut_st_lo[i][j][k][l] = 0.0;
+          oxdna_stk->cut_st_hi[i][j][k][l] = 0.0;
+          oxdna_stk->a_st4[i][j][k][l] = 0.0;
+          oxdna_stk->dtheta_st4_ast[i][j][k][l] = 0.0;
         }
       }
     }
   }
 
-  if (comm->me == 0) {
-    PotentialFileReader reader(lmp, arg[3], "oxdna3 potential", " (stk)");
+  if (oxdna_stk->comm->me == 0) {
+    PotentialFileReader reader(oxdna_stk->lmp, arg[3], "oxdna3 potential", " (stk)");
     reader.set_bufsize(65336);
     char * line;
     std::string iloc, jloc, potential_name;
@@ -139,7 +150,7 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
 
           xi_st_one = values.next_double();
           kappa_st_one = values.next_double();
-          epsilon_st_one = stacking_strength(xi_st_one, kappa_st_one, T);
+          epsilon_st_one = oxdna_stk->stacking_strength(xi_st_one, kappa_st_one, T);
 
           a_st_one = values.next_double();
 
@@ -147,10 +158,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  cut_st_0[i][j][k][l] = values.next_double();
-                  cut_st_0[i][j][k][0] += cut_st_0[i][j][k][l];
-                  cut_st_0[0][j][k][l] += cut_st_0[i][j][k][l];
-                  cut_st_0[0][j][k][0] += cut_st_0[i][j][k][l];
+                  oxdna_stk->cut_st_0[i][j][k][l] = values.next_double();
+                  oxdna_stk->cut_st_0[i][j][k][0] += oxdna_stk->cut_st_0[i][j][k][l];
+                  oxdna_stk->cut_st_0[0][j][k][l] += oxdna_stk->cut_st_0[i][j][k][l];
+                  oxdna_stk->cut_st_0[0][j][k][0] += oxdna_stk->cut_st_0[i][j][k][l];
                 }
               }
             }
@@ -159,10 +170,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  cut_st_c[i][j][k][l] = values.next_double();
-                  cut_st_c[i][j][k][0] += cut_st_c[i][j][k][l];
-                  cut_st_c[0][j][k][l] += cut_st_c[i][j][k][l];
-                  cut_st_c[0][j][k][0] += cut_st_c[i][j][k][l];
+                  oxdna_stk->cut_st_c[i][j][k][l] = values.next_double();
+                  oxdna_stk->cut_st_c[i][j][k][0] += oxdna_stk->cut_st_c[i][j][k][l];
+                  oxdna_stk->cut_st_c[0][j][k][l] += oxdna_stk->cut_st_c[i][j][k][l];
+                  oxdna_stk->cut_st_c[0][j][k][0] += oxdna_stk->cut_st_c[i][j][k][l];
                 }
               }
             }
@@ -171,10 +182,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  cut_st_lo[i][j][k][l] = values.next_double();
-                  cut_st_lo[i][j][k][0] += cut_st_lo[i][j][k][l];
-                  cut_st_lo[0][j][k][l] += cut_st_lo[i][j][k][l];
-                  cut_st_lo[0][j][k][0] += cut_st_lo[i][j][k][l];
+                  oxdna_stk->cut_st_lo[i][j][k][l] = values.next_double();
+                  oxdna_stk->cut_st_lo[i][j][k][0] += oxdna_stk->cut_st_lo[i][j][k][l];
+                  oxdna_stk->cut_st_lo[0][j][k][l] += oxdna_stk->cut_st_lo[i][j][k][l];
+                  oxdna_stk->cut_st_lo[0][j][k][0] += oxdna_stk->cut_st_lo[i][j][k][l];
                 }
               }
             }
@@ -183,10 +194,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  cut_st_hi[i][j][k][l] = values.next_double();
-                  cut_st_hi[i][j][k][0] += cut_st_hi[i][j][k][l];
-                  cut_st_hi[0][j][k][l] += cut_st_hi[i][j][k][l];
-                  cut_st_hi[0][j][k][0] += cut_st_hi[i][j][k][l];
+                  oxdna_stk->cut_st_hi[i][j][k][l] = values.next_double();
+                  oxdna_stk->cut_st_hi[i][j][k][0] += oxdna_stk->cut_st_hi[i][j][k][l];
+                  oxdna_stk->cut_st_hi[0][j][k][l] += oxdna_stk->cut_st_hi[i][j][k][l];
+                  oxdna_stk->cut_st_hi[0][j][k][0] += oxdna_stk->cut_st_hi[i][j][k][l];
                 }
               }
             }
@@ -195,10 +206,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  a_st4[i][j][k][l] = values.next_double();
-                  a_st4[i][j][k][0] += a_st4[i][j][k][l];
-                  a_st4[0][j][k][l] += a_st4[i][j][k][l];
-                  a_st4[0][j][k][0] += a_st4[i][j][k][l];
+                  oxdna_stk->a_st4[i][j][k][l] = values.next_double();
+                  oxdna_stk->a_st4[i][j][k][0] += oxdna_stk->a_st4[i][j][k][l];
+                  oxdna_stk->a_st4[0][j][k][l] += oxdna_stk->a_st4[i][j][k][l];
+                  oxdna_stk->a_st4[0][j][k][0] += oxdna_stk->a_st4[i][j][k][l];
                 }
               }
             }
@@ -210,10 +221,10 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
             for (int j = nlo; j <= nhi; j++) {
               for (int k = nlo; k <= nhi; k++) {
                 for (int l = nlo; l <= nhi; l++) {
-                  dtheta_st4_ast[i][j][k][l] = values.next_double();
-                  dtheta_st4_ast[i][j][k][0] += dtheta_st4_ast[i][j][k][l];
-                  dtheta_st4_ast[0][j][k][l] += dtheta_st4_ast[i][j][k][l];
-                  dtheta_st4_ast[0][j][k][0] += dtheta_st4_ast[i][j][k][l];
+                  oxdna_stk->dtheta_st4_ast[i][j][k][l] = values.next_double();
+                  oxdna_stk->dtheta_st4_ast[i][j][k][0] += oxdna_stk->dtheta_st4_ast[i][j][k][l];
+                  oxdna_stk->dtheta_st4_ast[0][j][k][l] += oxdna_stk->dtheta_st4_ast[i][j][k][l];
+                  oxdna_stk->dtheta_st4_ast[0][j][k][0] += oxdna_stk->dtheta_st4_ast[i][j][k][l];
                 }
               }
             }
@@ -233,11 +244,11 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
           break;
         } else continue;
       } catch (std::exception &e) {
-        error->one(FLERR, "Problem parsing oxDNA3 potential file: {}", e.what());
+        oxdna_stk->error->one(FLERR, "Problem parsing oxDNA3 potential file: {}", e.what());
       }
     }
     if ((iloc != arg[0]) || (jloc != arg[1]) || (potential_name != "stk"))
-      error->one(FLERR, "No corresponding stk potential found in file {} for pair type {} {}",
+      oxdna_stk->error->one(FLERR, "No corresponding stk potential found in file {} for pair type {} {}",
                  arg[3], arg[0], arg[1]);
 
 
@@ -246,85 +257,85 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
     for (int i = nlo; i <= nhi; i++) {
       for (int j = nlo; j <= nhi; j++) {
         for (int k = nlo; k <= nhi; k++) {
-          cut_st_0[i][j][k][0] /= nhi;
-          cut_st_c[i][j][k][0] /= nhi;
-          cut_st_lo[i][j][k][0] /= nhi;
-          cut_st_hi[i][j][k][0] /= nhi;
-          a_st4[i][j][k][0] /= nhi;
-          dtheta_st4_ast[i][j][k][0] /= nhi;
+          oxdna_stk->cut_st_0[i][j][k][0] /= nhi;
+          oxdna_stk->cut_st_c[i][j][k][0] /= nhi;
+          oxdna_stk->cut_st_lo[i][j][k][0] /= nhi;
+          oxdna_stk->cut_st_hi[i][j][k][0] /= nhi;
+          oxdna_stk->a_st4[i][j][k][0] /= nhi;
+          oxdna_stk->dtheta_st4_ast[i][j][k][0] /= nhi;
         }
       }
     }
     for (int j = nlo; j <= nhi; j++) {
       for (int k = nlo; k <= nhi; k++) {
         for (int l = nlo; l <= nhi; l++) {
-          cut_st_0[0][j][k][l] /= nhi;
-          cut_st_c[0][j][k][l] /= nhi;
-          cut_st_lo[0][j][k][l] /= nhi;
-          cut_st_hi[0][j][k][l] /= nhi;
-          a_st4[0][j][k][l] /= nhi;
-          dtheta_st4_ast[0][j][k][l] /= nhi;
+          oxdna_stk->cut_st_0[0][j][k][l] /= nhi;
+          oxdna_stk->cut_st_c[0][j][k][l] /= nhi;
+          oxdna_stk->cut_st_lo[0][j][k][l] /= nhi;
+          oxdna_stk->cut_st_hi[0][j][k][l] /= nhi;
+          oxdna_stk->a_st4[0][j][k][l] /= nhi;
+          oxdna_stk->dtheta_st4_ast[0][j][k][l] /= nhi;
         }
       }
     }
     for (int j = nlo; j <= nhi; j++) {
       for (int k = nlo; k <= nhi; k++) {
-        cut_st_0[0][j][k][0] /= powint(nhi,2);
-        cut_st_c[0][j][k][0] /= powint(nhi,2);
-        cut_st_lo[0][j][k][0] /= powint(nhi,2);
-        cut_st_hi[0][j][k][0] /= powint(nhi,2);
-        a_st4[0][j][k][0] /= powint(nhi,2);
-        dtheta_st4_ast[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->cut_st_0[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->cut_st_c[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->cut_st_lo[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->cut_st_hi[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->a_st4[0][j][k][0] /= powint(nhi,2);
+        oxdna_stk->dtheta_st4_ast[0][j][k][0] /= powint(nhi,2);
       }
     }
 
   }
 
-  MPI_Bcast(&epsilon_st_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_st_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&epsilon_st_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&a_st_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
 
-  MPI_Bcast(&cut_st_0[0][0][0][0], 625, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_st_c[0][0][0][0], 625, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_st_lo[0][0][0][0], 625, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_st_hi[0][0][0][0], 625, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_st4[0][0][0][0], 625, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&oxdna_stk->cut_st_0[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&oxdna_stk->cut_st_c[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&oxdna_stk->cut_st_lo[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&oxdna_stk->cut_st_hi[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&oxdna_stk->a_st4[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
 
-  MPI_Bcast(&theta_st4_0_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&theta_st4_0_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
 
-  MPI_Bcast(&dtheta_st4_ast[0][0][0][0], 625, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&oxdna_stk->dtheta_st4_ast[0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_stk->world);
 
-  MPI_Bcast(&a_st5_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_st5_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_st5_ast_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_st6_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_st6_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_st6_ast_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_st1_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cosphi_st1_ast_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_st2_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cosphi_st2_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_st5_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&theta_st5_0_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&dtheta_st5_ast_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&a_st6_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&theta_st6_0_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&dtheta_st6_ast_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&a_st1_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&cosphi_st1_ast_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&a_st2_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
+  MPI_Bcast(&cosphi_st2_ast_one, 1, MPI_DOUBLE, 0, oxdna_stk->world);
 
   // smoothing - determined through continuity and differentiability
 
   // smoothing strength coincidentally identical for all pairs ij, hence use AAAA tetramer value below
-  b_st_lo_one = 2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
-      2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
-      (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))/
-      (4*((1-exp(-a_st_one*(cut_st_lo[1][1][1][1] -cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))-
-      (1-exp(-a_st_one*(cut_st_c[1][1][1][1] -cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_c[1][1][1][1]-cut_st_0[1][1][1][1])))));
+    b_st_lo_one = 2*a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1]))*
+      2*a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1]))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))
+      /(4*((1-exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1] -oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_lo[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))-
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_c[1][1][1][1] -oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_c[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))));
 
   // smoothing strength coincidentally identical for all pairs ij, hence use AAAA tetramer value below
-  b_st_hi_one = 2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
-      2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
-      (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))/
-      (4*((1-exp(-a_st_one*(cut_st_hi[1][1][1][1] -cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))-
-      (1-exp(-a_st_one*(cut_st_c[1][1][1][1] -cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_c[1][1][1][1]-cut_st_0[1][1][1][1])))));
+    b_st_hi_one = 2*a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1]))*
+      2*a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1]))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))
+      /(4*((1-exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1] -oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_hi[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))-
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_c[1][1][1][1] -oxdna_stk->cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(oxdna_stk->cut_st_c[1][1][1][1]-oxdna_stk->cut_st_0[1][1][1][1])))));
 
   b_st5_one = a_st5_one*a_st5_one*dtheta_st5_ast_one*dtheta_st5_ast_one/
       (1-a_st5_one*dtheta_st5_ast_one*dtheta_st5_ast_one);
@@ -347,34 +358,34 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
   for (int i = nlo; i <= nhi; i++) {
     for (int j = nlo; j <= nhi; j++) {
 
-      epsilon_st[i][j] = epsilon_st_one * eta_st[i-1][j-1];
+      oxdna_stk->epsilon_st[i][j] = epsilon_st_one * oxdna_stk->eta_st[i-1][j-1];
 
-      a_st[i][j] = a_st_one;
-      b_st_lo[i][j] = b_st_lo_one;
-      b_st_hi[i][j] = b_st_hi_one;
-      theta_st4_0[i][j] = theta_st4_0_one;
+      oxdna_stk->a_st[i][j] = a_st_one;
+      oxdna_stk->b_st_lo[i][j] = b_st_lo_one;
+      oxdna_stk->b_st_hi[i][j] = b_st_hi_one;
+      oxdna_stk->theta_st4_0[i][j] = theta_st4_0_one;
 
-      a_st5[i][j] = a_st5_one;
-      theta_st5_0[i][j] = theta_st5_0_one;
-      dtheta_st5_ast[i][j] = dtheta_st5_ast_one;
-      b_st5[i][j] = b_st5_one;
-      dtheta_st5_c[i][j] = dtheta_st5_c_one;
+      oxdna_stk->a_st5[i][j] = a_st5_one;
+      oxdna_stk->theta_st5_0[i][j] = theta_st5_0_one;
+      oxdna_stk->dtheta_st5_ast[i][j] = dtheta_st5_ast_one;
+      oxdna_stk->b_st5[i][j] = b_st5_one;
+      oxdna_stk->dtheta_st5_c[i][j] = dtheta_st5_c_one;
 
-      a_st6[i][j] = a_st6_one;
-      theta_st6_0[i][j] = theta_st6_0_one;
-      dtheta_st6_ast[i][j] = dtheta_st6_ast_one;
-      b_st6[i][j] = b_st6_one;
-      dtheta_st6_c[i][j] = dtheta_st6_c_one;
+      oxdna_stk->a_st6[i][j] = a_st6_one;
+      oxdna_stk->theta_st6_0[i][j] = theta_st6_0_one;
+      oxdna_stk->dtheta_st6_ast[i][j] = dtheta_st6_ast_one;
+      oxdna_stk->b_st6[i][j] = b_st6_one;
+      oxdna_stk->dtheta_st6_c[i][j] = dtheta_st6_c_one;
 
-      a_st1[i][j] = a_st1_one;
-      cosphi_st1_ast[i][j] = cosphi_st1_ast_one;
-      b_st1[i][j] = b_st1_one;
-      cosphi_st1_c[i][j] = cosphi_st1_c_one;
+      oxdna_stk->a_st1[i][j] = a_st1_one;
+      oxdna_stk->cosphi_st1_ast[i][j] = cosphi_st1_ast_one;
+      oxdna_stk->b_st1[i][j] = b_st1_one;
+      oxdna_stk->cosphi_st1_c[i][j] = cosphi_st1_c_one;
 
-      a_st2[i][j] = a_st2_one;
-      cosphi_st2_ast[i][j] = cosphi_st2_ast_one;
-      b_st2[i][j] = b_st2_one;
-      cosphi_st2_c[i][j] = cosphi_st2_c_one;
+      oxdna_stk->a_st2[i][j] = a_st2_one;
+      oxdna_stk->cosphi_st2_ast[i][j] = cosphi_st2_ast_one;
+      oxdna_stk->b_st2[i][j] = b_st2_one;
+      oxdna_stk->cosphi_st2_c[i][j] = cosphi_st2_c_one;
 
     }
   }
@@ -385,30 +396,32 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
       for (int k = nlo; k <= nhi; k++) {
         for (int l = 0; l <= nhi; l++) { // type 0 for terminal k
 
-          cut_st_lc[i][j][k][l] = cut_st_lo[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_lo_one;
+              oxdna_stk->cut_st_lc[i][j][k][l] = oxdna_stk->cut_st_lo[i][j][k][l]
+                - a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_lo[i][j][k][l]-oxdna_stk->cut_st_0[i][j][k][l]))*
+                (1-exp(-a_st_one*(oxdna_stk->cut_st_lo[i][j][k][l]-oxdna_stk->cut_st_0[i][j][k][l])))/b_st_lo_one;
 
-          cut_st_hc[i][j][k][l] = cut_st_hi[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_hi_one;
+              oxdna_stk->cut_st_hc[i][j][k][l] = oxdna_stk->cut_st_hi[i][j][k][l]
+                - a_st_one*exp(-a_st_one*(oxdna_stk->cut_st_hi[i][j][k][l]-oxdna_stk->cut_st_0[i][j][k][l]))*
+                (1-exp(-a_st_one*(oxdna_stk->cut_st_hi[i][j][k][l]-oxdna_stk->cut_st_0[i][j][k][l])))/b_st_hi_one;
 
-          cutsq_st_hc[i][j][k][l] = cut_st_hc[i][j][k][l]*cut_st_hc[i][j][k][l];
+          oxdna_stk->cutsq_st_hc[i][j][k][l] = oxdna_stk->cut_st_hc[i][j][k][l]*oxdna_stk->cut_st_hc[i][j][k][l];
 
-          tmp = 1 - exp(-(cut_st_c[i][j][k][l]-cut_st_0[i][j][k][l]) * a_st_one);
-          shift_st[i][j][k][l] = epsilon_st_one * eta_st[j-1][k-1] * tmp * tmp;
+          tmp = 1 - exp(-(oxdna_stk->cut_st_c[i][j][k][l]-oxdna_stk->cut_st_0[i][j][k][l]) * a_st_one);
+          oxdna_stk->shift_st[i][j][k][l] = epsilon_st_one * oxdna_stk->eta_st[j-1][k-1] * tmp * tmp;
 
-          b_st4[i][j][k][l] = a_st4[i][j][k][l]*a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*
-                dtheta_st4_ast[i][j][k][l]/(1-a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
-          dtheta_st4_c[i][j][k][l] = 1/(a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
+              oxdna_stk->b_st4[i][j][k][l] = oxdna_stk->a_st4[i][j][k][l]*oxdna_stk->a_st4[i][j][k][l]*oxdna_stk->dtheta_st4_ast[i][j][k][l]*
+                oxdna_stk->dtheta_st4_ast[i][j][k][l]/(1-oxdna_stk->a_st4[i][j][k][l]*oxdna_stk->dtheta_st4_ast[i][j][k][l]*oxdna_stk->dtheta_st4_ast[i][j][k][l]);
+              oxdna_stk->dtheta_st4_c[i][j][k][l] = 1/(oxdna_stk->a_st4[i][j][k][l]*oxdna_stk->dtheta_st4_ast[i][j][k][l]);
 
         }
       }
-      setflag[i][j] = 1;
+      oxdna_stk->setflag[i][j] = 1;
       count++;
     }
   }
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk" + utils::errorurl(21));
+  if (count == 0) oxdna_stk->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk" + utils::errorurl(21));
 
 }
+
+void PairOxdna3Stk::coeff(int narg, char **arg) { coeff_oxdna3_common(this, narg, arg); }

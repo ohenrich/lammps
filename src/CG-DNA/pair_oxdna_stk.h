@@ -25,6 +25,8 @@ PairStyle(oxdna2/stk,PairOxdnaStk);
 
 namespace LAMMPS_NS {
 
+class PairOxdna3Stk;    // forward declaration to allow KOKKOS access to oxdna3 without inheriting
+
 class PairOxdnaStk : public Pair {
  public:
   PairOxdnaStk(class LAMMPS *);
@@ -44,6 +46,7 @@ class PairOxdnaStk : public Pair {
   void *extract(const char *, int &) override;
 
  protected:
+  friend class PairOxdna3Stk;    // friend for KOKKOS access to oxdna3 without inheriting
   // stacking interaction
   double eta_st[4][4];
   double stacking_strength(double, double, double);

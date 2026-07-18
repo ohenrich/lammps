@@ -49,6 +49,7 @@ class PairOxdna3Hbond : public PairOxdnaHbond {
         break;
     }
   };
+  static void coeff_oxdna3_common(PairOxdnaHbond *, int, char **);
   void coeff(int, char **) override;
 };
 

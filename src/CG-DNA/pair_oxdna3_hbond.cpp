@@ -69,20 +69,31 @@ PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 }
 
 /* ----------------------------------------------------------------------
-   set coeffs
+  set coeffs - introduces new function to handle KOKKOS compatibility.
+  Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
+  function. The structure here avoids messy inheritance issues in KOKKOS
+  by not calling "PairOxdna3Hbond::coeff" directly. We can also avoid
+  code duplication of coeff within KOKKOS using this approach.
+
+  "coeff_oxdna3_common" is static and takes a pointer to the base class
+  PairOxdnaHbond, which means it can be called from both the vanilla and
+  KOKKOS versions.
+  Can't use "coeff" directly since it is non-static - calling it would
+  require an instance of the PairOxdna3Hbond class, which is fine for vanilla
+  but not for KOKKOS as we don't want KOKKOS to be a child class of PairOxdna3Hbond.
 ------------------------------------------------------------------------- */
-void PairOxdna3Hbond::coeff(int narg, char **arg)
+void PairOxdna3Hbond::coeff_oxdna3_common(PairOxdnaHbond *oxdna_hbond, int narg, char **arg)
 {
   int count;
 
-  if (narg != 3) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond, use potential file" + utils::errorurl(21));
-  if (!allocated) allocate();
+  if (narg != 3) oxdna_hbond->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond, use potential file" + utils::errorurl(21));
+  if (!oxdna_hbond->allocated) oxdna_hbond->allocate();
 
   int ilo,ihi,jlo,jhi,imod4,jmod4;
-  utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
-  utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
+  utils::bounds(FLERR,arg[0],1,oxdna_hbond->atom->ntypes,ilo,ihi,oxdna_hbond->error);
+  utils::bounds(FLERR,arg[1],1,oxdna_hbond->atom->ntypes,jlo,jhi,oxdna_hbond->error);
 
-  if (ihi>4 || jhi>4) error->all(FLERR, "pair oxdna3/hbond does not support more than 4 atom types for A, C, G and T");
+  if (ihi>4 || jhi>4) oxdna_hbond->error->all(FLERR, "pair oxdna3/hbond does not support more than 4 atom types for A, C, G and T");
 
   // h-bonding interaction
   count = 0;
@@ -111,8 +122,8 @@ void PairOxdna3Hbond::coeff(int narg, char **arg)
   double b_hb8_one, dtheta_hb8_c_one;
 
   // read values from potential file
-  if (comm->me == 0) {
-    PotentialFileReader reader(lmp, arg[2], "oxdna3 potential", " (hbond)");
+  if (oxdna_hbond->comm->me == 0) {
+    PotentialFileReader reader(oxdna_hbond->lmp, arg[2], "oxdna3 potential", " (hbond)");
     reader.set_bufsize(65336);
     char * line;
     std::string iloc, jloc, potential_name;
@@ -163,48 +174,48 @@ void PairOxdna3Hbond::coeff(int narg, char **arg)
           break;
         } else continue;
       } catch (std::exception &e) {
-        error->one(FLERR, "Problem parsing oxDNA3 potential file: {}", e.what());
+        oxdna_hbond->error->one(FLERR, "Problem parsing oxDNA3 potential file: {}", e.what());
       }
     }
     if ((iloc != arg[0]) || (jloc != arg[1]) || (potential_name != "hbond"))
-      error->one(FLERR, "No corresponding hbond potential found in file {} for pair type {} {}",
+      oxdna_hbond->error->one(FLERR, "No corresponding hbond potential found in file {} for pair type {} {}",
                  arg[2], arg[0], arg[1]);
   }
 
-  MPI_Bcast(&epsilon_hb_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&a_hb_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_hb_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_hb_c_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_hb_lo_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&cut_hb_hi_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&epsilon_hb_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&a_hb_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&cut_hb_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&cut_hb_c_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&cut_hb_lo_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&cut_hb_hi_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb1_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb1_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb1_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb1_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb1_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb1_ast_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb2_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb2_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb2_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb2_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb2_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb2_ast_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb3_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb3_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb3_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb3_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb3_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb3_ast_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb4_at, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb4_0_at, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb4_ast_at, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb4_at, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb4_0_at, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb4_ast_at, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb4_cg, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb4_0_cg, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb4_ast_cg, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb4_cg, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb4_0_cg, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb4_ast_cg, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb7_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb7_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb7_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb7_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb7_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb7_ast_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
-  MPI_Bcast(&a_hb8_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&theta_hb8_0_one, 1, MPI_DOUBLE, 0, world);
-  MPI_Bcast(&dtheta_hb8_ast_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&a_hb8_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&theta_hb8_0_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
+  MPI_Bcast(&dtheta_hb8_ast_one, 1, MPI_DOUBLE, 0, oxdna_hbond->world);
 
   b_hb_lo_one = 2*a_hb_one*exp(-a_hb_one*(cut_hb_lo_one-cut_hb_0_one))*
         2*a_hb_one*exp(-a_hb_one*(cut_hb_lo_one-cut_hb_0_one))*
@@ -262,71 +273,73 @@ void PairOxdna3Hbond::coeff(int narg, char **arg)
       jmod4 = j%4;
       if (jmod4 == 0) jmod4 = 4;
 
-      epsilon_hb[i][j] = epsilon_hb_one;
-      epsilon_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
-      a_hb[i][j] = a_hb_one;
-      cut_hb_0[i][j] = cut_hb_0_one;
-      cut_hb_c[i][j] = cut_hb_c_one;
-      cut_hb_lo[i][j] = cut_hb_lo_one;
-      cut_hb_hi[i][j] = cut_hb_hi_one;
-      cut_hb_lc[i][j] = cut_hb_lc_one;
-      cut_hb_hc[i][j] = cut_hb_hc_one;
-      b_hb_lo[i][j] = b_hb_lo_one;
-      b_hb_hi[i][j] = b_hb_hi_one;
-      shift_hb[i][j] = shift_hb_one;
-      shift_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
+      oxdna_hbond->epsilon_hb[i][j] = epsilon_hb_one;
+      oxdna_hbond->epsilon_hb[i][j] *= oxdna_hbond->alpha_hb[imod4-1][jmod4-1];
+      oxdna_hbond->a_hb[i][j] = a_hb_one;
+      oxdna_hbond->cut_hb_0[i][j] = cut_hb_0_one;
+      oxdna_hbond->cut_hb_c[i][j] = cut_hb_c_one;
+      oxdna_hbond->cut_hb_lo[i][j] = cut_hb_lo_one;
+      oxdna_hbond->cut_hb_hi[i][j] = cut_hb_hi_one;
+      oxdna_hbond->cut_hb_lc[i][j] = cut_hb_lc_one;
+      oxdna_hbond->cut_hb_hc[i][j] = cut_hb_hc_one;
+      oxdna_hbond->b_hb_lo[i][j] = b_hb_lo_one;
+      oxdna_hbond->b_hb_hi[i][j] = b_hb_hi_one;
+      oxdna_hbond->shift_hb[i][j] = shift_hb_one;
+      oxdna_hbond->shift_hb[i][j] *= oxdna_hbond->alpha_hb[imod4-1][jmod4-1];
 
-      a_hb1[i][j] = a_hb1_one;
-      theta_hb1_0[i][j] = theta_hb1_0_one;
-      dtheta_hb1_ast[i][j] = dtheta_hb1_ast_one;
-      b_hb1[i][j] = b_hb1_one;
-      dtheta_hb1_c[i][j] = dtheta_hb1_c_one;
+      oxdna_hbond->a_hb1[i][j] = a_hb1_one;
+      oxdna_hbond->theta_hb1_0[i][j] = theta_hb1_0_one;
+      oxdna_hbond->dtheta_hb1_ast[i][j] = dtheta_hb1_ast_one;
+      oxdna_hbond->b_hb1[i][j] = b_hb1_one;
+      oxdna_hbond->dtheta_hb1_c[i][j] = dtheta_hb1_c_one;
 
-      a_hb2[i][j] = a_hb2_one;
-      theta_hb2_0[i][j] = theta_hb2_0_one;
-      dtheta_hb2_ast[i][j] = dtheta_hb2_ast_one;
-      b_hb2[i][j] = b_hb2_one;
-      dtheta_hb2_c[i][j] = dtheta_hb2_c_one;
+      oxdna_hbond->a_hb2[i][j] = a_hb2_one;
+      oxdna_hbond->theta_hb2_0[i][j] = theta_hb2_0_one;
+      oxdna_hbond->dtheta_hb2_ast[i][j] = dtheta_hb2_ast_one;
+      oxdna_hbond->b_hb2[i][j] = b_hb2_one;
+      oxdna_hbond->dtheta_hb2_c[i][j] = dtheta_hb2_c_one;
 
-      a_hb3[i][j] = a_hb3_one;
-      theta_hb3_0[i][j] = theta_hb3_0_one;
-      dtheta_hb3_ast[i][j] = dtheta_hb3_ast_one;
-      b_hb3[i][j] = b_hb3_one;
-      dtheta_hb3_c[i][j] = dtheta_hb3_c_one;
+      oxdna_hbond->a_hb3[i][j] = a_hb3_one;
+      oxdna_hbond->theta_hb3_0[i][j] = theta_hb3_0_one;
+      oxdna_hbond->dtheta_hb3_ast[i][j] = dtheta_hb3_ast_one;
+      oxdna_hbond->b_hb3[i][j] = b_hb3_one;
+      oxdna_hbond->dtheta_hb3_c[i][j] = dtheta_hb3_c_one;
 
       if((imod4==1 && jmod4==4) || (imod4==4 && jmod4==1)){
-        a_hb4[i][j] = a_hb4_at;
-        theta_hb4_0[i][j] = theta_hb4_0_at;
-        dtheta_hb4_ast[i][j] = dtheta_hb4_ast_at;
-        b_hb4[i][j] = b_hb4_at;
-        dtheta_hb4_c[i][j] = dtheta_hb4_c_at;
+        oxdna_hbond->a_hb4[i][j] = a_hb4_at;
+        oxdna_hbond->theta_hb4_0[i][j] = theta_hb4_0_at;
+        oxdna_hbond->dtheta_hb4_ast[i][j] = dtheta_hb4_ast_at;
+        oxdna_hbond->b_hb4[i][j] = b_hb4_at;
+        oxdna_hbond->dtheta_hb4_c[i][j] = dtheta_hb4_c_at;
       }
 
       if((imod4==2 && jmod4==3) || (imod4==3 && jmod4==2)){
-        a_hb4[i][j] = a_hb4_cg;
-        theta_hb4_0[i][j] = theta_hb4_0_cg;
-        dtheta_hb4_ast[i][j] = dtheta_hb4_ast_cg;
-        b_hb4[i][j] = b_hb4_cg;
-        dtheta_hb4_c[i][j] = dtheta_hb4_c_cg;
+        oxdna_hbond->a_hb4[i][j] = a_hb4_cg;
+        oxdna_hbond->theta_hb4_0[i][j] = theta_hb4_0_cg;
+        oxdna_hbond->dtheta_hb4_ast[i][j] = dtheta_hb4_ast_cg;
+        oxdna_hbond->b_hb4[i][j] = b_hb4_cg;
+        oxdna_hbond->dtheta_hb4_c[i][j] = dtheta_hb4_c_cg;
       }
 
-      a_hb7[i][j] = a_hb7_one;
-      theta_hb7_0[i][j] = theta_hb7_0_one;
-      dtheta_hb7_ast[i][j] = dtheta_hb7_ast_one;
-      b_hb7[i][j] = b_hb7_one;
-      dtheta_hb7_c[i][j] = dtheta_hb7_c_one;
+      oxdna_hbond->a_hb7[i][j] = a_hb7_one;
+      oxdna_hbond->theta_hb7_0[i][j] = theta_hb7_0_one;
+      oxdna_hbond->dtheta_hb7_ast[i][j] = dtheta_hb7_ast_one;
+      oxdna_hbond->b_hb7[i][j] = b_hb7_one;
+      oxdna_hbond->dtheta_hb7_c[i][j] = dtheta_hb7_c_one;
 
-      a_hb8[i][j] = a_hb8_one;
-      theta_hb8_0[i][j] = theta_hb8_0_one;
-      dtheta_hb8_ast[i][j] = dtheta_hb8_ast_one;
-      b_hb8[i][j] = b_hb8_one;
-      dtheta_hb8_c[i][j] = dtheta_hb8_c_one;
+      oxdna_hbond->a_hb8[i][j] = a_hb8_one;
+      oxdna_hbond->theta_hb8_0[i][j] = theta_hb8_0_one;
+      oxdna_hbond->dtheta_hb8_ast[i][j] = dtheta_hb8_ast_one;
+      oxdna_hbond->b_hb8[i][j] = b_hb8_one;
+      oxdna_hbond->dtheta_hb8_c[i][j] = dtheta_hb8_c_one;
 
-      setflag[i][j] = 1;
+      oxdna_hbond->setflag[i][j] = 1;
       count++;
     }
   }
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond" + utils::errorurl(21));
+  if (count == 0) oxdna_hbond->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond" + utils::errorurl(21));
 
 }
+
+void PairOxdna3Hbond::coeff(int narg, char **arg) { coeff_oxdna3_common(this, narg, arg); }

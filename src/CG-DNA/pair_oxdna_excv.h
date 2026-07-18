@@ -45,7 +45,7 @@ class PairOxdnaExcv : public Pair {
   void *extract(const char *, int &) override;
 
  protected:
- friend class PairOxdna3Excv; // friend for KOKKOS access to oxdna3 without inheriting
+  friend class PairOxdna3Excv; // friend for KOKKOS access to oxdna3 without inheriting
   // s=sugar-phosphate backbone site, b=base site, st=stacking site
 
   // excluded volume interaction
