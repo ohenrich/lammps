@@ -28,6 +28,7 @@ namespace LAMMPS_NS {
 class PairOxdna3Stk : public PairOxdnaStk {
  public:
   PairOxdna3Stk(class LAMMPS *lmp);
+  static void init_eta_st_oxdna3(PairOxdnaStk *);
   // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
   void compute_stacking_site(double e1[3], double /*e2*/[3], double /*e3*/[3],

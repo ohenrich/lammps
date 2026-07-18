@@ -37,6 +37,31 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
+void PairOxdna3Hbond::init_alpha_hb_oxdna3(PairOxdnaHbond *oxdna_hbond)
+{
+  oxdna_hbond->alpha_hb[0][0] = 1.00000;
+  oxdna_hbond->alpha_hb[0][1] = 1.00000;
+  oxdna_hbond->alpha_hb[0][2] = 1.00000;
+  oxdna_hbond->alpha_hb[0][3] = 0.6493620379646540;
+
+  oxdna_hbond->alpha_hb[1][0] = 1.00000;
+  oxdna_hbond->alpha_hb[1][1] = 1.00000;
+  oxdna_hbond->alpha_hb[1][2] = 1.1999420813642658;
+  oxdna_hbond->alpha_hb[1][3] = 1.00000;
+
+  oxdna_hbond->alpha_hb[2][0] = 1.00000;
+  oxdna_hbond->alpha_hb[2][1] = 1.1999420813642658;
+  oxdna_hbond->alpha_hb[2][2] = 1.00000;
+  oxdna_hbond->alpha_hb[2][3] = 1.00000;
+
+  oxdna_hbond->alpha_hb[3][0] = 0.6493620379646540;
+  oxdna_hbond->alpha_hb[3][1] = 1.00000;
+  oxdna_hbond->alpha_hb[3][2] = 1.00000;
+  oxdna_hbond->alpha_hb[3][3] = 1.00000;
+}
+
+/* ---------------------------------------------------------------------- */
+
 PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 {
   single_enable = 0;
@@ -45,27 +70,18 @@ PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 
   // sequence-specific base-pairing strength
   // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
-
-  alpha_hb[0][0] = 1.00000;
-  alpha_hb[0][1] = 1.00000;
-  alpha_hb[0][2] = 1.00000;
-  alpha_hb[0][3] = 0.6493620379646540;
-
-  alpha_hb[1][0] = 1.00000;
-  alpha_hb[1][1] = 1.00000;
-  alpha_hb[1][2] = 1.1999420813642658;
-  alpha_hb[1][3] = 1.00000;
-
-  alpha_hb[2][0] = 1.00000;
-  alpha_hb[2][1] = 1.1999420813642658;
-  alpha_hb[2][2] = 1.00000;
-  alpha_hb[2][3] = 1.00000;
-
-  alpha_hb[3][0] = 0.6493620379646540;
-  alpha_hb[3][1] = 1.00000;
-  alpha_hb[3][2] = 1.00000;
-  alpha_hb[3][3] = 1.00000;
-
+  //
+  // Moved 'alpha_hb' settings to static helper function since KOKKOS class of oxdna3/hbond
+  // inherits from PairOxdnaHbond only, so cannot call this constructor to set
+  // the alpha_hb values. Instead, we call this static function from the
+  // constructor to set the alpha_hb values.
+  //
+  // KOKKOS base class goes through oxdna[1] in vanilla terms, due to GPU virtual function caveats.
+  // But we make use of 'friend' classes so that we can access oxdna3 (vanilla) code in KOKKOS.
+  //
+  // These parameters settings are purely set-up routines and do not interact with any KOKKOS code.
+  // Current known first point of actual use is within the coeff routine.
+  init_alpha_hb_oxdna3(this);
 }
 
 /* ----------------------------------------------------------------------
@@ -84,6 +100,8 @@ PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 ------------------------------------------------------------------------- */
 void PairOxdna3Hbond::coeff_oxdna3_common(PairOxdnaHbond *oxdna_hbond, int narg, char **arg)
 {
+  init_alpha_hb_oxdna3(oxdna_hbond);
+
   int count;
 
   if (narg != 3) oxdna_hbond->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond, use potential file" + utils::errorurl(21));

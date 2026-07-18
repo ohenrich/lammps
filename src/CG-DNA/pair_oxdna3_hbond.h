@@ -28,6 +28,7 @@ namespace LAMMPS_NS {
 class PairOxdna3Hbond : public PairOxdnaHbond {
  public:
   PairOxdna3Hbond(class LAMMPS *lmp);
+  static void init_alpha_hb_oxdna3(PairOxdnaHbond *);
   // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
   void compute_base_site(int type, double e1[3], double /*e2*/[3], double /*e3*/[3],

@@ -40,30 +40,47 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
+void PairOxdna3Stk::init_eta_st_oxdna3(PairOxdnaStk *oxdna_stk)
+{
+  oxdna_stk->eta_st[0][0] = 1.1217958408368172;
+  oxdna_stk->eta_st[1][0] = 1.0712851690057155;
+  oxdna_stk->eta_st[2][0] = 1.1161603311902566;
+  oxdna_stk->eta_st[3][0] = 1.0052361315065244;
+
+  oxdna_stk->eta_st[0][1] = 1.1217958408368172;
+  oxdna_stk->eta_st[1][1] = 0.7892685731520542;
+  oxdna_stk->eta_st[2][1] = 1.1022201982984874;
+  oxdna_stk->eta_st[3][1] = 0.8658975520778347;
+
+  oxdna_stk->eta_st[0][2] = 1.1217958408368172;
+  oxdna_stk->eta_st[1][2] = 0.9896542231533637;
+  oxdna_stk->eta_st[2][2] = 1.1088392608169480;
+  oxdna_stk->eta_st[3][2] = 1.1217958408368172;
+
+  oxdna_stk->eta_st[0][3] = 0.9300223683636719;
+  oxdna_stk->eta_st[1][3] = 0.7694592613578328;
+  oxdna_stk->eta_st[2][3] = 1.0007533199170144;
+  oxdna_stk->eta_st[3][3] = 0.8593983791552220;
+}
+
+/* ---------------------------------------------------------------------- */
+
 PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 {
   // sequence-specific stacking strength
   // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
-
-  eta_st[0][0] = 1.1217958408368172;
-  eta_st[1][0] = 1.0712851690057155;
-  eta_st[2][0] = 1.1161603311902566;
-  eta_st[3][0] = 1.0052361315065244;
-
-  eta_st[0][1] = 1.1217958408368172;
-  eta_st[1][1] = 0.7892685731520542;
-  eta_st[2][1] = 1.1022201982984874;
-  eta_st[3][1] = 0.8658975520778347;
-
-  eta_st[0][2] = 1.1217958408368172;
-  eta_st[1][2] = 0.9896542231533637;
-  eta_st[2][2] = 1.1088392608169480;
-  eta_st[3][2] = 1.1217958408368172;
-
-  eta_st[0][3] = 0.9300223683636719;
-  eta_st[1][3] = 0.7694592613578328;
-  eta_st[2][3] = 1.0007533199170144;
-  eta_st[3][3] = 0.8593983791552220;
+//
+  // Moved 'eta_st' settings to static helper function since KOKKOS class of oxdna3/stk
+  // inherits from PairOxdnaStk only, so cannot call this constructor to set
+  // the eta_st values. Instead, we call this static function from the
+  // constructor to set the eta_st values.
+  //
+  // KOKKOS base class goes through oxdna[1] in vanilla terms, due to GPU virtual function caveats.
+  // But we make use of 'friend' classes so that we can access oxdna3 (vanilla) code in KOKKOS.
+  //
+  // These parameters settings are purely set-up routines and do not interact with any KOKKOS code.
+  // Current known first point of actual use is within the coeff routine.
+  init_eta_st_oxdna3(this);
 
   single_enable = 0;
   writedata = 0;
@@ -87,6 +104,8 @@ PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 
 void PairOxdna3Stk::coeff_oxdna3_common(PairOxdnaStk *oxdna_stk, int narg, char **arg)
 {
+  init_eta_st_oxdna3(oxdna_stk);
+
   int count;
 
   if (narg != 4) oxdna_stk->error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk, use potential file" + utils::errorurl(21));
