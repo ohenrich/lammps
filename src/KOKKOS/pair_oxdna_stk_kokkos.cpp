@@ -259,6 +259,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
   // vector COM [a/b] - backbone site [a/b]
+  // TODO: Sort out the correct bk sites.
   if constexpr (OXDNAFLAG==OXDNA) { 
     // Used for oxDNA[1] and oxDNA2, but not oxDNA3
     constexpr KK_FLOAT dx_cbk_oxdna1 = -0.4;
