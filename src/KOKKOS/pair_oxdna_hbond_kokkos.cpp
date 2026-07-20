@@ -147,81 +147,72 @@ void PairOxdnaHbondKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   EV_FLOAT ev;
 
-  // "run_compute" is just a little helper for CPU/GPU dispatch to improve code readability.
-  // It removes an extra if statement from each of the typical compute functor calls.
-  // Not sure why, but it improved performance too on GPU?
-  auto run_compute = [&](auto host_tag, auto gpu_tag, const bool use_reduce) {
-    if (execution_space == HostKK) {
-      if (use_reduce) {
-        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this,ev);
-      } else {
-        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this);
-      }
+  // Host/GPU launch paths are split to avoid an execution-space branch per dispatch call.
+  auto run_compute_host = [&](auto host_tag, auto evflag_tag) {
+    constexpr int EVFLAG = decltype(evflag_tag)::value;
+    if constexpr (EVFLAG) {
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this,ev);
     } else {
-      if (use_reduce) {
-        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this,ev);
-      } else {
-        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this);
-      }
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this);
+    }
+  };
+  auto run_compute_gpu = [&](auto gpu_tag, auto evflag_tag) {
+    constexpr int EVFLAG = decltype(evflag_tag)::value;
+    if constexpr (EVFLAG) {
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this,ev);
+    } else {
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this);
     }
   };
 
-  auto run_compute_by_oxdnaflag = [&](auto neighflag_tag, auto newtonpair_tag, auto evflag_tag) {
+  const bool use_host_launch = (execution_space == HostKK);
+
+  auto run_compute_by_flags = [&](auto neighflag_tag, auto newtonpair_tag, auto evflag_tag) {
     constexpr int NEIGHFLAG = decltype(neighflag_tag)::value;
     constexpr int NEWTON_PAIR = decltype(newtonpair_tag)::value;
     constexpr int EVFLAG = decltype(evflag_tag)::value;
 
     if (oxdnaflag == OXDNA) {
-      run_compute(TagPairOxdnaHbondCompute<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{},
-          TagPairOxdnaHbondComputeGPUPair<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, EVFLAG);
+      if (use_host_launch) {
+        run_compute_host(TagPairOxdnaHbondCompute<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, evflag_tag);
+      } else {
+        run_compute_gpu(TagPairOxdnaHbondComputeGPUPair<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, evflag_tag);
+      }
     } else if (oxdnaflag == OXDNA3) {
-      run_compute(TagPairOxdnaHbondCompute<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{},
-          TagPairOxdnaHbondComputeGPUPair<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, EVFLAG);
+      if (use_host_launch) {
+        run_compute_host(TagPairOxdnaHbondCompute<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, evflag_tag);
+      } else {
+        run_compute_gpu(TagPairOxdnaHbondComputeGPUPair<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, evflag_tag);
+      }
     } else {
       error->all(FLERR, "Unknown OXDNA model flag in pair oxdna/hbond/kk");
     }
   };
 
-  if (evflag) {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
-      }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
-      }
-    }
-  } else {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
-      }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
-      } else {
-        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
-      }
-    }
+  const int dispatch_neigh =
+      (neighflag == HALF) ? 0 :
+      (neighflag == HALFTHREAD) ? 1 :
+      (neighflag == FULL) ? 2 : -1;
+
+  if (dispatch_neigh < 0) {
+    error->all(FLERR, "Unsupported neighbor flag in pair oxdna/hbond/kk");
+  }
+
+  const int dispatch_key = (evflag ? 8 : 0) | (newton_pair ? 4 : 0) | dispatch_neigh;
+  switch (dispatch_key) {
+    case 0: run_compute_by_flags(std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 1: run_compute_by_flags(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 2: run_compute_by_flags(std::integral_constant<int,FULL>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 4: run_compute_by_flags(std::integral_constant<int,HALF>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 5: run_compute_by_flags(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 6: run_compute_by_flags(std::integral_constant<int,FULL>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 8: run_compute_by_flags(std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 9: run_compute_by_flags(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 10: run_compute_by_flags(std::integral_constant<int,FULL>{},      std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 12: run_compute_by_flags(std::integral_constant<int,HALF>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    case 13: run_compute_by_flags(std::integral_constant<int,HALFTHREAD>{},std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    case 14: run_compute_by_flags(std::integral_constant<int,FULL>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    default: error->all(FLERR, "Internal dispatch error in pair oxdna/hbond/kk");
   }
 
   if (need_dup) {

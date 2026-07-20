@@ -164,142 +164,61 @@ void PairOxdnaExcvKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   EV_FLOAT ev;
 
-  if (evflag) {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALF,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALF,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALF,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALF,1,1> >(0,anum),*this,ev);
-        }
+  auto run_compute_by_oxdnaflag = [&](auto neighflag_tag, auto newtonpair_tag, auto evflag_tag) {
+    constexpr int NEIGHFLAG = decltype(neighflag_tag)::value;
+    constexpr int NEWTON_PAIR = decltype(newtonpair_tag)::value;
+    constexpr int EVFLAG = decltype(evflag_tag)::value;
+
+    auto run_compute = [&](auto model_tag) {
+      constexpr int MODEL = decltype(model_tag)::value;
+      if constexpr (EVFLAG) {
+        Kokkos::parallel_reduce(
+          Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
+          *this,ev);
       } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALF,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALF,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALF,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALF,0,1> >(0,anum),*this,ev);
-        }
+        Kokkos::parallel_for(
+          Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
+          *this);
       }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALFTHREAD,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALFTHREAD,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALFTHREAD,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALFTHREAD,1,1> >(0,anum),*this,ev);
-        }
-      } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALFTHREAD,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALFTHREAD,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALFTHREAD,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALFTHREAD,0,1> >(0,anum),*this,ev);
-        }
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,FULL,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,FULL,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,FULL,1,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,FULL,1,1> >(0,anum),*this,ev);
-        }
-      } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,FULL,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,FULL,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,FULL,0,1> >(0,anum),*this,ev);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,FULL,0,1> >(0,anum),*this,ev);
-        }
-      }
+    };
+
+    if (oxdnaflag == OXDNA) {
+      run_compute(std::integral_constant<int,OXDNA>{});
+    } else if (oxdnaflag == OXDNA2) {
+      run_compute(std::integral_constant<int,OXDNA2>{});
+    } else if (oxdnaflag == OXRNA2) {
+      run_compute(std::integral_constant<int,OXRNA2>{});
+    } else if (oxdnaflag == OXDNA3) {
+      run_compute(std::integral_constant<int,OXDNA3>{});
+    } else {
+      error->all(FLERR, "Unknown OXDNA model flag in pair oxdna/excv/kk");
     }
-  } else {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALF,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALF,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALF,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALF,1,0> >(0,anum),*this);
-        }
-      } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALF,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALF,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALF,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALF,0,0> >(0,anum),*this);
-        }
-      }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALFTHREAD,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALFTHREAD,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALFTHREAD,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALFTHREAD,1,0> >(0,anum),*this);
-        }
-      } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,HALFTHREAD,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,HALFTHREAD,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,HALFTHREAD,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,HALFTHREAD,0,0> >(0,anum),*this);
-        }
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,FULL,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,FULL,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,FULL,1,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,FULL,1,0> >(0,anum),*this);
-        }
-      } else {
-        if (oxdnaflag==OXDNA) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA,FULL,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA2,FULL,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXRNA2) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXRNA2,FULL,0,0> >(0,anum),*this);
-        } else if (oxdnaflag==OXDNA3) {
-          Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<OXDNA3,FULL,0,0> >(0,anum),*this);
-        }
-      }
-    }
+  };
+
+  const int dispatch_neigh =
+      (neighflag == HALF) ? 0 :
+      (neighflag == HALFTHREAD) ? 1 :
+      (neighflag == FULL) ? 2 : -1;
+
+  if (dispatch_neigh < 0) {
+    error->all(FLERR, "Unsupported neighbor flag in pair oxdna/excv/kk");
+  }
+
+  const int dispatch_key = (evflag ? 8 : 0) | (newton_pair ? 4 : 0) | dispatch_neigh;
+  switch (dispatch_key) {
+    case 0: run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 1: run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 2: run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+    case 4: run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 5: run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 6: run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+    case 8: run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 9: run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 10: run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{},      std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+    case 12: run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    case 13: run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{},std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    case 14: run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+    default: error->all(FLERR, "Internal dispatch error in pair oxdna/excv/kk");
   }
 
   if (need_dup) {
