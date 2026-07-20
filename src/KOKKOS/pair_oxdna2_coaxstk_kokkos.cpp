@@ -51,6 +51,9 @@ PairOxdna2CoaxstkKokkos<DeviceType>::PairOxdna2CoaxstkKokkos(LAMMPS *lmp) : Pair
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
+  oxdnaflag = EnabledOXDNAFlag::OXDNA2;
+  fix_oxdna_lrfKK = nullptr;
+  fix_oxdna_npairKK = nullptr;
   screened_pair_count = 0;
 }
 
@@ -136,6 +139,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   // d_n(x/z)_xtrct = extracted local unit vectors in lab frame from fix_oxdna_lrf_kokkos.
   d_nx_xtrct = fix_oxdna_lrfKK->k_nx.template view<DeviceType>();
+  d_ny_xtrct = fix_oxdna_lrfKK->k_ny.template view<DeviceType>();
   d_nz_xtrct = fix_oxdna_lrfKK->k_nz.template view<DeviceType>();
 
   // If we're on a GPU, look up fix_oxdna_npairKK screened pair count and packed pair view.
@@ -148,64 +152,70 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   EV_FLOAT ev;
 
-  // "run_compute" is just a little helper for CPU/GPU dispatch to improve code readability.
-  // It removes an extra if statement from each of the typical compute functor calls.
-  auto run_compute = [&](auto host_tag, auto gpu_tag, const bool use_reduce) {
-    if (execution_space == HostKK) {
-      if (use_reduce) {
-        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this,ev);
-      } else {
-        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum),*this);
-      }
+  auto run_compute_host = [&](auto host_tag, auto evflag_tag) {
+    if constexpr (decltype(evflag_tag)::value) {
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum), *this, ev);
     } else {
-      if (use_reduce) {
-        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this,ev);
-      } else {
-        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count),*this);
-      }
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(host_tag)>(0,anum), *this);
     }
   };
 
-  if (evflag) {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALF,1,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALF,1,1>{}, true);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALF,0,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALF,0,1>{}, true);
-      }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALFTHREAD,1,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALFTHREAD,1,1>{}, true);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALFTHREAD,0,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALFTHREAD,0,1>{}, true);
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<FULL,1,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<FULL,1,1>{}, true);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<FULL,0,1>{}, TagPairOxdna2CoaxstkComputeGPUPair<FULL,0,1>{}, true);
-      }
+  auto run_compute_gpu = [&](auto gpu_tag, auto evflag_tag) {
+    if constexpr (decltype(evflag_tag)::value) {
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count), *this, ev);
+    } else {
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, decltype(gpu_tag)>(0,screened_pair_count), *this);
     }
-  } else {
-    if (neighflag == HALF) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALF,1,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALF,1,0>{}, false);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALF,0,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALF,0,0>{}, false);
-      }
-    } else if (neighflag == HALFTHREAD) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALFTHREAD,1,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALFTHREAD,1,0>{}, false);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<HALFTHREAD,0,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<HALFTHREAD,0,0>{}, false);
-      }
-    } else if (neighflag == FULL) {
-      if (newton_pair) {
-        run_compute(TagPairOxdna2CoaxstkCompute<FULL,1,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<FULL,1,0>{}, false);
-      } else {
-        run_compute(TagPairOxdna2CoaxstkCompute<FULL,0,0>{}, TagPairOxdna2CoaxstkComputeGPUPair<FULL,0,0>{}, false);
-      }
+  };
+
+  auto run_compute_by_oxdnaflag = [&](auto oxdnaflag_tag, auto neighflag_tag, auto newtonpair_tag, auto evflag_tag) {
+    if (execution_space == HostKK) {
+      run_compute_host(TagPairOxdna2CoaxstkCompute<oxdnaflag_tag.value,neighflag_tag.value,newtonpair_tag.value,evflag_tag.value>{}, evflag_tag);
+    } else {
+      run_compute_gpu(TagPairOxdna2CoaxstkComputeGPUPair<oxdnaflag_tag.value,neighflag_tag.value,newtonpair_tag.value,evflag_tag.value>{}, evflag_tag);
     }
+  };
+
+  const int dispatch_neigh = (neighflag == HALF) ? 0 : (neighflag == HALFTHREAD) ? 1 : 2;
+  const int dispatch_key = (evflag ? 8 : 0) | (newton_pair ? 4 : 0) | dispatch_neigh;
+
+  switch (oxdnaflag) {
+    case EnabledOXDNAFlag::OXDNA2:
+      switch (dispatch_key) {
+        case 0: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 1: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 2: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,FULL>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 4: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 5: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 6: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,FULL>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 8: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 9: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 10: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,FULL>{},      std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 12: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALF>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        case 13: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,HALFTHREAD>{},std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        case 14: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA2>{}, std::integral_constant<int,FULL>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        default: error->all(FLERR,"Illegal pair_style command");
+      }
+      break;
+    case EnabledOXDNAFlag::OXDNA3:
+      switch (dispatch_key) {
+        case 0: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 1: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 2: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,FULL>{},       std::integral_constant<int,0>{}, std::integral_constant<int,0>{}); break;
+        case 4: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 5: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 6: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,FULL>{},       std::integral_constant<int,1>{}, std::integral_constant<int,0>{}); break;
+        case 8: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALF>{},       std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 9: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 10: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,FULL>{},      std::integral_constant<int,0>{}, std::integral_constant<int,1>{}); break;
+        case 12: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALF>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        case 13: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,HALFTHREAD>{},std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        case 14: run_compute_by_oxdnaflag(std::integral_constant<int,OXDNA3>{}, std::integral_constant<int,FULL>{},      std::integral_constant<int,1>{}, std::integral_constant<int,1>{}); break;
+        default: error->all(FLERR,"Illegal pair_style command");
+      }
+      break;
+    default:
+      error->all(FLERR,"Illegal pair_style command");
   }
 
   if (need_dup) {
@@ -255,9 +265,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 -------------------------------------------------------------------------- */
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ia, EV_FLOAT &ev) const
 {
   // f and torque array are duplicated for OpenMP, atomic for GPU, and neither for Serial
@@ -294,15 +304,29 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   if (id3p(a) != -1 && id5p(a) != -1) return;
 
   // vector COM-backbone site a, COM-stacking site a
-  // TODO: for oxDNA3, will need to template these
-  constexpr KK_FLOAT d_cbk=-0.4;
-  constexpr KK_FLOAT d_cstk=+0.34;
-  ra_cbk[0] = d_cbk*d_nx_xtrct(a,0);
-  ra_cbk[1] = d_cbk*d_nx_xtrct(a,1);
-  ra_cbk[2] = d_cbk*d_nx_xtrct(a,2);
-  ra_cstk[0] = d_cstk*d_nx_xtrct(a,0);
-  ra_cstk[1] = d_cstk*d_nx_xtrct(a,1);
-  ra_cstk[2] = d_cstk*d_nx_xtrct(a,2);
+  if constexpr (OXDNAFLAG==OXDNA2) {
+    constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+    constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+    ra_cbk[0] = dx_cbk_oxdna2*d_nx_xtrct(a,0) + dy_cbk_oxdna2*d_ny_xtrct(a,0);
+    ra_cbk[1] = dx_cbk_oxdna2*d_nx_xtrct(a,1) + dy_cbk_oxdna2*d_ny_xtrct(a,1);
+    ra_cbk[2] = dx_cbk_oxdna2*d_nx_xtrct(a,2) + dy_cbk_oxdna2*d_ny_xtrct(a,2);
+    constexpr KK_FLOAT dx_cstk_oxdna1 = +0.34;  // oxDNA2 uses same stacking site as oxDNA1
+    ra_cstk[0] = dx_cstk_oxdna1*d_nx_xtrct(a,0);
+    ra_cstk[1] = dx_cstk_oxdna1*d_nx_xtrct(a,1);
+    ra_cstk[2] = dx_cstk_oxdna1*d_nx_xtrct(a,2);
+  } else if constexpr (OXDNAFLAG==OXDNA3) {
+    // oxDNA3 uses same backbone site as oxDNA2...
+    constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+    constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+    ra_cbk[0] = dx_cbk_oxdna2*d_nx_xtrct(a,0) + dy_cbk_oxdna2*d_ny_xtrct(a,0);
+    ra_cbk[1] = dx_cbk_oxdna2*d_nx_xtrct(a,1) + dy_cbk_oxdna2*d_ny_xtrct(a,1);
+    ra_cbk[2] = dx_cbk_oxdna2*d_nx_xtrct(a,2) + dy_cbk_oxdna2*d_ny_xtrct(a,2);
+    // ...But the stacking site is different for oxDNA3.
+    constexpr KK_FLOAT dx_cstk_oxdna3 = +0.37;
+    ra_cstk[0] = dx_cstk_oxdna3*d_nx_xtrct(a,0);
+    ra_cstk[1] = dx_cstk_oxdna3*d_nx_xtrct(a,1);
+    ra_cstk[2] = dx_cstk_oxdna3*d_nx_xtrct(a,2);
+  }
   
   const int bnum = d_numneigh(a);
 
@@ -316,11 +340,30 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // b has to be terminal nucleotide
     if(id3p(b)!=-1 && id5p(b)!=-1) continue;
 
-    // vector COM b - stacking site b
-    // TODO: for oxDNA3, will need to template these
-    rb_cstk[0] = d_cstk*d_nx_xtrct(b,0);
-    rb_cstk[1] = d_cstk*d_nx_xtrct(b,1);
-    rb_cstk[2] = d_cstk*d_nx_xtrct(b,2);
+    // vector COM-backbone site b, COM-stacking site b
+    if constexpr (OXDNAFLAG==OXDNA2) {
+      constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+      constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+      rb_cbk[0] = dx_cbk_oxdna2*d_nx_xtrct(b,0) + dy_cbk_oxdna2*d_ny_xtrct(b,0);
+      rb_cbk[1] = dx_cbk_oxdna2*d_nx_xtrct(b,1) + dy_cbk_oxdna2*d_ny_xtrct(b,1);
+      rb_cbk[2] = dx_cbk_oxdna2*d_nx_xtrct(b,2) + dy_cbk_oxdna2*d_ny_xtrct(b,2);
+      constexpr KK_FLOAT dx_cstk_oxdna1 = +0.34;  // oxDNA2 uses same stacking site as oxDNA1
+      rb_cstk[0] = dx_cstk_oxdna1*d_nx_xtrct(b,0);
+      rb_cstk[1] = dx_cstk_oxdna1*d_nx_xtrct(b,1);
+      rb_cstk[2] = dx_cstk_oxdna1*d_nx_xtrct(b,2);
+    } else if constexpr (OXDNAFLAG==OXDNA3) {
+      // oxDNA3 uses same backbone site as oxDNA2...
+      constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+      constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+      rb_cbk[0] = dx_cbk_oxdna2*d_nx_xtrct(b,0) + dy_cbk_oxdna2*d_ny_xtrct(b,0);
+      rb_cbk[1] = dx_cbk_oxdna2*d_nx_xtrct(b,1) + dy_cbk_oxdna2*d_ny_xtrct(b,1);
+      rb_cbk[2] = dx_cbk_oxdna2*d_nx_xtrct(b,2) + dy_cbk_oxdna2*d_ny_xtrct(b,2);
+      // ...But the stacking site is different for oxDNA3.
+      constexpr KK_FLOAT dx_cstk_oxdna3 = +0.37;
+      rb_cstk[0] = dx_cstk_oxdna3*d_nx_xtrct(b,0);
+      rb_cstk[1] = dx_cstk_oxdna3*d_nx_xtrct(b,1);
+      rb_cstk[2] = dx_cstk_oxdna3*d_nx_xtrct(b,2);
+    }
 
     // vector stacking site b to a
     delr_stkstk[0] = x(a,0) + ra_cstk[0] - x(b,0) - rb_cstk[0];
@@ -334,12 +377,6 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     delr_stkstk_norm[0] = delr_stkstk[0] * rinv_stkstk;
     delr_stkstk_norm[1] = delr_stkstk[1] * rinv_stkstk;
     delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
-
-    // vector COM b - backbone site b
-    // TODO: for oxDNA3, will need to template these
-    rb_cbk[0] = d_cbk*d_nx_xtrct(b,0);
-    rb_cbk[1] = d_cbk*d_nx_xtrct(b,1);
-    rb_cbk[2] = d_cbk*d_nx_xtrct(b,2);
 
     // vector backbone site b to a
     delr_bkbk[0] = x(a,0) + ra_cbk[0] - x(b,0) - rb_cbk[0];
@@ -621,14 +658,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 }
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ia) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
-  (TagPairOxdna2CoaxstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ia,ev);
+  this->template operator()<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
+  (TagPairOxdna2CoaxstkCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ia,ev);
 }
 
 /* ----------------------------------------------------------------------
@@ -902,9 +939,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ipair, EV_FLOAT &ev) const
 {
   // f and torque array are duplicated for OpenMP, atomic for GPU, and neither for Serial
@@ -954,25 +991,45 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   // single loads for local axes to reduce repeated global reads
   const KK_FLOAT a_nx_loc[3] = { d_nx_xtrct(a,0), d_nx_xtrct(a,1), d_nx_xtrct(a,2) };
   const KK_FLOAT b_nx_loc[3] = { d_nx_xtrct(b,0), d_nx_xtrct(b,1), d_nx_xtrct(b,2) };
-  const KK_FLOAT a_nz_loc[3] = { d_nz_xtrct(a,0), d_nz_xtrct(a,1), d_nz_xtrct(a,2) };
-  const KK_FLOAT b_nz_loc[3] = { d_nz_xtrct(b,0), d_nz_xtrct(b,1), d_nz_xtrct(b,2) };
+  const KK_FLOAT a_ny_loc[3] = { d_ny_xtrct(a,0), d_ny_xtrct(a,1), d_ny_xtrct(a,2) };
+  const KK_FLOAT b_ny_loc[3] = { d_ny_xtrct(b,0), d_ny_xtrct(b,1), d_ny_xtrct(b,2) };
 
-  // vector COM-backbone site a, COM-stacking site a
-  // TODO: for oxDNA3, will need to template these
-  constexpr KK_FLOAT d_cbk=-0.4;
-  constexpr KK_FLOAT d_cstk=+0.34;
-  ra_cstk[0] = d_cstk*a_nx_loc[0];
-  ra_cstk[1] = d_cstk*a_nx_loc[1];
-  ra_cstk[2] = d_cstk*a_nx_loc[2];
-  ra_cbk[0] = d_cbk*a_nx_loc[0];
-  ra_cbk[1] = d_cbk*a_nx_loc[1];
-  ra_cbk[2] = d_cbk*a_nx_loc[2];
-  rb_cstk[0] = d_cstk*b_nx_loc[0];
-  rb_cstk[1] = d_cstk*b_nx_loc[1];
-  rb_cstk[2] = d_cstk*b_nx_loc[2];
-  rb_cbk[0] = d_cbk*b_nx_loc[0];
-  rb_cbk[1] = d_cbk*b_nx_loc[1];
-  rb_cbk[2] = d_cbk*b_nx_loc[2];
+  // vector COM-backbone site [a/b], COM-stacking site [a/b]
+  if constexpr (OXDNAFLAG==OXDNA2) {
+    constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+    constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+    ra_cbk[0] = dx_cbk_oxdna2*a_nx_loc[0] + dy_cbk_oxdna2*a_ny_loc[0];
+    ra_cbk[1] = dx_cbk_oxdna2*a_nx_loc[1] + dy_cbk_oxdna2*a_ny_loc[1];
+    ra_cbk[2] = dx_cbk_oxdna2*a_nx_loc[2] + dy_cbk_oxdna2*a_ny_loc[2];
+    rb_cbk[0] = dx_cbk_oxdna2*b_nx_loc[0] + dy_cbk_oxdna2*b_ny_loc[0];
+    rb_cbk[1] = dx_cbk_oxdna2*b_nx_loc[1] + dy_cbk_oxdna2*b_ny_loc[1];
+    rb_cbk[2] = dx_cbk_oxdna2*b_nx_loc[2] + dy_cbk_oxdna2*b_ny_loc[2];
+    constexpr KK_FLOAT dx_cstk_oxdna1 = +0.34;  // oxDNA2 uses same stacking site as oxDNA1
+    ra_cstk[0] = dx_cstk_oxdna1*a_nx_loc[0];
+    ra_cstk[1] = dx_cstk_oxdna1*a_nx_loc[1];
+    ra_cstk[2] = dx_cstk_oxdna1*a_nx_loc[2];
+    rb_cstk[0] = dx_cstk_oxdna1*b_nx_loc[0];
+    rb_cstk[1] = dx_cstk_oxdna1*b_nx_loc[1];
+    rb_cstk[2] = dx_cstk_oxdna1*b_nx_loc[2];
+  } else if constexpr (OXDNAFLAG==OXDNA3) {
+    // oxDNA3 uses same backbone site as oxDNA2...
+    constexpr KK_FLOAT dx_cbk_oxdna2 = -0.34;
+    constexpr KK_FLOAT dy_cbk_oxdna2 = +0.3408;
+    ra_cbk[0] = dx_cbk_oxdna2*a_nx_loc[0] + dy_cbk_oxdna2*a_ny_loc[0];
+    ra_cbk[1] = dx_cbk_oxdna2*a_nx_loc[1] + dy_cbk_oxdna2*a_ny_loc[1];
+    ra_cbk[2] = dx_cbk_oxdna2*a_nx_loc[2] + dy_cbk_oxdna2*a_ny_loc[2];
+    rb_cbk[0] = dx_cbk_oxdna2*b_nx_loc[0] + dy_cbk_oxdna2*b_ny_loc[0];
+    rb_cbk[1] = dx_cbk_oxdna2*b_nx_loc[1] + dy_cbk_oxdna2*b_ny_loc[1];
+    rb_cbk[2] = dx_cbk_oxdna2*b_nx_loc[2] + dy_cbk_oxdna2*b_ny_loc[2];
+    // ...But the stacking site is different for oxDNA3.
+    constexpr KK_FLOAT dx_cstk_oxdna3 = +0.37;
+    ra_cstk[0] = dx_cstk_oxdna3*a_nx_loc[0];
+    ra_cstk[1] = dx_cstk_oxdna3*a_nx_loc[1];
+    ra_cstk[2] = dx_cstk_oxdna3*a_nx_loc[2];
+    rb_cstk[0] = dx_cstk_oxdna3*b_nx_loc[0];
+    rb_cstk[1] = dx_cstk_oxdna3*b_nx_loc[1];
+    rb_cstk[2] = dx_cstk_oxdna3*b_nx_loc[2];
+  }
 
   // vector stacking site b to a
   // stkstk is needed for theta5/6 and radial terms, so we do not scope out....
@@ -986,6 +1043,9 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   delr_stkstk_norm[1] = delr_stkstk[1] * rinv_stkstk;
   delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
   // .... but bkbk (vector backbone site b to a) is only needed for cosphi3, so we scope out to reduce register pressure
+
+  const KK_FLOAT a_nz_loc[3] = { d_nz_xtrct(a,0), d_nz_xtrct(a,1), d_nz_xtrct(a,2) };
+  const KK_FLOAT b_nz_loc[3] = { d_nz_xtrct(b,0), d_nz_xtrct(b,1), d_nz_xtrct(b,2) };
 
   // beginning of modulation factors
   if (!coaxstk_theta1_terms(atype,btype,a_nx_loc,b_nx_loc,theta1,theta1p,f4f6t1,df4f6t1)) return;
@@ -1072,14 +1132,14 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
 }
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ipair) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
-  (TagPairOxdna2CoaxstkComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ipair,ev);
+  this->template operator()<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
+  (TagPairOxdna2CoaxstkComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ipair,ev);
 }
 
 /* ---------------------------------------------------------------------- */

@@ -38,6 +38,7 @@ class PairOxdna3CoaxstkKokkos : public PairOxdna2CoaxstkKokkos<DeviceType> {
 template<class DeviceType>
 PairOxdna3CoaxstkKokkos<DeviceType>::PairOxdna3CoaxstkKokkos(LAMMPS *lmp) : PairOxdna2CoaxstkKokkos<DeviceType>(lmp)
 {
+  this->oxdnaflag = PairOxdna2CoaxstkKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
   PairOxdna3Coaxstk::init_eta_cxst_oxdna3(this);
 }
 

@@ -36,10 +36,10 @@ class FixOxdnaLRFKokkos;  // forward declaration
 template<class DeviceType>
 class FixOxdnaNpairKokkos;  // forward declaration
 
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 struct TagPairOxdna2CoaxstkCompute{};
 
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 struct TagPairOxdna2CoaxstkComputeGPUPair{};
 
 template<class DeviceType>
@@ -59,25 +59,25 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
 
   // Standard non-GPU Compute Functor(s). 1 with EV_FLOAT, 1 without.
 
-  template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+  template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdna2CoaxstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&, EV_FLOAT&) const;
+  void operator()(TagPairOxdna2CoaxstkCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&, EV_FLOAT&) const;
 
-  template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+  template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdna2CoaxstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&) const;
+  void operator()(TagPairOxdna2CoaxstkCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&) const;
 
   // GPU ComputeGPUPair Functor(s). 1 with EV_FLOAT, 1 without.
 
-  template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+  template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdna2CoaxstkComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&, EV_FLOAT&) const;
+  void operator()(TagPairOxdna2CoaxstkComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&, EV_FLOAT&) const;
 
-  template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+  template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdna2CoaxstkComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&) const;
+  void operator()(TagPairOxdna2CoaxstkComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, const int&) const;
 
   template<int NEIGHFLAG, int NEWTON_PAIR>
   KOKKOS_INLINE_FUNCTION
@@ -89,6 +89,9 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
   int sbmask(const int& j) const;
 
  protected:
+
+  int oxdnaflag;
+  enum EnabledOXDNAFlag{OXDNA2=1,OXDNA3=2};
 
   typename AT::t_kkfloat_1d_3_lr_randomread x;
   typename AT::t_kkacc_1d_3 f;
@@ -146,9 +149,9 @@ class PairOxdna2CoaxstkKokkos : public PairOxdna2Coaxstk, public KokkosBase {
   typename AT::t_kkfloat_2d_randomread d_a_cxst6, d_theta_cxst6_0, d_dtheta_cxst6_ast;
   typename AT::t_kkfloat_2d_randomread d_b_cxst6, d_dtheta_cxst6_c;
   typename AT::t_kkfloat_2d_randomread d_AA_cxst1, d_BB_cxst1;
-  // per-atom arrays for local unit vectors - ny not needed here
-  DAT::tdual_kkfloat_1d_3 k_nx_xtrct, /*k_ny_xtrct,*/ k_nz_xtrct;
-  typename AT::t_kkfloat_1d_3_randomread d_nx_xtrct, /*d_ny_xtrct,*/ d_nz_xtrct;
+  // per-atom arrays for local unit vectors
+  DAT::tdual_kkfloat_1d_3 k_nx_xtrct, k_ny_xtrct, k_nz_xtrct;
+  typename AT::t_kkfloat_1d_3_randomread d_nx_xtrct, d_ny_xtrct, d_nz_xtrct;
   typename AT::t_tagint_1d_randomread id5p;
   typename AT::t_tagint_1d_randomread id3p;
 
