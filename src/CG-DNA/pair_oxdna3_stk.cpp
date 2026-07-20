@@ -69,7 +69,7 @@ PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 {
   // sequence-specific stacking strength
   // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
-//
+  //
   // Moved 'eta_st' settings to static helper function since KOKKOS class of oxdna3/stk
   // inherits from PairOxdnaStk only, so cannot call this constructor to set
   // the eta_st values. Instead, we call this static function from the
