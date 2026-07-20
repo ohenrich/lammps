@@ -294,11 +294,27 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
   KK_FLOAT df1,df4t1,df4t4,df4t2,df4t3,df4t7,df4t8;
 
   // vector COM-hbond site a
-  constexpr KK_FLOAT d_chb=+0.4;
-  ra_chb[0] = d_chb*d_nx_xtrct(a,0);
-  ra_chb[1] = d_chb*d_nx_xtrct(a,1);
-  ra_chb[2] = d_chb*d_nx_xtrct(a,2);
-  
+  if (OXDNAFLAG == OXDNA) {
+    // Used for oxdna1 and oxdna2, which have the same hbond site offset.
+    constexpr KK_FLOAT dx_cbs_oxdna1=+0.4;
+    ra_chb[0] = dx_cbs_oxdna1*d_nx_xtrct(a,0);
+    ra_chb[1] = dx_cbs_oxdna1*d_nx_xtrct(a,1);
+    ra_chb[2] = dx_cbs_oxdna1*d_nx_xtrct(a,2);
+  } else if (OXDNAFLAG == OXDNA3) {
+    constexpr KK_FLOAT dx_cbs_pur_oxdna3 = +0.43;
+    constexpr KK_FLOAT dx_cbs_pyr_oxdna3 = +0.37;
+    int nucl_acid = (atype%4);
+    if (nucl_acid==0 || nucl_acid==2) {  // pyrimdine (C or T)
+      ra_chb[0] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,0);
+      ra_chb[1] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,1);
+      ra_chb[2] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,2);
+    } else {  // purine (A or G)
+      ra_chb[0] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,0);
+      ra_chb[1] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,1);
+      ra_chb[2] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,2);
+    }
+  }
+
   const int bnum = d_numneigh(a);
 
   for (int ib = 0; ib < bnum; ib++) {
@@ -309,9 +325,26 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
     const int btype = type(b);
 
     // vector COM-hbond site b
-    rb_chb[0] = d_chb*d_nx_xtrct(b,0);
-    rb_chb[1] = d_chb*d_nx_xtrct(b,1);
-    rb_chb[2] = d_chb*d_nx_xtrct(b,2);
+    if (OXDNAFLAG == OXDNA) {
+      // Used for oxdna1 and oxdna2, which have the same hbond site offset.
+      constexpr KK_FLOAT dx_cbs_oxdna1=+0.4;
+      rb_chb[0] = dx_cbs_oxdna1*d_nx_xtrct(b,0);
+      rb_chb[1] = dx_cbs_oxdna1*d_nx_xtrct(b,1);
+      rb_chb[2] = dx_cbs_oxdna1*d_nx_xtrct(b,2);
+    } else if (OXDNAFLAG == OXDNA3) {
+      constexpr KK_FLOAT dx_cbs_pur_oxdna3 = +0.43;
+      constexpr KK_FLOAT dx_cbs_pyr_oxdna3 = +0.37;
+      int nucl_acid = (btype%4);
+      if (nucl_acid==0 || nucl_acid==2) {  // pyrimdine (C or T)
+        rb_chb[0] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,0);
+        rb_chb[1] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,1);
+        rb_chb[2] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,2);
+      } else {  // purine (A or G)
+        rb_chb[0] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,0);
+        rb_chb[1] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,1);
+        rb_chb[2] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,2);
+      }
+    }
 
     // vector h-bonding site b-a
     delr_hb[0] = x(a,0) + ra_chb[0] - x(b,0) - rb_chb[0];
@@ -1060,14 +1093,40 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPai
   b_nz[1] = d_nz_xtrct(b,1);
   b_nz[2] = d_nz_xtrct(b,2);
 
-  constexpr KK_FLOAT d_chb=+0.4;
-  ra_chb[0] = d_chb*a_nx[0];
-  ra_chb[1] = d_chb*a_nx[1];
-  ra_chb[2] = d_chb*a_nx[2];
-
-  rb_chb[0] = d_chb*b_nx[0];
-  rb_chb[1] = d_chb*b_nx[1];
-  rb_chb[2] = d_chb*b_nx[2];
+  // vector COM-hbond site a and b
+  if (OXDNAFLAG == OXDNA) {
+    // Used for oxdna1 and oxdna2, which have the same hbond site offset.
+    constexpr KK_FLOAT dx_cbs_oxdna1=+0.4;
+    ra_chb[0] = dx_cbs_oxdna1*d_nx_xtrct(a,0);
+    ra_chb[1] = dx_cbs_oxdna1*d_nx_xtrct(a,1);
+    ra_chb[2] = dx_cbs_oxdna1*d_nx_xtrct(a,2);
+    rb_chb[0] = dx_cbs_oxdna1*d_nx_xtrct(b,0);
+    rb_chb[1] = dx_cbs_oxdna1*d_nx_xtrct(b,1);
+    rb_chb[2] = dx_cbs_oxdna1*d_nx_xtrct(b,2);
+  } else if (OXDNAFLAG == OXDNA3) {
+    constexpr KK_FLOAT dx_cbs_pur_oxdna3 = +0.43;
+    constexpr KK_FLOAT dx_cbs_pyr_oxdna3 = +0.37;
+    int nucl_acid = (atype%4);
+    if (nucl_acid==0 || nucl_acid==2) {  // pyrimdine (C or T)
+      ra_chb[0] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,0);
+      ra_chb[1] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,1);
+      ra_chb[2] = dx_cbs_pyr_oxdna3*d_nx_xtrct(a,2);
+    } else {  // purine (A or G)
+      ra_chb[0] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,0);
+      ra_chb[1] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,1);
+      ra_chb[2] = dx_cbs_pur_oxdna3*d_nx_xtrct(a,2);
+    }
+    nucl_acid = (btype%4);
+    if (nucl_acid==0 || nucl_acid==2) {  // pyrimdine (C or T)
+      rb_chb[0] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,0);
+      rb_chb[1] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,1);
+      rb_chb[2] = dx_cbs_pyr_oxdna3*d_nx_xtrct(b,2);
+    } else {  // purine (A or G)
+      rb_chb[0] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,0);
+      rb_chb[1] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,1);
+      rb_chb[2] = dx_cbs_pur_oxdna3*d_nx_xtrct(b,2);
+    }
+  }
 
   delr_hb[0] = x(a,0) + ra_chb[0] - x(b,0) - rb_chb[0];
   delr_hb[1] = x(a,1) + ra_chb[1] - x(b,1) - rb_chb[1];
