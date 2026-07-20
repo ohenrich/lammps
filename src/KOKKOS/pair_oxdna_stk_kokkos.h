@@ -38,7 +38,7 @@ class FixOxdnaLRFKokkos;  // forward declaration
 template<class DeviceType>
 class FixOxdnaPrimeNeighsKokkos;  // forward declaration
 
-template<int NEWTON_BOND, int EVFLAG>
+template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 struct TagPairOxdnaStkCompute{};
 
 template<class DeviceType>
@@ -55,15 +55,15 @@ class PairOxdnaStkKokkos : public PairOxdnaStk, public KokkosBase {
   void init_style() override;
   double init_one(int, int) override;
 
-  template<int NEWTON_BOND, int EVFLAG>
+  template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdnaStkCompute<NEWTON_BOND,EVFLAG>, const int&, EV_FLOAT&) const;
+  void operator()(TagPairOxdnaStkCompute<OXDNAFLAG,NEWTON_BOND,EVFLAG>, const int&, EV_FLOAT&) const;
 
-  template<int NEWTON_BOND, int EVFLAG>
+  template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void operator()(TagPairOxdnaStkCompute<NEWTON_BOND,EVFLAG>, const int&) const;
+  void operator()(TagPairOxdnaStkCompute<OXDNAFLAG,NEWTON_BOND,EVFLAG>, const int&) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION

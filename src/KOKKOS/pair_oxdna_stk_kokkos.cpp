@@ -115,15 +115,31 @@ void PairOxdnaStkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   if (evflag) {
     if (newton_bond) {
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<1,1> >(0,nbondlist),*this,ev);
+      if (oxdnaflag==OXDNA) {
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA,1,1> >(0,nbondlist),*this,ev);
+      } else if (oxdnaflag==OXDNA3) {
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA3,1,1> >(0,nbondlist),*this,ev);
+      }
     } else {
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<0,1> >(0,nbondlist),*this,ev);
+      if (oxdnaflag==OXDNA) {
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA,0,1> >(0,nbondlist),*this,ev);
+      } else if (oxdnaflag==OXDNA3) {
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA3,0,1> >(0,nbondlist),*this,ev);
+      }
     }
   } else {
     if (newton_bond) {
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<1,0> >(0,nbondlist),*this);
+      if (oxdnaflag==OXDNA) {
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA,1,0> >(0,nbondlist),*this);
+      } else if (oxdnaflag==OXDNA3) {
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA3,1,0> >(0,nbondlist),*this);
+      }
     } else {
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<0,0> >(0,nbondlist),*this);
+      if (oxdnaflag==OXDNA) {
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA,0,0> >(0,nbondlist),*this);
+      } else if (oxdnaflag==OXDNA3) {
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaStkCompute<OXDNA3,0,0> >(0,nbondlist),*this);
+      }
     }
   }
 
@@ -163,9 +179,9 @@ void PairOxdnaStkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 }
 
 template<class DeviceType>
-template<int NEWTON_BOND, int EVFLAG>
+template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BOND,EVFLAG>, \
+void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG,NEWTON_BOND,EVFLAG>, \
   const int &in, EV_FLOAT &ev) const
 {
   // The f and torque arrays are atomic
@@ -196,13 +212,24 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
   KK_FLOAT df1,df4t4,df4t5,df4t6,df5c1,df5c2;
 
   // vector COM [a/b] - stacking site [a/b]
-  constexpr KK_FLOAT d_cst = +0.34;
-  ra_cstk[0] = d_cst * d_nx_xtrct(a,0);
-  ra_cstk[1] = d_cst * d_nx_xtrct(a,1);
-  ra_cstk[2] = d_cst * d_nx_xtrct(a,2);
-  rb_cstk[0] = d_cst * d_nx_xtrct(b,0);
-  rb_cstk[1] = d_cst * d_nx_xtrct(b,1);
-  rb_cstk[2] = d_cst * d_nx_xtrct(b,2);
+  if constexpr (OXDNAFLAG==OXDNA) { 
+    // Used for oxDNA[1] and oxDNA2, but not oxDNA3
+    constexpr KK_FLOAT dx_cstk_oxdna1 = +0.34;
+    ra_cstk[0] = dx_cstk_oxdna1 * d_nx_xtrct(a,0);
+    ra_cstk[1] = dx_cstk_oxdna1 * d_nx_xtrct(a,1);
+    ra_cstk[2] = dx_cstk_oxdna1 * d_nx_xtrct(a,2);
+    rb_cstk[0] = dx_cstk_oxdna1 * d_nx_xtrct(b,0);
+    rb_cstk[1] = dx_cstk_oxdna1 * d_nx_xtrct(b,1);
+    rb_cstk[2] = dx_cstk_oxdna1 * d_nx_xtrct(b,2);
+  } else if constexpr (OXDNAFLAG==OXDNA3) {
+    constexpr KK_FLOAT dx_cstk_oxdna3 = +0.37;
+    ra_cstk[0] = dx_cstk_oxdna3 * d_nx_xtrct(a,0);
+    ra_cstk[1] = dx_cstk_oxdna3 * d_nx_xtrct(a,1);
+    ra_cstk[2] = dx_cstk_oxdna3 * d_nx_xtrct(a,2);
+    rb_cstk[0] = dx_cstk_oxdna3 * d_nx_xtrct(b,0);
+    rb_cstk[1] = dx_cstk_oxdna3 * d_nx_xtrct(b,1);
+    rb_cstk[2] = dx_cstk_oxdna3 * d_nx_xtrct(b,2);
+  }
 
   // vector stacking site a to b
   delr_stkstk[0] = x(b,0) + rb_cstk[0] - x(a,0) - ra_cstk[0];
@@ -232,13 +259,25 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
   delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
   // vector COM [a/b] - backbone site [a/b]
-  constexpr KK_FLOAT d_cs = -0.4;
-  ra_cbk[0] = d_cs * d_nx_xtrct(a,0);
-  ra_cbk[1] = d_cs * d_nx_xtrct(a,1);
-  ra_cbk[2] = d_cs * d_nx_xtrct(a,2);
-  rb_cbk[0] = d_cs * d_nx_xtrct(b,0);
-  rb_cbk[1] = d_cs * d_nx_xtrct(b,1);
-  rb_cbk[2] = d_cs * d_nx_xtrct(b,2);
+  if constexpr (OXDNAFLAG==OXDNA) { 
+    // Used for oxDNA[1] and oxDNA2, but not oxDNA3
+    constexpr KK_FLOAT dx_cbk_oxdna1 = -0.4;
+    ra_cbk[0] = dx_cbk_oxdna1 * d_nx_xtrct(a,0);
+    ra_cbk[1] = dx_cbk_oxdna1 * d_nx_xtrct(a,1);
+    ra_cbk[2] = dx_cbk_oxdna1 * d_nx_xtrct(a,2);
+    rb_cbk[0] = dx_cbk_oxdna1 * d_nx_xtrct(b,0);
+    rb_cbk[1] = dx_cbk_oxdna1 * d_nx_xtrct(b,1);
+    rb_cbk[2] = dx_cbk_oxdna1 * d_nx_xtrct(b,2);
+  } else if constexpr (OXDNAFLAG==OXDNA3) {
+    // Used for oxDNA3
+    constexpr KK_FLOAT dx_cbk_oxdna3 = -0.4;
+    ra_cbk[0] = dx_cbk_oxdna3 * d_nx_xtrct(a,0);
+    ra_cbk[1] = dx_cbk_oxdna3 * d_nx_xtrct(a,1);
+    ra_cbk[2] = dx_cbk_oxdna3 * d_nx_xtrct(a,2);
+    rb_cbk[0] = dx_cbk_oxdna3 * d_nx_xtrct(b,0);
+    rb_cbk[1] = dx_cbk_oxdna3 * d_nx_xtrct(b,1);
+    rb_cbk[2] = dx_cbk_oxdna3 * d_nx_xtrct(b,2);
+  }
 
   // vector backbone site a to b
   delr_bkbk[0] = x(b,0) + rb_cbk[0] - x(a,0) - ra_cbk[0];
@@ -551,14 +590,14 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BO
 }
 
 template<class DeviceType>
-template<int NEWTON_BOND, int EVFLAG>
+template<int OXDNAFLAG, int NEWTON_BOND, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<NEWTON_BOND,EVFLAG>, \
+void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG,NEWTON_BOND,EVFLAG>, \
   const int &in) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEWTON_BOND,EVFLAG>\
-  (TagPairOxdnaStkCompute<NEWTON_BOND,EVFLAG>(),in,ev);
+  this->template operator()<OXDNAFLAG,NEWTON_BOND,EVFLAG>\
+  (TagPairOxdnaStkCompute<OXDNAFLAG,NEWTON_BOND,EVFLAG>(),in,ev);
 }
 
 /* ---------------------------------------------------------------------- */

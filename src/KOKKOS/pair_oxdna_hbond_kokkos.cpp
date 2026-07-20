@@ -166,44 +166,60 @@ void PairOxdnaHbondKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
     }
   };
 
+  auto run_compute_by_oxdnaflag = [&](auto neighflag_tag, auto newtonpair_tag, auto evflag_tag) {
+    constexpr int NEIGHFLAG = decltype(neighflag_tag)::value;
+    constexpr int NEWTON_PAIR = decltype(newtonpair_tag)::value;
+    constexpr int EVFLAG = decltype(evflag_tag)::value;
+
+    if (oxdnaflag == OXDNA) {
+      run_compute(TagPairOxdnaHbondCompute<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{},
+          TagPairOxdnaHbondComputeGPUPair<OXDNA,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, EVFLAG);
+    } else if (oxdnaflag == OXDNA3) {
+      run_compute(TagPairOxdnaHbondCompute<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{},
+          TagPairOxdnaHbondComputeGPUPair<OXDNA3,NEIGHFLAG,NEWTON_PAIR,EVFLAG>{}, EVFLAG);
+    } else {
+      error->all(FLERR, "Unknown OXDNA model flag in pair oxdna/hbond/kk");
+    }
+  };
+
   if (evflag) {
     if (neighflag == HALF) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<HALF,1,1>{}, TagPairOxdnaHbondComputeGPUPair<HALF,1,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<HALF,0,1>{}, TagPairOxdnaHbondComputeGPUPair<HALF,0,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
       }
     } else if (neighflag == HALFTHREAD) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<HALFTHREAD,1,1>{}, TagPairOxdnaHbondComputeGPUPair<HALFTHREAD,1,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<HALFTHREAD,0,1>{}, TagPairOxdnaHbondComputeGPUPair<HALFTHREAD,0,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
       }
     } else if (neighflag == FULL) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<FULL,1,1>{}, TagPairOxdnaHbondComputeGPUPair<FULL,1,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,1>{}, std::integral_constant<int,1>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<FULL,0,1>{}, TagPairOxdnaHbondComputeGPUPair<FULL,0,1>{}, true);
+        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,0>{}, std::integral_constant<int,1>{});
       }
     }
   } else {
     if (neighflag == HALF) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<HALF,1,0>{}, TagPairOxdnaHbondComputeGPUPair<HALF,1,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<HALF,0,0>{}, TagPairOxdnaHbondComputeGPUPair<HALF,0,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALF>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
       }
     } else if (neighflag == HALFTHREAD) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<HALFTHREAD,1,0>{}, TagPairOxdnaHbondComputeGPUPair<HALFTHREAD,1,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<HALFTHREAD,0,0>{}, TagPairOxdnaHbondComputeGPUPair<HALFTHREAD,0,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,HALFTHREAD>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
       }
     } else if (neighflag == FULL) {
       if (newton_pair) {
-        run_compute(TagPairOxdnaHbondCompute<FULL,1,0>{}, TagPairOxdnaHbondComputeGPUPair<FULL,1,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,1>{}, std::integral_constant<int,0>{});
       } else {
-        run_compute(TagPairOxdnaHbondCompute<FULL,0,0>{}, TagPairOxdnaHbondComputeGPUPair<FULL,0,0>{}, false);
+        run_compute_by_oxdnaflag(std::integral_constant<int,FULL>{}, std::integral_constant<int,0>{}, std::integral_constant<int,0>{});
       }
     }
   }
@@ -255,9 +271,9 @@ void PairOxdnaHbondKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 -------------------------------------------------------------------------- */
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ia, EV_FLOAT &ev) const
 {
   // f and torque array are duplicated for OpenMP, atomic for GPU, and neither for Serial
@@ -636,14 +652,14 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<NEIGH
 }
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ia) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
-  (TagPairOxdnaHbondCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ia,ev);
+  this->template operator()<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
+  (TagPairOxdnaHbondCompute<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ia,ev);
 }
 
 /* ----------------------------------------------------------------------
@@ -1009,9 +1025,9 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
 }
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ipair, EV_FLOAT &ev) const
 {
   auto v_f = ScatterViewHelper<NeedDup_v<NEIGHFLAG,DeviceType>,decltype(dup_f),decltype(ndup_f)>::get(dup_f,ndup_f);
@@ -1159,14 +1175,14 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPai
 }
 
 template<class DeviceType>
-template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
+template<int OXDNAFLAG, int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 KOKKOS_INLINE_FUNCTION
-void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
+void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>, \
   const int &ipair) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
-  (TagPairOxdnaHbondComputeGPUPair<NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ipair,ev);
+  this->template operator()<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>\
+  (TagPairOxdnaHbondComputeGPUPair<OXDNAFLAG,NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ipair,ev);
 }
 
 /* ---------------------------------------------------------------------- */
