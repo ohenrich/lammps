@@ -61,6 +61,15 @@ class FixOxdnaNpairKokkos : public Fix {
     if (cut_com > screen_cut_max) screen_cut_max = cut_com;
   }
 
+  // By default, screened-pair rebuild is device-only. This override lets
+  // selected styles force npair rebuilds on host backends too.
+  // Right now, only the oxdna3/xstk/kk pair style makes use of this - this was a design choice
+  // due to the need for pre-atom_mapping in KOKKOS which relies on a given neighbor list.
+  // Seems a bit daft to calculate this for both a 'normal' neighbor list
+  // and our custom oxdna npair list which would carry unwanted overhead.
+  // Hence, the option to force the rebuild on all backends.
+  void set_force_screening_all_backends(bool value) { force_screening_all_backends = value; }
+
   // Direct packed (a, b) pair lookup for coalesced access on GPUs.
   DAT::tdual_uint64_1d k_pairs_screened;
   typename AT::t_uint64_1d d_pairs_screened;
@@ -97,6 +106,7 @@ class FixOxdnaNpairKokkos : public Fix {
   int screened_max_neigh;
   double screen_cut_max;   // max COM screen cutoff requested by consuming styles (host)
   KK_FLOAT screen_cutsq;   // screen_cut_max^2, read on device by screen_pair_fast
+  bool force_screening_all_backends;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION

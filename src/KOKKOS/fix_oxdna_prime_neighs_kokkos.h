@@ -27,9 +27,14 @@ FixStyle(OXDNA/PRIME_NEIGHS/kk/host,FixOxdnaPrimeNeighsKokkos<LMPHostType>);
 
 namespace LAMMPS_NS {
 
+template<class DeviceType>
+class FixOxdnaNpairKokkos;
+
 struct TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsBond {}; // fene and stk
 
 struct TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsPair {}; // excv
+
+struct TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsOxdna3Xstk {}; // oxdna3/xstk
 
 template<class DeviceType>
 class FixOxdnaPrimeNeighsKokkos : public Fix {
@@ -47,9 +52,12 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   void setup_pre_force(int) override;
   void pre_force(int) override;
 
+  // ------ For PrimeNeighBond (fene and stk)
   // 0-3 : atom a, atom b, id3p[a], id5p[b] for each bond.
   // As per their order of being called in fene and stk compute.
   typename AT::t_int_1d_4 d_prime_neighs_bond;
+  void compute_prime_neighs_bond();
+  // ------ For PrimeNeighPair (excv)
   // 0-3 : id3p[a], id5p[b], id3p[b], id5p[a] for each pair.
   // As per their order of being called in excv compute.
   // Layout matches the native neighlist walk: d_prime_neighs_pair(a,ib,0-3).
@@ -57,8 +65,18 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   // its compute() using the pair's own neighbor list.
   DAT::tdual_int_3d k_prime_neighs_pair;
   typename AT::t_int_3d d_prime_neighs_pair;
-
   void compute_prime_neighs_pair(class NeighList *neigh_list);
+  // ------ For PrimeNeighOxdna3Xstk (oxdna3/xstk/kk)
+  // 0-3 : id3p[a], id5p[b], id3p[b], id5p[a] for each pair.
+  // As per their order of being called in oxdna3/xstk compute.
+  // Layout is per screened pair index from fix_oxdna_npair_kokkos:
+  // d_prime_neighs_oxdna3_xstk(ipair,0-3), where ipair maps to the packed
+  // (a,braw) pair in npair's d_pairs_screened.
+  // Populated by compute_prime_neighs_oxdna3_xstk(), called by the pair style
+  // from its compute() using the pair's own neighbor list.
+  DAT::tdual_int_2d k_prime_neighs_oxdna3_xstk;
+  typename AT::t_int_2d d_prime_neighs_oxdna3_xstk;
+  void compute_prime_neighs_oxdna3_xstk(class NeighList *neigh_list);
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
@@ -67,6 +85,10 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   void operator()(TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsPair, const int &) const;
+
+// NOLINTNEXTLINE
+  KOKKOS_INLINE_FUNCTION
+  void operator()(TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsOxdna3Xstk, const int&) const;
 
  private:
   class NeighborKokkos *neighborKK;
@@ -82,6 +104,9 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
   typename AT::t_neighbors_2d_randomread d_neighbors;
   typename AT::t_int_1d_randomread d_alist;
   typename AT::t_int_1d_randomread d_numneigh;
+  // For PrimeNeighOxdna3Xstk (set in compute_prime_neighs_oxdna3_xstk)
+  int npairlist;
+  typename AT::t_uint64_1d pairlist;
 
   int map_style;
   DAT::tdual_int_1d k_map_array;
@@ -89,7 +114,7 @@ class FixOxdnaPrimeNeighsKokkos : public Fix {
 
   bigint last_precompute_lastcall;
 
-  void compute_prime_neighs_bond();
+  FixOxdnaNpairKokkos<DeviceType> *fix_oxdna_npairKK;    // ptr to OXDNA/NPAIR/kk fix
 };
 
 }    // namespace LAMMPS_NS

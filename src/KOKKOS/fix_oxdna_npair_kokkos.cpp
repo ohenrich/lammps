@@ -45,6 +45,7 @@ FixOxdnaNpairKokkos<DeviceType>::FixOxdnaNpairKokkos(LAMMPS *lmp, int narg, char
   screened_pair_count = 0;
   screen_cut_max = 0.0;
   screen_cutsq = static_cast<KK_FLOAT>(4.0);
+  force_screening_all_backends = false;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -101,7 +102,8 @@ void FixOxdnaNpairKokkos<DeviceType>::min_setup_pre_force(int vflag)
 template<class DeviceType>
 void FixOxdnaNpairKokkos<DeviceType>::min_pre_force(int /*vflag*/)
 {
-  if (execution_space != HostKK && last_allocate != neighbor->lastcall) {
+  if ((force_screening_all_backends || execution_space != HostKK) &&
+      last_allocate != neighbor->lastcall) {
      compute_neigh_screen_to_npair();
      last_allocate = neighbor->lastcall;
   }
@@ -120,7 +122,8 @@ void FixOxdnaNpairKokkos<DeviceType>::setup_pre_force(int vflag)
 template<class DeviceType>
 void FixOxdnaNpairKokkos<DeviceType>::pre_force(int /*vflag*/)
 {
-  if (execution_space != HostKK && last_allocate != neighbor->lastcall) {
+  if ((force_screening_all_backends || execution_space != HostKK) &&
+      last_allocate != neighbor->lastcall) {
      compute_neigh_screen_to_npair();
      last_allocate = neighbor->lastcall;
   }

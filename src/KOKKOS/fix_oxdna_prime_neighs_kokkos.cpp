@@ -16,8 +16,11 @@
 #include "atom.h"
 #include "atom_kokkos.h"
 #include "atom_masks.h"
+#include "error.h"
+#include "fix_oxdna_npair_kokkos.h"
 #include "kokkos.h"
 #include "memory_kokkos.h"
+#include "modify.h"
 #include "neigh_list_kokkos.h"
 #include "neighbor.h"
 #include "neighbor_kokkos.h"
@@ -41,6 +44,8 @@ FixOxdnaPrimeNeighsKokkos<DeviceType>::FixOxdnaPrimeNeighsKokkos(LAMMPS *lmp, in
 
   nbondlist = 0;
   anum = 0;
+  npairlist = 0;
+  fix_oxdna_npairKK = nullptr;
   last_precompute_lastcall = -1;
 }
 
@@ -56,6 +61,10 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::init()
 {
   // No neighbor list requested: the pair style supplies its own list to
   // compute_prime_neighs_pair().  Bond precompute uses the global bondlist.
+  // NOTE: We do not hard-require OXDNA/NPAIR/kk at init time.  Some style
+  // combinations initialize PRIME_NEIGHS before NPAIR.  We resolve NPAIR
+  // lazily in compute_prime_neighs_oxdna3_xstk(), which is the only path
+  // that needs it.
 }
 
 /* ---------------------------------------------------------------------- */
@@ -182,6 +191,63 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::compute_prime_neighs_pair(NeighList 
   copymode = 1;
   Kokkos::parallel_for(
     Kokkos::RangePolicy<DeviceType, TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsPair>(0, anum),
+    *this);
+  copymode = 0;
+}
+
+/* ----------------------------------------------------------------------
+   Called (currently) only from oxdna3/xstk from its compute() to
+   precompute prime-neighbor map lookups for its npair neighbor list,
+   which comes from fix_oxdna_npair_kokkos*.
+------------------------------------------------------------------------- */
+
+template<class DeviceType>
+void FixOxdnaPrimeNeighsKokkos<DeviceType>::compute_prime_neighs_oxdna3_xstk(NeighList *neigh_list)
+{
+  (void) neigh_list;
+
+  if (!fix_oxdna_npairKK) {
+    auto npair_fixes = modify->get_fix_by_style("^OXDNA/NPAIR/kk");
+    for (auto *fixptr : npair_fixes) {
+      auto *typed = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(fixptr);
+      if (typed) {
+        fix_oxdna_npairKK = typed;
+        break;
+      }
+    }
+  }
+
+  if (!fix_oxdna_npairKK) {
+    error->all(FLERR, "FixOxdnaPrimeNeighsKokkos::compute_prime_neighs_oxdna3_xstk() "
+               "called but no matching OXDNA/NPAIR/kk fix is available");
+  }
+
+  npairlist = fix_oxdna_npairKK->screened_pair_count;
+  pairlist = fix_oxdna_npairKK->k_pairs_screened.template view<DeviceType>();
+
+  if (npairlist > d_prime_neighs_oxdna3_xstk.extent_int(0)) {
+    MemKK::realloc_kokkos(k_prime_neighs_oxdna3_xstk,
+                          "prime_neighs:prime_neighs_oxdna3_xstk", npairlist, 4);
+    d_prime_neighs_oxdna3_xstk = k_prime_neighs_oxdna3_xstk.template view<DeviceType>();
+  }
+
+  atomKK->sync(execution_space, datamask_read);
+  tag = atomKK->k_tag.view<DeviceType>();
+  id5p = atomKK->k_id5p.view<DeviceType>();
+  id3p = atomKK->k_id3p.view<DeviceType>();
+
+  map_style = atom->map_style;
+  if (map_style == Atom::MAP_ARRAY) {
+    k_map_array = atomKK->k_map_array;
+    k_map_array.template sync<DeviceType>();
+  } else if (map_style == Atom::MAP_HASH) {
+    k_map_hash = atomKK->k_map_hash;
+    k_map_hash.template sync<DeviceType>();
+  }
+
+  copymode = 1;
+  Kokkos::parallel_for(
+    Kokkos::RangePolicy<DeviceType, TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsOxdna3Xstk>(0, npairlist),
     *this);
   copymode = 0;
 }
@@ -329,6 +395,83 @@ void FixOxdnaPrimeNeighsKokkos<DeviceType>::operator()(TagFixOxdnaPrimeNeighsPre
     }
     d_prime_neighs_pair(a,jj,3) = mapped;
   }
+}
+
+/* ----------------------------------------------------------------------
+   Loop through custom oxdna npair neighbor list and precompute the atom mapping for
+   the 3' and 5' neighbors of each pair. This is the KOKKOS equivalent of
+   "atom->map(id{3/5}p[{a/b}]) in the CPU code. These indexes are then used
+   directly within the main compute loop.
+------------------------------------------------------------------------- */
+
+template<class DeviceType>
+// NOLINTNEXTLINE
+KOKKOS_INLINE_FUNCTION
+void FixOxdnaPrimeNeighsKokkos<DeviceType>::operator()(TagFixOxdnaPrimeNeighsPrecomputePrimeNeighsOxdna3Xstk,
+                                                       const int &ipair) const
+{
+  // Direct packed pair lookup: high 32 bits = a, low 32 bits = b.
+  const uint64_t pair = pairlist(ipair);
+  // "pair >> 32" shifts the pair to the right by 32 bits, so the upper 32 bits
+  // becomes the lower 32 bits to recover the atom-a index.
+  const int a = static_cast<int>(pair >> 32);
+  // "pair & 0xffffffffu" keeps only the lower 32 bits to recover the atom-b index.
+  int b = static_cast<int>(pair & 0xffffffffu);
+  b &= NEIGHMASK;
+
+  int mapped = -1;
+
+  // id3p[a]
+  const tagint id3p_a_tag = id3p(a);
+  if (id3p_a_tag != -1) {
+    if (map_style == Atom::MAP_ARRAY) {
+      const auto map_array = k_map_array.view<DeviceType>();
+      if (id3p_a_tag >= 0 && id3p_a_tag < static_cast<tagint>(map_array.extent(0))) mapped = map_array(id3p_a_tag);
+    } else if (map_style == Atom::MAP_HASH) {
+      mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id3p_a_tag, k_map_hash);
+    }
+  }
+  d_prime_neighs_oxdna3_xstk(ipair,0) = mapped;
+
+  // id5p[a]
+  mapped = -1;
+  const tagint id5p_a_tag = id5p(a);
+  if (id5p_a_tag != -1) {
+    if (map_style == Atom::MAP_ARRAY) {
+      const auto map_array = k_map_array.view<DeviceType>();
+      if (id5p_a_tag >= 0 && id5p_a_tag < static_cast<tagint>(map_array.extent(0))) mapped = map_array(id5p_a_tag);
+    } else if (map_style == Atom::MAP_HASH) {
+      mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id5p_a_tag, k_map_hash);
+    }
+  }
+  d_prime_neighs_oxdna3_xstk(ipair,1) = mapped;
+
+  // id3p[b]
+  mapped = -1;
+  const tagint id3p_b_tag = id3p(b);
+  if (id3p_b_tag != -1) {
+    if (map_style == Atom::MAP_ARRAY) {
+      const auto map_array = k_map_array.view<DeviceType>();
+      if (id3p_b_tag >= 0 && id3p_b_tag < static_cast<tagint>(map_array.extent(0))) mapped = map_array(id3p_b_tag);
+    } else if (map_style == Atom::MAP_HASH) {
+      mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id3p_b_tag, k_map_hash);
+    }
+  }
+  d_prime_neighs_oxdna3_xstk(ipair,2) = mapped;
+
+  // id5p[b]
+  mapped = -1;
+  const tagint id5p_b_tag = id5p(b);
+  if (id5p_b_tag != -1) {
+    if (map_style == Atom::MAP_ARRAY) {
+      const auto map_array = k_map_array.view<DeviceType>();
+      if (id5p_b_tag >= 0 && id5p_b_tag < static_cast<tagint>(map_array.extent(0))) mapped = map_array(id5p_b_tag);
+    } else if (map_style == Atom::MAP_HASH) {
+      mapped = AtomKokkos::map_find_hash_kokkos<DeviceType>(id5p_b_tag, k_map_hash);
+    }
+  }
+  d_prime_neighs_oxdna3_xstk(ipair,3) = mapped;
+
 }
 
 /* ---------------------------------------------------------------------- */
