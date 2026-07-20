@@ -36,6 +36,9 @@ class FixOxdnaLRFKokkos;  // forward declaration
 template<class DeviceType>
 class FixOxdnaNpairKokkos;  // forward declaration
 
+template<class DeviceType>
+class FixOxdnaPrimeNeighsKokkos;  // forward declaration
+
 template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
 struct TagPairOxdna3XstkComputeNpair{};
 
@@ -179,6 +182,9 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
 
   FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to OXDNA/LRF/kk fix
   FixOxdnaNpairKokkos<DeviceType> *fix_oxdna_npairKK;    // ptr to OXDNA/NPAIR/kk fix
+  FixOxdnaPrimeNeighsKokkos<DeviceType> *fix_oxdna_prime_neighsKK;    // ptr to OXDNA/PRIME_NEIGHS/kk fix
+  bigint last_prime_neighs_xstk3_lastcall;
+  typename AT::t_int_2d d_prime_neighs_oxdna3_xstk;
 
  private:
 
@@ -198,8 +204,12 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  bool xstk_radial_terms(const int &atype, const int &btype, const KK_FLOAT &r_hb,
-    KK_FLOAT &f2, KK_FLOAT &df2) const;
+  bool xstk_radial_terms(const int &atype, const int &btype,
+    const int &a3ptype, const int &a5ptype,
+    const int &b3ptype, const int &b5ptype,
+    const KK_FLOAT &r_hb,
+    KK_FLOAT &f2_33, KK_FLOAT &f2_55,
+    KK_FLOAT &df2_33, KK_FLOAT &df2_55) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
@@ -222,27 +232,41 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta4_terms(const int &atype, const int &btype,
+    const int &a3ptype, const int &a5ptype,
+    const int &b3ptype, const int &b5ptype,
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
-    KK_FLOAT &theta4, KK_FLOAT &theta4p, KK_FLOAT &f4t4, KK_FLOAT &df4t4) const;
+    KK_FLOAT &theta4,
+    KK_FLOAT &f4t4_33, KK_FLOAT &f4t4_55,
+    KK_FLOAT &df4t4_33, KK_FLOAT &df4t4_55) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta7_terms(const int &atype, const int &btype,
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta7, KK_FLOAT &cost7, KK_FLOAT &f4t7, KK_FLOAT &df4t7) const;
+    KK_FLOAT &theta7, KK_FLOAT &cost7,
+    KK_FLOAT &f4t7_33, KK_FLOAT &f4t7_55,
+    KK_FLOAT &df4t7_33, KK_FLOAT &df4t7_55) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta8_terms(const int &atype, const int &btype,
     const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta8, KK_FLOAT &cost8, KK_FLOAT &f4t8, KK_FLOAT &df4t8) const;
+    KK_FLOAT &theta8, KK_FLOAT &cost8,
+    KK_FLOAT &f4t8_33, KK_FLOAT &f4t8_55,
+    KK_FLOAT &df4t8_33, KK_FLOAT &df4t8_55) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void xstk_force_contrib(const KK_FLOAT &f2, const KK_FLOAT &f4t1, const KK_FLOAT &f4t2,
-    const KK_FLOAT &f4t3, const KK_FLOAT &f4t4, const KK_FLOAT &f4t7, const KK_FLOAT &f4t8,
-    const KK_FLOAT &df2, const KK_FLOAT &df4t2, const KK_FLOAT &df4t3, const KK_FLOAT &df4t7,
-    const KK_FLOAT &df4t8, const KK_FLOAT &rinv_hb, const KK_FLOAT &factor_lj,
+  void xstk_force_contrib(const KK_FLOAT &f2_33, const KK_FLOAT &f2_55,
+    const KK_FLOAT &f4t1, const KK_FLOAT &f4t2, const KK_FLOAT &f4t3,
+    const KK_FLOAT &f4t4_33, const KK_FLOAT &f4t4_55,
+    const KK_FLOAT &f4t7_33, const KK_FLOAT &f4t7_55,
+    const KK_FLOAT &f4t8_33, const KK_FLOAT &f4t8_55,
+    const KK_FLOAT &df2_33, const KK_FLOAT &df2_55,
+    const KK_FLOAT &df4t2, const KK_FLOAT &df4t3,
+    const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
+    const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
+    const KK_FLOAT &rinv_hb, const KK_FLOAT &factor_lj,
     const KK_FLOAT &theta2, const KK_FLOAT &theta3, const KK_FLOAT &theta7, const KK_FLOAT &theta8,
     const KK_FLOAT &cost2, const KK_FLOAT &cost3, const KK_FLOAT &cost7, const KK_FLOAT &cost8,
     const KK_FLOAT (&delr_hb)[3], const KK_FLOAT (&delr_hb_norm)[3],
@@ -253,14 +277,18 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
-  void xstk_torque_contrib(const KK_FLOAT &f2,
+  void xstk_torque_contrib(const KK_FLOAT &f2_33, const KK_FLOAT &f2_55,
     const KK_FLOAT &f4t1, const KK_FLOAT &f4t2, const KK_FLOAT &f4t3,
-    const KK_FLOAT &f4t4, const KK_FLOAT &f4t7, const KK_FLOAT &f4t8,
+    const KK_FLOAT &f4t4_33, const KK_FLOAT &f4t4_55,
+    const KK_FLOAT &f4t7_33, const KK_FLOAT &f4t7_55,
+    const KK_FLOAT &f4t8_33, const KK_FLOAT &f4t8_55,
     const KK_FLOAT &df4t1, const KK_FLOAT &df4t2, const KK_FLOAT &df4t3,
-    const KK_FLOAT &df4t4, const KK_FLOAT &df4t7, const KK_FLOAT &df4t8,
+    const KK_FLOAT &df4t4_33, const KK_FLOAT &df4t4_55,
+    const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
+    const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
     const KK_FLOAT &factor_lj,
     const KK_FLOAT &theta1, const KK_FLOAT &theta2, const KK_FLOAT &theta3,
-    const KK_FLOAT &theta4, const KK_FLOAT &theta4p,
+    const KK_FLOAT &theta4,
     const KK_FLOAT &theta7, const KK_FLOAT &theta8,
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
