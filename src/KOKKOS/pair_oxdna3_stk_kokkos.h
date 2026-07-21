@@ -39,7 +39,7 @@ template<class DeviceType>
 PairOxdna3StkKokkos<DeviceType>::PairOxdna3StkKokkos(LAMMPS *lmp) : PairOxdnaStkKokkos<DeviceType>(lmp)
 {
    PairOxdna3Stk::init_eta_st_oxdna3(this);
-    this->oxdnaflag = PairOxdnaStkKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+   this->oxdnaflag = PairOxdnaStkKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
 }
 
 template<class DeviceType>
