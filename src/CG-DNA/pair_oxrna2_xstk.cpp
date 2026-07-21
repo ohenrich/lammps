@@ -54,7 +54,7 @@ PairOxrna2Xstk::PairOxrna2Xstk(LAMMPS *lmp) : Pair(lmp)
 
 PairOxrna2Xstk::~PairOxrna2Xstk()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
