@@ -48,6 +48,7 @@ PairOxdnaStkKokkos<DeviceType>::PairOxdnaStkKokkos(LAMMPS *lmp) : PairOxdnaStk(l
 
   oxdnaflag = EnabledOXDNAFlag::OXDNA;
   fix_oxdna_prime_neighsKK = nullptr;
+  last_prime_neighs_bond_lastcall = -1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -98,6 +99,13 @@ void PairOxdnaStkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   nlocal = atom->nlocal;
   newton_bond = force->newton_bond;
   nbondlist = neighborKK->nbondlist;
+
+  // Keep bond-context precompute aligned with the current neighbor-list epoch.
+  if (last_prime_neighs_bond_lastcall != neighbor->lastcall) {
+    fix_oxdna_prime_neighsKK->compute_prime_neighs_bond();
+    last_prime_neighs_bond_lastcall = neighbor->lastcall;
+  }
+
   d_prime_neighs_bond = fix_oxdna_prime_neighsKK->d_prime_neighs_bond;
 
   int need_dup = lmp->kokkos->need_dup<DeviceType>();

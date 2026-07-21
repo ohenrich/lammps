@@ -104,6 +104,7 @@ class PairOxdnaHbondKokkos : public PairOxdnaHbond, public KokkosBase {
   typename AT::t_kkacc_1d_3 f;
   typename AT::t_kkacc_1d_3 torque;
   typename AT::t_int_1d_randomread type;
+  typename AT::t_tagint_1d_randomread tag;
 
   DAT::ttransform_kkacc_1d k_eatom;
   DAT::ttransform_kkacc_1d_6 k_vatom;
@@ -127,6 +128,10 @@ class PairOxdnaHbondKokkos : public PairOxdnaHbond, public KokkosBase {
   DAT::tdual_uint64_1d k_pairs_screened;
   typename AT::t_uint64_1d d_pairs_screened;
   int screened_pair_count;
+
+  DAT::tdual_int_1d k_idc;
+  typename AT::t_int_1d_randomread d_idc;
+  int unique_basepair_enabled;
 
   // hydrogen-bonding interaction parameters
   typename AT::tdual_kkfloat_2d k_epsilon_hb, k_a_hb, k_cut_hb_0, k_cut_hb_c;

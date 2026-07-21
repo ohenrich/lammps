@@ -47,11 +47,12 @@ PairOxdnaHbondKokkos<DeviceType>::PairOxdnaHbondKokkos(LAMMPS *lmp) : PairOxdnaH
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
   // change between pair/bond styles. 
-  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
+  datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK | TAG_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   
   oxdnaflag = EnabledOXDNAFlag::OXDNA;
   screened_pair_count = 0;
+  unique_basepair_enabled = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -101,6 +102,7 @@ void PairOxdnaHbondKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   f = atomKK->k_f.template view<DeviceType>();
   torque = atomKK->k_torque.template view<DeviceType>();
   type = atomKK->k_type.template view<DeviceType>();
+  tag = atomKK->k_tag.template view<DeviceType>();
 
   nlocal = atom->nlocal;
   newton_pair = force->newton_pair;
@@ -141,6 +143,18 @@ void PairOxdnaHbondKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   if (execution_space != HostKK) {
     screened_pair_count = fix_oxdna_npairKK->screened_pair_count;
     d_pairs_screened = fix_oxdna_npairKK->k_pairs_screened.template view<DeviceType>();
+  }
+
+  if (unique_basepair_enabled && idc) {
+    const int nall = atom->nlocal + atom->nghost;
+    if (k_idc.extent(0) < static_cast<size_t>(nall)) {
+      k_idc = DAT::tdual_int_1d("pair:idc", nall);
+    }
+    auto h_idc = k_idc.view_host();
+    for (int i = 0; i < nall; i++) h_idc(i) = idc[i];
+    k_idc.template modify<LMPHostType>();
+    k_idc.template sync<DeviceType>();
+    d_idc = k_idc.template view<DeviceType>();
   }
 
   // loop over neighbors of my atoms for compute functors
@@ -323,6 +337,12 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
     const KK_FLOAT factor_lj = special_lj[sbmask(b)];
     b &= NEIGHMASK;
     const int btype = type(b);
+
+    if (unique_basepair_enabled) {
+      const int idca = d_idc(a);
+      const int idcb = d_idc(b);
+      if (idca != tag(b) && idcb != tag(a) && idca > 0 && idcb > 0) continue;
+    }
 
     // vector COM-hbond site b
     if (OXDNAFLAG == OXDNA) {
@@ -1073,6 +1093,12 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPai
   b &= NEIGHMASK;
   const int btype = type(b);
 
+  if (unique_basepair_enabled) {
+    const int idca = d_idc(a);
+    const int idcb = d_idc(b);
+    if (idca != tag(b) && idcb != tag(a) && idca > 0 && idcb > 0) return;
+  }
+
   KK_FLOAT a_nx[3], a_nz[3], b_nx[3], b_nz[3];
   KK_FLOAT ra_chb[3], rb_chb[3];
   KK_FLOAT delr_hb[3], delr_hb_norm[3];
@@ -1379,6 +1405,18 @@ void PairOxdnaHbondKokkos<DeviceType>::init_style()
     fix_oxdna_npairKK = dynamic_cast<FixOxdnaNpairKokkos<DeviceType> *>(npair_fixes[0]);
   }
   if (!fix_oxdna_npairKK) error->all(FLERR, "Fix OXDNA/NPAIR/kk lookup failed");
+
+  unique_basepair_enabled = 0;
+  idc = nullptr;
+  const int ifix = modify->find_fix("Basepairs");
+  if (ifix >= 0) {
+    int idx, flag, cols;
+    idx = atom->find_custom("idc", flag, cols);
+    if (idx >= 0 && flag == 0) {
+      idc = atom->ivector[idx];
+      unique_basepair_enabled = 1;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */
