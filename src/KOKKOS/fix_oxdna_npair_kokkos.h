@@ -108,6 +108,8 @@ class FixOxdnaNpairKokkos : public Fix {
   KK_FLOAT screen_cutsq;   // screen_cut_max^2, read on device by screen_pair_fast
   bool force_screening_all_backends;
 
+  void update_screen_cutsq();
+
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool screen_pair_fast(const int &braw,

@@ -94,6 +94,7 @@ void FixOxdnaNpairKokkos<DeviceType>::init_list(int, class NeighList* ptr)
 template<class DeviceType>
 void FixOxdnaNpairKokkos<DeviceType>::min_setup_pre_force(int vflag)
 {
+  update_screen_cutsq();
   min_pre_force(vflag);
 }
 
@@ -114,6 +115,7 @@ void FixOxdnaNpairKokkos<DeviceType>::min_pre_force(int /*vflag*/)
 template<class DeviceType>
 void FixOxdnaNpairKokkos<DeviceType>::setup_pre_force(int vflag)
 {
+  update_screen_cutsq();
   pre_force(vflag);
 }
 
@@ -127,6 +129,25 @@ void FixOxdnaNpairKokkos<DeviceType>::pre_force(int /*vflag*/)
      compute_neigh_screen_to_npair();
      last_allocate = neighbor->lastcall;
   }
+}
+
+/* ---------------------------------------------------------------------- */
+
+template<class DeviceType>
+void FixOxdnaNpairKokkos<DeviceType>::update_screen_cutsq()
+{
+  // Derive the COM screen cutoff from the cutoffs registered by the consuming
+  // pair styles (hbond / xstk / coaxstk) in their init_one, then add the
+  // neighbor skin. Since this screened list is rebuilt only when the neighbor
+  // list rebuilds, a skin margin is required to keep the filtered pair list
+  // valid between rebuilds (same Verlet-list principle as the base neighbor
+  // list itself).
+  // However, the pair_styles already add in an extra 0.4*nx margin
+  // to their cutoffs to account for the base-site offset, so we can be
+  // a little cheeky and half the neighbor skin margin too.
+  const KK_FLOAT base_screen_cut = (screen_cut_max > 0.0) ? screen_cut_max : 2.0;
+  const KK_FLOAT screen_cut_with_skin = base_screen_cut + (0.5 * neighbor->skin);
+  screen_cutsq = screen_cut_with_skin * screen_cut_with_skin;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -161,16 +182,6 @@ void FixOxdnaNpairKokkos<DeviceType>::compute_neigh_screen_to_npair()
 
   atomKK->sync(execution_space, datamask_read);
   x = atomKK->k_x.view<DeviceType>();
-
-  // Derive the COM screen cutoff from the cutoffs registered by the consuming
-  // pair styles (hbond / xstk / coaxstk) in their init_one, then add the
-  // neighbor skin. Since this screened list is rebuilt only when the neighbor
-  // list rebuilds, a skin margin is required to keep the filtered pair list
-  // valid between rebuilds (same Verlet-list principle as the base neighbor
-  // list itself).
-  const KK_FLOAT base_screen_cut = (screen_cut_max > 0.0) ? screen_cut_max : 2.0;
-  const KK_FLOAT screen_cut_with_skin = base_screen_cut + neighbor->skin;
-  screen_cutsq = screen_cut_with_skin * screen_cut_with_skin;
 
   // Pass 1 (count): "TagFixOxdnaNpairNeighScreen" loops over each atom a and its
   // raw neighbours, runs 'screen_pair_fast' (a cheap CoM distance bool) for each,
