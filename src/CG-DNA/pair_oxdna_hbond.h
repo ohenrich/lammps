@@ -26,6 +26,7 @@ PairStyle(oxdna2/hbond,PairOxdnaHbond);
 namespace LAMMPS_NS {
 
 class PairOxdna3Hbond;    // forward declaration to allow KOKKOS access to oxdna3 without inheriting
+class PairOxrna2Hbond;    // forward declaration to allow KOKKOS access to oxrna2 without inheriting
 
 class PairOxdnaHbond : public Pair {
  public:
@@ -46,6 +47,7 @@ class PairOxdnaHbond : public Pair {
 
  protected:
   friend class PairOxdna3Hbond;    // friend for KOKKOS access to oxdna3 without inheriting
+  friend class PairOxrna2Hbond;    // friend for KOKKOS access to oxrna2 without inheriting
   // h-bonding interaction
   double alpha_hb[4][4];
   double **epsilon_hb, **a_hb, **cut_hb_0, **cut_hb_c, **cut_hb_lo, **cut_hb_hi;
