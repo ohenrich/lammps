@@ -267,26 +267,14 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
   // vector COM [a/b] - backbone site [a/b]
-  // TODO: Sort out the correct bk sites.
-  if constexpr (OXDNAFLAG==OXDNA) { 
-    // Used for oxDNA[1] and oxDNA2, but not oxDNA3
-    constexpr KK_FLOAT dx_cbk_oxdna1 = -0.4;
-    ra_cbk[0] = dx_cbk_oxdna1 * d_nx_xtrct(a,0);
-    ra_cbk[1] = dx_cbk_oxdna1 * d_nx_xtrct(a,1);
-    ra_cbk[2] = dx_cbk_oxdna1 * d_nx_xtrct(a,2);
-    rb_cbk[0] = dx_cbk_oxdna1 * d_nx_xtrct(b,0);
-    rb_cbk[1] = dx_cbk_oxdna1 * d_nx_xtrct(b,1);
-    rb_cbk[2] = dx_cbk_oxdna1 * d_nx_xtrct(b,2);
-  } else if constexpr (OXDNAFLAG==OXDNA3) {
-    // Used for oxDNA3
-    constexpr KK_FLOAT dx_cbk_oxdna3 = -0.4;
-    ra_cbk[0] = dx_cbk_oxdna3 * d_nx_xtrct(a,0);
-    ra_cbk[1] = dx_cbk_oxdna3 * d_nx_xtrct(a,1);
-    ra_cbk[2] = dx_cbk_oxdna3 * d_nx_xtrct(a,2);
-    rb_cbk[0] = dx_cbk_oxdna3 * d_nx_xtrct(b,0);
-    rb_cbk[1] = dx_cbk_oxdna3 * d_nx_xtrct(b,1);
-    rb_cbk[2] = dx_cbk_oxdna3 * d_nx_xtrct(b,2);
-  }
+  // All oxDNA variants use the same COM-backbone site offset, so we can use a single constexpr here.
+  constexpr KK_FLOAT dx_cbk_oxdna = -0.4;
+  ra_cbk[0] = dx_cbk_oxdna * d_nx_xtrct(a,0);
+  ra_cbk[1] = dx_cbk_oxdna * d_nx_xtrct(a,1);
+  ra_cbk[2] = dx_cbk_oxdna * d_nx_xtrct(a,2);
+  rb_cbk[0] = dx_cbk_oxdna * d_nx_xtrct(b,0);
+  rb_cbk[1] = dx_cbk_oxdna * d_nx_xtrct(b,1);
+  rb_cbk[2] = dx_cbk_oxdna * d_nx_xtrct(b,2);
 
   // vector backbone site a to b
   delr_bkbk[0] = x(b,0) + rb_cbk[0] - x(a,0) - ra_cbk[0];
