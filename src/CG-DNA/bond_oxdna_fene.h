@@ -24,6 +24,8 @@ BondStyle(oxdna/fene,BondOxdnaFene);
 
 namespace LAMMPS_NS {
 
+class BondOxdna3Fene; // forward declaration to allow KOKKOS access to oxdna3 without inheriting
+
 class BondOxdnaFene : public Bond {
  public:
   BondOxdnaFene(class LAMMPS *lmp) :
@@ -41,10 +43,12 @@ class BondOxdnaFene : public Bond {
   double single(int, double, int, int, double &) override;
 
  protected:
+  friend class BondOxdna3Fene; // friend for KOKKOS access to oxdna3 without inheriting
+
   double *k, *****Delta, *****r0;    // FENE
   double **nxyz_xtrct;               // per-atom arrays for local unit vectors
 
-  void allocate();
+  virtual void allocate();
   class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 

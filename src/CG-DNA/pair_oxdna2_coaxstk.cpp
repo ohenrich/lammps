@@ -85,7 +85,7 @@ PairOxdna2Coaxstk::PairOxdna2Coaxstk(LAMMPS *lmp) :
 
 PairOxdna2Coaxstk::~PairOxdna2Coaxstk()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -543,13 +543,13 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
         deltb[2] -= t6dir[2] * tpair;
       }
 
-      // increment torques
+              // increment torques
 
-      torque[a][0] += delta[0];
-      torque[a][1] += delta[1];
-      torque[a][2] += delta[2];
+              torque[a][0] += delta[0];
+              torque[a][1] += delta[1];
+              torque[a][2] += delta[2];
 
-      if (newton_pair || b < nlocal) {
+              if (newton_pair || b < nlocal) {
 
         torque[b][0] -= deltb[0];
         torque[b][1] -= deltb[1];

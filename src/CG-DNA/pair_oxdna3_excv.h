@@ -48,6 +48,7 @@ class PairOxdna3Excv : public PairOxdna2Excv {
         break;
     }
   };
+  static void coeff_oxdna3_common(PairOxdnaExcv *, int, char **);
   void coeff(int, char **) override;
 };
 

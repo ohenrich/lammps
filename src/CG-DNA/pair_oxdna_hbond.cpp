@@ -88,7 +88,7 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) :
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
