@@ -42,6 +42,9 @@ using namespace MFOxdna;
 
 void PairOxdna3Stk::init_eta_st_oxdna3(PairOxdnaStk *oxdna_stk)
 {
+  // sequence-specific stacking strength
+  // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
+
   oxdna_stk->eta_st[0][0] = 1.1217958408368172;
   oxdna_stk->eta_st[1][0] = 1.0712851690057155;
   oxdna_stk->eta_st[2][0] = 1.1161603311902566;
@@ -67,9 +70,6 @@ void PairOxdna3Stk::init_eta_st_oxdna3(PairOxdnaStk *oxdna_stk)
 
 PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 {
-  // sequence-specific stacking strength
-  // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
-  //
   // Moved 'eta_st' settings to static helper function since KOKKOS class of oxdna3/stk
   // inherits from PairOxdnaStk only, so cannot call this constructor to set
   // the eta_st values. Instead, we call this static function from the

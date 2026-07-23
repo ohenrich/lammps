@@ -39,6 +39,9 @@ using namespace MFOxdna;
 
 void PairOxdna3Hbond::init_alpha_hb_oxdna3(PairOxdnaHbond *oxdna_hbond)
 {
+  // sequence-specific base-pairing strength
+  // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
+
   oxdna_hbond->alpha_hb[0][0] = 1.00000;
   oxdna_hbond->alpha_hb[0][1] = 1.00000;
   oxdna_hbond->alpha_hb[0][2] = 1.00000;
@@ -68,9 +71,6 @@ PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
   writedata = 0;
   trim_flag = 0;
 
-  // sequence-specific base-pairing strength
-  // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
-  //
   // Moved 'alpha_hb' settings to static helper function since KOKKOS class of oxdna3/hbond
   // inherits from PairOxdnaHbond only, so cannot call this constructor to set
   // the alpha_hb values. Instead, we call this static function from the

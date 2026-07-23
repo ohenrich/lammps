@@ -24,6 +24,9 @@ using namespace LAMMPS_NS;
 
 void PairOxdna3Coaxstk::init_eta_cxst_oxdna3(PairOxdna2Coaxstk *oxdna2_coaxstk)
 {
+   // sequence-specific coaxial stacking strength
+   // A:0 C:1 G:2 T:3, 3'- [i] X [j] -5'
+
    oxdna2_coaxstk->eta_cxst[0][0] = 1.1217958408368172;
    oxdna2_coaxstk->eta_cxst[1][0] = 1.0712851690057155;
    oxdna2_coaxstk->eta_cxst[2][0] = 1.1161603311902566;
@@ -49,9 +52,6 @@ void PairOxdna3Coaxstk::init_eta_cxst_oxdna3(PairOxdna2Coaxstk *oxdna2_coaxstk)
 
 PairOxdna3Coaxstk::PairOxdna3Coaxstk(LAMMPS *lmp) : PairOxdna2Coaxstk(lmp)
 {
-
-  // sequence-specific coaxial stacking strength
-  // A:0 C:1 G:2 T:3, 3'- [i] X [j] -5'
   // Use a shared helper so vanilla and KOKKOS oxdna3/coaxstk paths initialise
   // identical sequence-dependent eta parameters.
   init_eta_cxst_oxdna3(this);
