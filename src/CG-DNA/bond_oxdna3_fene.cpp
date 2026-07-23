@@ -111,7 +111,7 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
       }
     }
     if ((iloc != arg[0]) || (potential_name != "fene"))
-      error->one(FLERR, "No corresponding fene potential found in file {} for oxdna_fene type {}", arg[1], arg[0]);
+      error->one(FLERR, "No corresponding fene potential found in file {} for bond type {}", arg[1], arg[0]);
 
     // calculate sequence-averaged parameters for terminal base step j-k
     for (int i = 1; i <= n; i++) {
@@ -138,12 +138,12 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
     }
   }
 
-  // communicate parameters for oxdna_fene type ilo
+  // communicate parameters for bond type ilo
   MPI_Bcast(&k[ilo], 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&Delta[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
   MPI_Bcast(&r0[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
 
-  // set parameters for all other oxdna_fene types
+  // set parameters for all other bond types
   int count = 0;
   for (int ib = ilo; ib <= ihi; ib++) {
     k[ib] = k[ilo];
