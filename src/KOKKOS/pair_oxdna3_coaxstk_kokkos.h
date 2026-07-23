@@ -39,13 +39,13 @@ template<class DeviceType>
 PairOxdna3CoaxstkKokkos<DeviceType>::PairOxdna3CoaxstkKokkos(LAMMPS *lmp) : PairOxdna2CoaxstkKokkos<DeviceType>(lmp)
 {
   this->oxdnaflag = PairOxdna2CoaxstkKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
-  PairOxdna3Coaxstk::init_eta_cxst_oxdna3(this);
+  this->init_eta_cxst_oxdna3();
 }
 
 template<class DeviceType>
 void PairOxdna3CoaxstkKokkos<DeviceType>::coeff(int narg, char **arg)
 {
-  PairOxdna3Coaxstk::coeff_oxdna3_common(this, narg, arg);
+  this->coeff_oxdna3_common(narg, arg);
 }
 
 }    // namespace LAMMPS_NS

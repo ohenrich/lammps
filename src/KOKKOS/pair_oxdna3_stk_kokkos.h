@@ -38,15 +38,14 @@ class PairOxdna3StkKokkos : public PairOxdnaStkKokkos<DeviceType> {
 template<class DeviceType>
 PairOxdna3StkKokkos<DeviceType>::PairOxdna3StkKokkos(LAMMPS *lmp) : PairOxdnaStkKokkos<DeviceType>(lmp)
 {
-   PairOxdna3Stk::init_eta_st_oxdna3(this);
    this->oxdnaflag = PairOxdnaStkKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+   this->init_eta_st_oxdna3();
 }
 
 template<class DeviceType>
 void PairOxdna3StkKokkos<DeviceType>::coeff(int narg, char **arg)
 {
-   PairOxdna3Stk::coeff_oxdna3_common(this, narg, arg);
-
+   this->coeff_oxdna3_common(narg, arg);
    this->coeff_set_tetramers_kokkos(narg, arg);
 }
 

@@ -44,8 +44,7 @@ PairOxdna3ExcvKokkos<DeviceType>::PairOxdna3ExcvKokkos(LAMMPS *lmp) : PairOxdnaE
 template<class DeviceType>
 void PairOxdna3ExcvKokkos<DeviceType>::coeff(int narg, char **arg)
 {
-   PairOxdna3Excv::coeff_oxdna3_common(this, narg, arg);
-
+   this->coeff_oxdna3_common(narg, arg);
    this->coeff_set_tetramers_kokkos(narg, arg);
 }
 

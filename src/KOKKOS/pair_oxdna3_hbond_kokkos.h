@@ -38,12 +38,12 @@ class PairOxdna3HbondKokkos : public PairOxdnaHbondKokkos<DeviceType> {
 template<class DeviceType>
 PairOxdna3HbondKokkos<DeviceType>::PairOxdna3HbondKokkos(LAMMPS *lmp) : PairOxdnaHbondKokkos<DeviceType>(lmp)
 {
-   PairOxdna3Hbond::init_alpha_hb_oxdna3(this);
-    this->oxdnaflag = PairOxdnaHbondKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+   this->oxdnaflag = PairOxdnaHbondKokkos<DeviceType>::EnabledOXDNAFlag::OXDNA3;
+   this->init_alpha_hb_oxdna3();
 }
 
 template<class DeviceType>
-void PairOxdna3HbondKokkos<DeviceType>::coeff(int narg, char **arg) { PairOxdna3Hbond::coeff_oxdna3_common(this, narg, arg); }
+void PairOxdna3HbondKokkos<DeviceType>::coeff(int narg, char **arg) { this->coeff_oxdna3_common(narg, arg); }
 
 }    // namespace LAMMPS_NS
 
