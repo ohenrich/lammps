@@ -27,7 +27,6 @@ namespace LAMMPS_NS {
 class PairOxrna2Hbond : public PairOxdnaHbond {
  public:
   PairOxrna2Hbond(class LAMMPS *);
-  static void init_alpha_hb_oxrna2(PairOxdnaHbond *); // Used for KOKKOS access
 };
 
 }    // namespace LAMMPS_NS

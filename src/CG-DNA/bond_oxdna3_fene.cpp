@@ -36,40 +36,38 @@ using namespace MathSpecial;
    by not calling "BondOxdna3FENE::coeff" directly. We can also avoid
    code duplication of coeff within KOKKOS using this approach.
 
-   "coeff_oxdna3_common" is static and takes a pointer to the base class
-   BondOxdnaFene, which means it can be called from both the vanilla and
-   KOKKOS versions.
-   Can't use "coeff" directly since it is non-static - calling it would
-   require an instance of the BondOxdna3Fene class, which is fine for vanilla
-   but not for KOKKOS as we don't want KOKKOS to be a child class of BondOxdna3Fene.
+   "coeff_oxdna3_common" lives on the BondOxdnaFene base class, which means
+   it can be called from both the vanilla and KOKKOS versions without
+   duplicating the file parsing logic or requiring KOKKOS to inherit from
+   BondOxdna3Fene.
 ------------------------------------------------------------------------- */
-void BondOxdna3Fene::coeff_oxdna3_common(BondOxdnaFene *oxdna_fene, int narg, char **arg)
+void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
 {
   if (narg != 2)
-    oxdna_fene->error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene, use potential file" + utils::errorurl(21));
+    error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene, use potential file" + utils::errorurl(21));
 
-  if (!oxdna_fene->allocated) oxdna_fene->allocate();
+  if (!allocated) allocate();
 
   int ilo, ihi;
-  utils::bounds(FLERR, arg[0], 1, oxdna_fene->atom->nbondtypes, ilo, ihi, oxdna_fene->error);
+  utils::bounds(FLERR, arg[0], 1, atom->nbondtypes, ilo, ihi, error);
 
-  int n = oxdna_fene->atom->ntypes;
+  int n = atom->ntypes;
   if (n > 4)
-    oxdna_fene->error->all(FLERR, "oxdna_fene oxdna3/fene does not support more than 4 atom types for A, C, G and T");
+    error->all(FLERR, "oxdna_fene oxdna3/fene does not support more than 4 atom types for A, C, G and T");
 
   for (int i = 0; i <= n; i++) {
     for (int j = 0; j <= n; j++) {
       for (int k = 0; k <= n; k++) {
         for (int l = 0; l <= n; l++) {
-          oxdna_fene->Delta[ilo][i][j][k][l] = 0.0;
-          oxdna_fene->r0[ilo][i][j][k][l] = 0.0;
+          Delta[ilo][i][j][k][l] = 0.0;
+          r0[ilo][i][j][k][l] = 0.0;
         }
       }
     }
   }
 
-  if (oxdna_fene->comm->me == 0) {    // read values from potential file
-    PotentialFileReader reader(oxdna_fene->lmp, arg[1], "oxdna3 potential", " (fene)");
+  if (comm->me == 0) {    // read values from potential file
+    PotentialFileReader reader(lmp, arg[1], "oxdna3 potential", " (fene)");
     reader.set_bufsize(65336);
     char *line;
     std::string iloc, potential_name;
@@ -80,15 +78,15 @@ void BondOxdna3Fene::coeff_oxdna3_common(BondOxdnaFene *oxdna_fene, int narg, ch
         iloc = values.next_string();
         potential_name = values.next_string();
         if (iloc == arg[0] && potential_name == "fene") {
-          oxdna_fene->k[ilo] = values.next_double();
+          k[ilo] = values.next_double();
           for (int i = 1; i <= n; i++) {
             for (int j = 1; j <= n; j++) {
               for (int k = 1; k <= n; k++) {
                 for (int l = 1; l <= n; l++) {
-                  oxdna_fene->Delta[ilo][i][j][k][l] = values.next_double();
-                  oxdna_fene->Delta[ilo][i][j][k][0] += oxdna_fene->Delta[ilo][i][j][k][l];
-                  oxdna_fene->Delta[ilo][0][j][k][l] += oxdna_fene->Delta[ilo][i][j][k][l];
-                  oxdna_fene->Delta[ilo][0][j][k][0] += oxdna_fene->Delta[ilo][i][j][k][l];
+                  Delta[ilo][i][j][k][l] = values.next_double();
+                  Delta[ilo][i][j][k][0] += Delta[ilo][i][j][k][l];
+                  Delta[ilo][0][j][k][l] += Delta[ilo][i][j][k][l];
+                  Delta[ilo][0][j][k][0] += Delta[ilo][i][j][k][l];
                 }
               }
             }
@@ -97,10 +95,10 @@ void BondOxdna3Fene::coeff_oxdna3_common(BondOxdnaFene *oxdna_fene, int narg, ch
             for (int j = 1; j <= n; j++) {
               for (int k = 1; k <= n; k++) {
                 for (int l = 1; l <= n; l++) {
-                  oxdna_fene->r0[ilo][i][j][k][l] = values.next_double();
-                  oxdna_fene->r0[ilo][i][j][k][0] += oxdna_fene->r0[ilo][i][j][k][l];
-                  oxdna_fene->r0[ilo][0][j][k][l] += oxdna_fene->r0[ilo][i][j][k][l];
-                  oxdna_fene->r0[ilo][0][j][k][0] += oxdna_fene->r0[ilo][i][j][k][l];
+                  r0[ilo][i][j][k][l] = values.next_double();
+                  r0[ilo][i][j][k][0] += r0[ilo][i][j][k][l];
+                  r0[ilo][0][j][k][l] += r0[ilo][i][j][k][l];
+                  r0[ilo][0][j][k][0] += r0[ilo][i][j][k][l];
                 }
               }
             }
@@ -109,62 +107,62 @@ void BondOxdna3Fene::coeff_oxdna3_common(BondOxdnaFene *oxdna_fene, int narg, ch
         } else
           continue;
       } catch (std::exception &e) {
-        oxdna_fene->error->one(FLERR, "Problem parsing oxdna3 potential file: {}", e.what());
+        error->one(FLERR, "Problem parsing oxdna3 potential file: {}", e.what());
       }
     }
     if ((iloc != arg[0]) || (potential_name != "fene"))
-      oxdna_fene->error->one(FLERR, "No corresponding fene potential found in file {} for oxdna_fene type {}", arg[1], arg[0]);
+      error->one(FLERR, "No corresponding fene potential found in file {} for oxdna_fene type {}", arg[1], arg[0]);
 
     // calculate sequence-averaged parameters for terminal base step j-k
     for (int i = 1; i <= n; i++) {
       for (int j = 1; j <= n; j++) {
         for (int k = 1; k <= n; k++) {
-          oxdna_fene->Delta[ilo][i][j][k][0] /= n;
-          oxdna_fene->r0[ilo][i][j][k][0] /= n;
+          Delta[ilo][i][j][k][0] /= n;
+          r0[ilo][i][j][k][0] /= n;
         }
       }
     }
     for (int j = 1; j <= n; j++) {
       for (int k = 1; k <= n; k++) {
         for (int l = 1; l <= n; l++) {
-          oxdna_fene->Delta[ilo][0][j][k][l] /= n;
-          oxdna_fene->r0[ilo][0][j][k][l] /= n;
+          Delta[ilo][0][j][k][l] /= n;
+          r0[ilo][0][j][k][l] /= n;
         }
       }
     }
     for (int j = 1; j <= n; j++) {
       for (int k = 1; k <= n; k++) {
-        oxdna_fene->Delta[ilo][0][j][k][0] /= powint(n, 2);
-        oxdna_fene->r0[ilo][0][j][k][0] /= powint(n, 2);
+        Delta[ilo][0][j][k][0] /= powint(n, 2);
+        r0[ilo][0][j][k][0] /= powint(n, 2);
       }
     }
   }
 
   // communicate parameters for oxdna_fene type ilo
-  MPI_Bcast(&oxdna_fene->k[ilo], 1, MPI_DOUBLE, 0, oxdna_fene->world);
-  MPI_Bcast(&oxdna_fene->Delta[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_fene->world);
-  MPI_Bcast(&oxdna_fene->r0[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, oxdna_fene->world);
+  MPI_Bcast(&k[ilo], 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&Delta[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&r0[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
 
   // set parameters for all other oxdna_fene types
   int count = 0;
   for (int ib = ilo; ib <= ihi; ib++) {
-    oxdna_fene->k[ib] = oxdna_fene->k[ilo];
+    k[ib] = k[ilo];
     for (int i = 0; i <= n; i++) {    // type 0 for terminal j
       for (int j = 0; j <= n; j++) {
         for (int k = 0; k <= n; k++) {
           for (int l = 0; l <= n; l++) {    // type 0 for terminal k
-            oxdna_fene->Delta[ib][i][j][k][l] = oxdna_fene->Delta[ilo][i][j][k][l];
-            oxdna_fene->r0[ib][i][j][k][l] = oxdna_fene->r0[ilo][i][j][k][l];
+            Delta[ib][i][j][k][l] = Delta[ilo][i][j][k][l];
+            r0[ib][i][j][k][l] = r0[ilo][i][j][k][l];
           }
         }
       }
     }
-    oxdna_fene->setflag[ib] = 1;
+    setflag[ib] = 1;
     count++;
   }
 
   if (count == 0)
-    oxdna_fene->error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene" + utils::errorurl(21));
+    error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene" + utils::errorurl(21));
 }
 
-void BondOxdna3Fene::coeff(int narg, char **arg) { coeff_oxdna3_common(this, narg, arg); }
+void BondOxdna3Fene::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }
