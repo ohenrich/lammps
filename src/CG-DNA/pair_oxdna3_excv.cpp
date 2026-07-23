@@ -31,14 +31,24 @@ using namespace LAMMPS_NS;
 using namespace MathSpecial;
 
 /* ----------------------------------------------------------------------
-   set coeffs
+   set coeffs - introduces new function to handle KOKKOS compatibility.
+   Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
+   function. The structure here avoids messy inheritance issues in KOKKOS
+   by not calling "PairOxdna3Excv::coeff" directly. We can also avoid
+   code duplication of coeff within KOKKOS using this approach.
+
+  "coeff_oxdna3_common" is implemented as a base-class member of
+  PairOxdnaExcv, which means it can be called from both the vanilla and
+  KOKKOS versions.
 ------------------------------------------------------------------------- */
 
-void PairOxdna3Excv::coeff(int narg, char **arg)
+void PairOxdnaExcv::coeff_oxdna3_common(int narg, char **arg)
 {
   int count;
 
-  if (narg != 3) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/excv, use potential file" + utils::errorurl(21));
+  if (narg != 3)
+    error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/excv, use potential file" + utils::errorurl(21));
+  
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi,nlo,nhi;
@@ -164,6 +174,8 @@ void PairOxdna3Excv::coeff(int narg, char **arg)
 
   }
 
+  // The 3x3 MPI broadcasts below are indifferent to the version of oxDNA that is simulated at
+  // compile/runtime in the KOKKOS build/case.
   MPI_Bcast(&epsilon_bkbk_one, 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&sigma_bkbk_one, 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut_bkbk_ast_one, 1, MPI_DOUBLE, 0, world);
@@ -176,6 +188,7 @@ void PairOxdna3Excv::coeff(int narg, char **arg)
   MPI_Bcast(&sigma_bsbs_one, 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut_bsbs_ast_one, 1, MPI_DOUBLE, 0, world);
 
+  // But for the tetramers, we put in the  prefix 
   MPI_Bcast(&sigma4_bsbs[0][0][0][0], 625, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut4_bsbs_ast[0][0][0][0], 625, MPI_DOUBLE, 0, world);
 
@@ -308,3 +321,5 @@ void PairOxdna3Excv::coeff(int narg, char **arg)
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
 
 }
+
+void PairOxdna3Excv::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }

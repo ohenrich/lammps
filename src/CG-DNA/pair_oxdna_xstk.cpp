@@ -65,7 +65,7 @@ PairOxdnaXstk::PairOxdnaXstk(LAMMPS *lmp) :
 
 PairOxdnaXstk::~PairOxdnaXstk()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);

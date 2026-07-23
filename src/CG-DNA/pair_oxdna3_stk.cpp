@@ -40,7 +40,7 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
-PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
+void PairOxdnaStk::init_eta_st_oxdna3()
 {
   // sequence-specific stacking strength
   // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
@@ -64,6 +64,15 @@ PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
   eta_st[1][3] = 0.7694592613578328;
   eta_st[2][3] = 1.0007533199170144;
   eta_st[3][3] = 0.8593983791552220;
+}
+
+/* ---------------------------------------------------------------------- */
+
+PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
+{
+  // Keep oxDNA3 sequence-specific eta values in a shared base helper so
+  // vanilla and KOKKOS paths initialise identical parameters.
+  init_eta_st_oxdna3();
 
   single_enable = 0;
   writedata = 0;
@@ -71,10 +80,18 @@ PairOxdna3Stk::PairOxdna3Stk(LAMMPS *lmp) : PairOxdnaStk(lmp)
 }
 
 /* ----------------------------------------------------------------------
-   set coeffs for one or more type pairs
+  set coeffs - introduces new function to handle KOKKOS compatibility.
+  Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
+  function. The structure here avoids messy inheritance issues in KOKKOS
+  by not calling "PairOxdna3Stk::coeff" directly. We can also avoid
+  code duplication of coeff within KOKKOS using this approach.
+
+  "coeff_oxdna3_common" is implemented as a base-class member of
+  PairOxdnaStk, which means it can be called from both the vanilla and
+  KOKKOS versions.
 ------------------------------------------------------------------------- */
 
-void PairOxdna3Stk::coeff(int narg, char **arg)
+void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
 {
   int count;
 
@@ -240,8 +257,6 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
       error->one(FLERR, "No corresponding stk potential found in file {} for pair type {} {}",
                  arg[3], arg[0], arg[1]);
 
-
-
     // calculate sequence-averaged parameters for terminal base step j-k
     for (int i = nlo; i <= nhi; i++) {
       for (int j = nlo; j <= nhi; j++) {
@@ -386,12 +401,12 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
         for (int l = 0; l <= nhi; l++) { // type 0 for terminal k
 
           cut_st_lc[i][j][k][l] = cut_st_lo[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_lo_one;
+              - a_st_one*exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l]))*
+              (1-exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_lo_one;
 
           cut_st_hc[i][j][k][l] = cut_st_hi[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_hi_one;
+              - a_st_one*exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l]))*
+              (1-exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_hi_one;
 
           cutsq_st_hc[i][j][k][l] = cut_st_hc[i][j][k][l]*cut_st_hc[i][j][k][l];
 
@@ -399,8 +414,8 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
           shift_st[i][j][k][l] = epsilon_st_one * eta_st[j-1][k-1] * tmp * tmp;
 
           b_st4[i][j][k][l] = a_st4[i][j][k][l]*a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*
-                dtheta_st4_ast[i][j][k][l]/(1-a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
-          dtheta_st4_c[i][j][k][l] = 1/(a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
+              dtheta_st4_ast[i][j][k][l]/(1-a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
+              dtheta_st4_c[i][j][k][l] = 1/(a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
 
         }
       }
@@ -412,3 +427,5 @@ void PairOxdna3Stk::coeff(int narg, char **arg)
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/stk" + utils::errorurl(21));
 
 }
+
+void PairOxdna3Stk::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }

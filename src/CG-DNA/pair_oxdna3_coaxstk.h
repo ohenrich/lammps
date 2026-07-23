@@ -36,6 +36,7 @@ class PairOxdna3Coaxstk : public PairOxdna2Coaxstk {
     NucleotideOxdna3 oxdna3;
     oxdna3.stacking_site(e1, nullptr, nullptr, rstk);
   };
+  void coeff(int, char **) override;
 };
 
 }    // namespace LAMMPS_NS

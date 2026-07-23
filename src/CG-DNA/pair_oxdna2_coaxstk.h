@@ -44,6 +44,9 @@ class PairOxdna2Coaxstk : public Pair {
   void *extract(const char *, int &) override;
 
  protected:
+  // Shared oxDNA3 setup and coeff parser (used by KOKKOS), defined in pair_oxdna3_coaxstk.cpp
+  void init_eta_cxst_oxdna3();
+  void coeff_oxdna3_common(int, char **);
   // coaxial stacking interaction
   double eta_cxst[4][4];
   double **k_cxst, **cut_cxst_0, **cut_cxst_c, **cut_cxst_lo, **cut_cxst_hi;

@@ -68,7 +68,7 @@ PairOxdnaExcv::~PairOxdnaExcv()
 
   if (fix_lrf) modify->delete_fix(fix_lrf->id);
 
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
