@@ -257,8 +257,6 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
       error->one(FLERR, "No corresponding stk potential found in file {} for pair type {} {}",
                  arg[3], arg[0], arg[1]);
 
-
-
     // calculate sequence-averaged parameters for terminal base step j-k
     for (int i = nlo; i <= nhi; i++) {
       for (int j = nlo; j <= nhi; j++) {
@@ -324,7 +322,7 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
   // smoothing - determined through continuity and differentiability
 
   // smoothing strength coincidentally identical for all pairs ij, hence use AAAA tetramer value below
-    b_st_lo_one = 2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
+  b_st_lo_one = 2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
       2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
       (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))
@@ -334,7 +332,7 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
       (1-exp(-a_st_one*(cut_st_c[1][1][1][1]-cut_st_0[1][1][1][1])))));
 
   // smoothing strength coincidentally identical for all pairs ij, hence use AAAA tetramer value below
-    b_st_hi_one = 2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
+  b_st_hi_one = 2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
       2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
       (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))
@@ -402,21 +400,21 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
       for (int k = nlo; k <= nhi; k++) {
         for (int l = 0; l <= nhi; l++) { // type 0 for terminal k
 
-              cut_st_lc[i][j][k][l] = cut_st_lo[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_lo_one;
+          cut_st_lc[i][j][k][l] = cut_st_lo[i][j][k][l]
+              - a_st_one*exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l]))*
+              (1-exp(-a_st_one*(cut_st_lo[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_lo_one;
 
-              cut_st_hc[i][j][k][l] = cut_st_hi[i][j][k][l]
-                - a_st_one*exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l]))*
-                (1-exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_hi_one;
+          cut_st_hc[i][j][k][l] = cut_st_hi[i][j][k][l]
+              - a_st_one*exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l]))*
+              (1-exp(-a_st_one*(cut_st_hi[i][j][k][l]-cut_st_0[i][j][k][l])))/b_st_hi_one;
 
           cutsq_st_hc[i][j][k][l] = cut_st_hc[i][j][k][l]*cut_st_hc[i][j][k][l];
 
           tmp = 1 - exp(-(cut_st_c[i][j][k][l]-cut_st_0[i][j][k][l]) * a_st_one);
           shift_st[i][j][k][l] = epsilon_st_one * eta_st[j-1][k-1] * tmp * tmp;
 
-              b_st4[i][j][k][l] = a_st4[i][j][k][l]*a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*
-                dtheta_st4_ast[i][j][k][l]/(1-a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
+          b_st4[i][j][k][l] = a_st4[i][j][k][l]*a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*
+              dtheta_st4_ast[i][j][k][l]/(1-a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
               dtheta_st4_c[i][j][k][l] = 1/(a_st4[i][j][k][l]*dtheta_st4_ast[i][j][k][l]);
 
         }
