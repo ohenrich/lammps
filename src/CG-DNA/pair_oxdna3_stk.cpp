@@ -325,8 +325,8 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
   b_st_lo_one = 2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
       2*a_st_one*exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1]))*
       (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))
-      /(4*((1-exp(-a_st_one*(cut_st_lo[1][1][1][1] -cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))/
+      (4*((1-exp(-a_st_one*(cut_st_lo[1][1][1][1] -cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_lo[1][1][1][1]-cut_st_0[1][1][1][1])))-
       (1-exp(-a_st_one*(cut_st_c[1][1][1][1] -cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_c[1][1][1][1]-cut_st_0[1][1][1][1])))));
@@ -335,8 +335,8 @@ void PairOxdnaStk::coeff_oxdna3_common(int narg, char **arg)
   b_st_hi_one = 2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
       2*a_st_one*exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1]))*
       (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))*
-      (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))
-      /(4*((1-exp(-a_st_one*(cut_st_hi[1][1][1][1] -cut_st_0[1][1][1][1])))*
+      (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))/
+      (4*((1-exp(-a_st_one*(cut_st_hi[1][1][1][1] -cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_hi[1][1][1][1]-cut_st_0[1][1][1][1])))-
       (1-exp(-a_st_one*(cut_st_c[1][1][1][1] -cut_st_0[1][1][1][1])))*
       (1-exp(-a_st_one*(cut_st_c[1][1][1][1]-cut_st_0[1][1][1][1])))));
