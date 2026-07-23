@@ -42,31 +42,6 @@ using namespace MFOxdna;
 
 void PairOxdna3Stk::init_eta_st_oxdna3(PairOxdnaStk *oxdna_stk)
 {
-  oxdna_stk->eta_st[0][0] = 1.1217958408368172;
-  oxdna_stk->eta_st[1][0] = 1.0712851690057155;
-  oxdna_stk->eta_st[2][0] = 1.1161603311902566;
-  oxdna_stk->eta_st[3][0] = 1.0052361315065244;
-
-  oxdna_stk->eta_st[0][1] = 1.1217958408368172;
-  oxdna_stk->eta_st[1][1] = 0.7892685731520542;
-  oxdna_stk->eta_st[2][1] = 1.1022201982984874;
-  oxdna_stk->eta_st[3][1] = 0.8658975520778347;
-
-  oxdna_stk->eta_st[0][2] = 1.1217958408368172;
-  oxdna_stk->eta_st[1][2] = 0.9896542231533637;
-  oxdna_stk->eta_st[2][2] = 1.1088392608169480;
-  oxdna_stk->eta_st[3][2] = 1.1217958408368172;
-
-  oxdna_stk->eta_st[0][3] = 0.9300223683636719;
-  oxdna_stk->eta_st[1][3] = 0.7694592613578328;
-  oxdna_stk->eta_st[2][3] = 1.0007533199170144;
-  oxdna_stk->eta_st[3][3] = 0.8593983791552220;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void PairOxdna3Stk::init_eta_st_oxdna3(PairOxdnaStk *oxdna_stk)
-{
   // sequence-specific stacking strength
   // A:0 C:1 G:2 T:3, 3'- [i][j] -5'
 
