@@ -86,7 +86,7 @@ PairOxrna2Stk::PairOxrna2Stk(LAMMPS *lmp) :
 
 PairOxrna2Stk::~PairOxrna2Stk()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -1385,6 +1385,7 @@ void PairOxrna2Stk::write_restart_settings(FILE *fp)
   fwrite(&offset_flag,sizeof(int),1,fp);
   fwrite(&mix_flag,sizeof(int),1,fp);
   fwrite(&tail_flag,sizeof(int),1,fp);
+  fwrite(&seqdepflag,sizeof(int),1,fp);
 }
 
 /* ----------------------------------------------------------------------
@@ -1398,10 +1399,12 @@ void PairOxrna2Stk::read_restart_settings(FILE *fp)
     utils::sfread(FLERR,&offset_flag,sizeof(int),1,fp,nullptr,error);
     utils::sfread(FLERR,&mix_flag,sizeof(int),1,fp,nullptr,error);
     utils::sfread(FLERR,&tail_flag,sizeof(int),1,fp,nullptr,error);
+    utils::sfread(FLERR,&seqdepflag,sizeof(int),1,fp,nullptr,error);
   }
   MPI_Bcast(&offset_flag,1,MPI_INT,0,world);
   MPI_Bcast(&mix_flag,1,MPI_INT,0,world);
   MPI_Bcast(&tail_flag,1,MPI_INT,0,world);
+  MPI_Bcast(&seqdepflag,1,MPI_INT,0,world);
 }
 
 /* ---------------------------------------------------------------------- */
