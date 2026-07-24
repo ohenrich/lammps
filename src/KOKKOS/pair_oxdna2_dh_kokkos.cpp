@@ -357,7 +357,7 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
 
     if (rsq > d_cutsq_dh_c(atype, btype)) continue; // Note the switch of sign, > vs <=, due to using continue
 
-    rinv = rsqrtf(rsq);
+    rinv = static_cast<KK_FLOAT>(Kokkos::rsqrt(rsq));
     r = rsq * rinv;
 
     if (r <= d_cut_dh_ast(atype, btype)) {
