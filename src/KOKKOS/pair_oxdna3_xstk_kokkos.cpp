@@ -317,7 +317,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta1_terms(const int &atype, const
   KK_FLOAT sin1_sq = Kokkos::fma(-cost1, cost1, static_cast<KK_FLOAT>(1.0));
   if (sin1_sq < static_cast<KK_FLOAT>(0.0)) sin1_sq = static_cast<KK_FLOAT>(0.0);
   if (sin1_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin1 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin1_sq);
+  const KK_FLOAT rsin1 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin1_sq));
   // df4t1 = DF4_KK(theta1, l_a_xst1, l_theta_xst1_0, l_dtheta_xst1_ast,
   //                l_b_xst1, l_dtheta_xst1_c) * rsin1;
   df4t1 *= rsin1;
@@ -350,7 +350,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta2_terms(const int &atype, const
   KK_FLOAT sin2_sq = Kokkos::fma(-cost2, cost2, static_cast<KK_FLOAT>(1.0));
   if (sin2_sq < static_cast<KK_FLOAT>(0.0)) sin2_sq = static_cast<KK_FLOAT>(0.0);
   if (sin2_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin2 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin2_sq);
+  const KK_FLOAT rsin2 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin2_sq));
   // df4t2 = DF4_KK(theta2, l_a_xst2, l_theta_xst2_0,
   //                l_dtheta_xst2_ast, l_b_xst2, l_dtheta_xst2_c) * rsin2;
   df4t2 *= rsin2;
@@ -383,7 +383,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta3_terms(const int &atype, const
   KK_FLOAT sin3_sq = Kokkos::fma(-cost3, cost3, static_cast<KK_FLOAT>(1.0));
   if (sin3_sq < static_cast<KK_FLOAT>(0.0)) sin3_sq = static_cast<KK_FLOAT>(0.0);
   if (sin3_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin3 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin3_sq);
+  const KK_FLOAT rsin3 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin3_sq));
   // df4t3 = DF4_KK(theta3, l_a_xst3, l_theta_xst3_0,
   //                l_dtheta_xst3_ast, l_b_xst3, l_dtheta_xst3_c) * rsin3;
   df4t3 *= rsin3;
@@ -426,7 +426,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta4_terms(const int &atype, const
   KK_FLOAT sin4_sq = Kokkos::fma(-cost4, cost4, static_cast<KK_FLOAT>(1.0));
   if (sin4_sq < static_cast<KK_FLOAT>(0.0)) sin4_sq = static_cast<KK_FLOAT>(0.0);
   if (sin4_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin4 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin4_sq);
+  const KK_FLOAT rsin4 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin4_sq));
 
   // df4t4_33 = DF4_KK(theta4, l_a_xst4_33, l_theta_xst4_0_33, l_dtheta_xst4_ast_33, l_b_xst4_33, l_dtheta_xst4_c_33) * rsin4;
   // df4t4_55 = DF4_KK(theta4, l_a_xst4_55, l_theta_xst4_0_55, l_dtheta_xst4_ast_55, l_b_xst4_55, l_dtheta_xst4_c_55) * rsin4;
@@ -464,7 +464,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta7_terms(const int &atype, const
   KK_FLOAT sin7_sq = Kokkos::fma(-cost7, cost7, static_cast<KK_FLOAT>(1.0));
   if (sin7_sq < static_cast<KK_FLOAT>(0.0)) sin7_sq = static_cast<KK_FLOAT>(0.0);
   if (sin7_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin7 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin7_sq);
+  const KK_FLOAT rsin7 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin7_sq));
 
   // df4t7_33 = DF4_KK(theta7, l_a_xst7, l_theta_xst7_0_33, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c) * rsin7;
   // df4t7_55 = DF4_KK(theta7, l_a_xst7, l_theta_xst7_0_55, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c) * rsin7;
@@ -502,7 +502,7 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta8_terms(const int &atype, const
   KK_FLOAT sin8_sq = Kokkos::fma(-cost8, cost8, static_cast<KK_FLOAT>(1.0));
   if (sin8_sq < static_cast<KK_FLOAT>(0.0)) sin8_sq = static_cast<KK_FLOAT>(0.0);
   if (sin8_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin8 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin8_sq);
+  const KK_FLOAT rsin8 = static_cast<KK_FLOAT>(Kokkos::rsqrt(sin8_sq));
 
   // df4t8_33 = DF4_KK(theta8, l_a_xst8, l_theta_xst8_0_33, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c) * rsin8;
   // df4t8_55 = DF4_KK(theta8, l_a_xst8, l_theta_xst8_0_55, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c) * rsin8;
