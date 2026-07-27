@@ -214,6 +214,15 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
+  bool xstk_preradial_terms(
+    KK_FLOAT &r_bsbs, KK_FLOAT &rinv_bsbs,
+    KK_FLOAT (&delr_bsbs)[3], KK_FLOAT (&delr_bsbs_norm)[3],
+    KK_FLOAT (&ra_cbs)[3], KK_FLOAT (&rb_cbs)[3],
+    const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
+    const int &a, const int &b, const int &atype, const int &btype) const;
+
+// NOLINTNEXTLINE
+  KOKKOS_INLINE_FUNCTION
   bool xstk_radial_terms(const int &atype, const int &btype,
     const int &a3ptype, const int &a5ptype,
     const int &b3ptype, const int &b5ptype,

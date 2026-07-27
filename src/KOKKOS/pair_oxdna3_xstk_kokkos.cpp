@@ -254,6 +254,48 @@ void PairOxdna3XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
 template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
+bool PairOxdna3XstkKokkos<DeviceType>::xstk_preradial_terms(
+  KK_FLOAT &r_bsbs, KK_FLOAT &rinv_bsbs,
+  KK_FLOAT (&delr_bsbs)[3], KK_FLOAT (&delr_bsbs_norm)[3],
+  KK_FLOAT (&ra_cbs)[3], KK_FLOAT (&rb_cbs)[3],
+  const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
+  const int &a, const int &b, const int &atype, const int &btype) const
+{
+
+  const KK_FLOAT dx_cbs_pur_oxdna3 = static_cast<KK_FLOAT>(0.43);
+  const KK_FLOAT dx_cbs_pyr_oxdna3 = static_cast<KK_FLOAT>(0.37);
+
+  const int anuc = atype % 4;
+  const KK_FLOAT a_shift = (anuc == 0 || anuc == 2) ? dx_cbs_pyr_oxdna3 : dx_cbs_pur_oxdna3;
+  ra_cbs[0] = a_shift * a_nx[0];
+  ra_cbs[1] = a_shift * a_nx[1];
+  ra_cbs[2] = a_shift * a_nx[2];
+
+  const int bnuc = btype % 4;
+  const KK_FLOAT b_shift = (bnuc == 0 || bnuc == 2) ? dx_cbs_pyr_oxdna3 : dx_cbs_pur_oxdna3;
+  rb_cbs[0] = b_shift * b_nx[0];
+  rb_cbs[1] = b_shift * b_nx[1];
+  rb_cbs[2] = b_shift * b_nx[2];
+
+  delr_bsbs[0] = x(a,0) + ra_cbs[0] - x(b,0) - rb_cbs[0];
+  delr_bsbs[1] = x(a,1) + ra_cbs[1] - x(b,1) - rb_cbs[1];
+  delr_bsbs[2] = x(a,2) + ra_cbs[2] - x(b,2) - rb_cbs[2];
+
+  const KK_FLOAT rsq_bsbs = Kokkos::fma(delr_bsbs[2], delr_bsbs[2],
+    Kokkos::fma(delr_bsbs[1], delr_bsbs[1], delr_bsbs[0] * delr_bsbs[0]));
+  if (rsq_bsbs <= static_cast<KK_FLOAT>(0.0)) return false;
+
+  rinv_bsbs = static_cast<KK_FLOAT>(1.0) / sqrtf(rsq_bsbs);
+  r_bsbs = rsq_bsbs * rinv_bsbs;
+  delr_bsbs_norm[0] = delr_bsbs[0] * rinv_bsbs;
+  delr_bsbs_norm[1] = delr_bsbs[1] * rinv_bsbs;
+  delr_bsbs_norm[2] = delr_bsbs[2] * rinv_bsbs;
+
+  return true;
+}
+
+template<class DeviceType>
+KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_radial_terms(const int &atype, const int &btype,
   const int &a3ptype, const int &a5ptype,
   const int &b3ptype, const int &b5ptype,
@@ -692,50 +734,18 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
   const int b3ptype = (b3idx >= 0) ? type(b3idx) : 0;
   const int b5ptype = (b5idx >= 0) ? type(b5idx) : 0;
 
-  KK_FLOAT a_nx[3], a_nz[3], b_nx[3], b_nz[3];
+  KK_FLOAT a_nx[3], b_nx[3];
   a_nx[0] = d_nx_xtrct(a,0);
   a_nx[1] = d_nx_xtrct(a,1);
   a_nx[2] = d_nx_xtrct(a,2);
-  a_nz[0] = d_nz_xtrct(a,0);
-  a_nz[1] = d_nz_xtrct(a,1);
-  a_nz[2] = d_nz_xtrct(a,2);
   b_nx[0] = d_nx_xtrct(b,0);
   b_nx[1] = d_nx_xtrct(b,1);
   b_nx[2] = d_nx_xtrct(b,2);
-  b_nz[0] = d_nz_xtrct(b,0);
-  b_nz[1] = d_nz_xtrct(b,1);
-  b_nz[2] = d_nz_xtrct(b,2);
 
-  const KK_FLOAT dx_cbs_pur_oxdna3 = static_cast<KK_FLOAT>(0.43);
-  const KK_FLOAT dx_cbs_pyr_oxdna3 = static_cast<KK_FLOAT>(0.37);
-
-  KK_FLOAT ra_cbs[3], rb_cbs[3];
-  const int anuc = atype % 4;
-  const KK_FLOAT a_shift = (anuc == 0 || anuc == 2) ? dx_cbs_pyr_oxdna3 : dx_cbs_pur_oxdna3;
-  ra_cbs[0] = a_shift * a_nx[0];
-  ra_cbs[1] = a_shift * a_nx[1];
-  ra_cbs[2] = a_shift * a_nx[2];
-
-  const int bnuc = btype % 4;
-  const KK_FLOAT b_shift = (bnuc == 0 || bnuc == 2) ? dx_cbs_pyr_oxdna3 : dx_cbs_pur_oxdna3;
-  rb_cbs[0] = b_shift * b_nx[0];
-  rb_cbs[1] = b_shift * b_nx[1];
-  rb_cbs[2] = b_shift * b_nx[2];
-
-  KK_FLOAT delr_bsbs[3], delr_bsbs_norm[3];
-  delr_bsbs[0] = x(a,0) + ra_cbs[0] - x(b,0) - rb_cbs[0];
-  delr_bsbs[1] = x(a,1) + ra_cbs[1] - x(b,1) - rb_cbs[1];
-  delr_bsbs[2] = x(a,2) + ra_cbs[2] - x(b,2) - rb_cbs[2];
-
-  const KK_FLOAT rsq_bsbs = Kokkos::fma(delr_bsbs[2], delr_bsbs[2],
-    Kokkos::fma(delr_bsbs[1], delr_bsbs[1], delr_bsbs[0] * delr_bsbs[0]));
-  if (rsq_bsbs <= static_cast<KK_FLOAT>(0.0)) return;
-
-  const KK_FLOAT rinv_bsbs = static_cast<KK_FLOAT>(1.0) / sqrtf(rsq_bsbs);
-  const KK_FLOAT r_bsbs = rsq_bsbs * rinv_bsbs;
-  delr_bsbs_norm[0] = delr_bsbs[0] * rinv_bsbs;
-  delr_bsbs_norm[1] = delr_bsbs[1] * rinv_bsbs;
-  delr_bsbs_norm[2] = delr_bsbs[2] * rinv_bsbs;
+  KK_FLOAT r_bsbs, rinv_bsbs;
+  KK_FLOAT ra_cbs[3], rb_cbs[3], delr_bsbs[3],delr_bsbs_norm[3];
+  if (!xstk_preradial_terms(r_bsbs, rinv_bsbs, delr_bsbs, delr_bsbs_norm, ra_cbs, rb_cbs,
+      a_nx, b_nx, a, b, atype, btype)) return;
 
   KK_FLOAT f2_33, f2_55, df2_33, df2_55;
   if (!xstk_radial_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
@@ -749,6 +759,14 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
 
   KK_FLOAT cost3, f4t3, df4t3;
   if (!xstk_theta3_terms(atype, btype, b_nx, delr_bsbs_norm, cost3, f4t3, df4t3)) return;
+
+  KK_FLOAT a_nz[3], b_nz[3];
+  a_nz[0] = d_nz_xtrct(a,0);
+  a_nz[1] = d_nz_xtrct(a,1);
+  a_nz[2] = d_nz_xtrct(a,2);
+  b_nz[0] = d_nz_xtrct(b,0);
+  b_nz[1] = d_nz_xtrct(b,1);
+  b_nz[2] = d_nz_xtrct(b,2);
 
   KK_FLOAT f4t4_33, f4t4_55, df4t4_33, df4t4_55;
   if (!xstk_theta4_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
