@@ -41,6 +41,32 @@ static KK_FLOAT F1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
   }
 }
 
+KOKKOS_INLINE_FUNCTION
+static KK_FLOAT F1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
+                     KK_FLOAT cut_lc, KK_FLOAT cut_hc, KK_FLOAT cut_lo,
+                     KK_FLOAT cut_hi, KK_FLOAT b_lo,
+                     KK_FLOAT b_hi, KK_FLOAT shift, KK_FLOAT &df1)
+{
+  if (r > cut_hc) {
+    df1 = 0.0;
+    return 0.0;
+  } else if (r > cut_hi) {
+    df1 = 2 * eps * b_hi * (1 - cut_hc / r);
+    return eps * b_hi * (r - cut_hc) * (r - cut_hc);
+  } else if (r > cut_lo) {
+    KK_FLOAT tmp = Kokkos::expf(-(r - cut_0) * a);
+    df1 = 2 * eps * (1 - tmp) * tmp * a / r;
+    tmp = 1 - tmp;
+    return eps * tmp * tmp - shift;
+  } else if (r > cut_lc) {
+    df1 = 2 * eps * b_lo * (1 - cut_lc / r);
+    return eps * b_lo * (r - cut_lc) * (r - cut_lc);
+  } else {
+    df1 = 0.0;
+    return 0.0;
+  }
+}
+
 /* ----------------------------------------------------------------------
    derivative of f1 modulation factor
    ---------------------------------------------------------------------- */
@@ -78,6 +104,26 @@ static KK_FLOAT F2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
   } else if (r < cut_hi) {
     return k * 0.5 * ((r - cut_0) * (r - cut_0) - (cut_0 - cut_c) * (cut_0 - cut_c));
   } else {
+    return k * b_hi * (cut_hc - r) * (cut_hc - r);
+  }
+}
+
+KOKKOS_INLINE_FUNCTION
+static KK_FLOAT F2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
+                     KK_FLOAT cut_hc, KK_FLOAT cut_lo, KK_FLOAT cut_hi,
+                     KK_FLOAT b_lo, KK_FLOAT b_hi, KK_FLOAT cut_c, KK_FLOAT &df2)
+{
+  if (r < cut_lc || r > cut_hc) {
+    df2 = 0.0;
+    return 0.0;
+  } else if (r < cut_lo) {
+    df2 = 2 * k * b_lo * (r - cut_lc);
+    return k * b_lo * (cut_lc - r) * (cut_lc - r);
+  } else if (r < cut_hi) {
+    df2 = k * (r - cut_0);
+    return k * 0.5 * Kokkos::fma((r - cut_0), (r - cut_0), -(cut_0 - cut_c) * (cut_0 - cut_c));
+  } else {
+    df2 = 2 * k * b_hi * (r - cut_hc);
     return k * b_hi * (cut_hc - r) * (cut_hc - r);
   }
 }
@@ -141,6 +187,27 @@ static KK_FLOAT F4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
   } else if (dtheta > -dtheta_ast) {
     return 1 - a * dtheta * dtheta;
   } else {
+    return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
+  }
+}
+
+KOKKOS_INLINE_FUNCTION
+static KK_FLOAT F4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
+                     KK_FLOAT dtheta_ast, KK_FLOAT b, KK_FLOAT dtheta_c, KK_FLOAT &df4)
+{
+  KK_FLOAT dtheta = theta - theta_0;
+
+  if (Kokkos::fabs(dtheta) > dtheta_c) {
+    df4 = 0.0;
+    return 0.0;
+  } else if (dtheta > dtheta_ast) {
+    df4 = 2 * b * (dtheta - dtheta_c);
+    return b * (dtheta - dtheta_c) * (dtheta - dtheta_c);
+  } else if (dtheta > -dtheta_ast) {
+    df4 = -2 * a * dtheta;
+    return 1 - a * dtheta * dtheta;
+  } else {
+    df4 = 2 * b * (dtheta + dtheta_c);
     return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
   }
 }
@@ -215,6 +282,18 @@ static KK_FLOAT F6_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT b)
   if (theta < b) {
     return 0.0;
   } else {
+    return 0.5 * a * (theta - b) * (theta - b);
+  }
+}
+
+KOKKOS_INLINE_FUNCTION
+static KK_FLOAT F6_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT b, KK_FLOAT &df6)
+{
+  if (theta < b) {
+    df6 = 0.0;
+    return 0.0;
+  } else {
+    df6 = a * (theta - b);
     return 0.5 * a * (theta - b) * (theta - b);
   }
 }
