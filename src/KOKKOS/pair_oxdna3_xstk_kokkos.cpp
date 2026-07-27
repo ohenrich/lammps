@@ -261,45 +261,33 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_radial_terms(const int &atype, const
   KK_FLOAT &f2_33, KK_FLOAT &f2_55,
   KK_FLOAT &df2_33, KK_FLOAT &df2_55) const
 {
-  const KK_FLOAT p_k_xst = d_k_xst(atype,btype);
-  const KK_FLOAT p_b_xst_lo = d_b_xst_lo(atype,btype);
-  const KK_FLOAT p_b_xst_hi = d_b_xst_hi(atype,btype);
+  const auto& p_xstk = d_params_xstk(atype, btype);
+  const auto& p_33 = d_params_33(a3ptype, atype, btype, b3ptype);
+  const auto& p_55 = d_params_55(a5ptype, atype, btype, b5ptype);
 
-  f2_33 = F2_KK(r_hb, p_k_xst,
-    d_cut_xst_0_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_lc_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_hc_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_lo_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_hi_33(a3ptype,atype,btype,b3ptype),
-    p_b_xst_lo, p_b_xst_hi,
-    d_cut_xst_c_33(a3ptype,atype,btype,b3ptype));
+  const KK_FLOAT l_k_xst = p_xstk.k_xst;
+  const KK_FLOAT l_cut_xst_0 = p_33.cut_xst_0;
+  const KK_FLOAT l_cut_xst_lc = p_33.cut_xst_lc;
+  const KK_FLOAT l_cut_xst_hc = p_33.cut_xst_hc;
+  const KK_FLOAT l_cut_xst_lo = p_33.cut_xst_lo;
+  const KK_FLOAT l_cut_xst_hi = p_33.cut_xst_hi;
+  const KK_FLOAT l_b_xst_lo = p_xstk.b_xst_lo;
+  const KK_FLOAT l_b_xst_hi = p_xstk.b_xst_hi;
+  const KK_FLOAT l_cut_xst_c = p_33.cut_xst_c;
 
-  f2_55 = F2_KK(r_hb, p_k_xst,
-    d_cut_xst_0_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_lc_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_hc_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_lo_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_hi_55(a5ptype,atype,btype,b5ptype),
-    p_b_xst_lo, p_b_xst_hi,
-    d_cut_xst_c_55(a5ptype,atype,btype,b5ptype));
+  f2_33 = F2_KK(r_hb, l_k_xst, l_cut_xst_0, l_cut_xst_lc, l_cut_xst_hc,
+                l_cut_xst_lo, l_cut_xst_hi, l_b_xst_lo, l_b_xst_hi, l_cut_xst_c, df2_33);
+
+  f2_55 = F2_KK(r_hb, l_k_xst, p_55.cut_xst_0, p_55.cut_xst_lc, p_55.cut_xst_hc,
+                p_55.cut_xst_lo, p_55.cut_xst_hi, l_b_xst_lo, l_b_xst_hi, p_55.cut_xst_c, df2_55);
 
   if (!(f2_33 || f2_55)) return false;
 
-  df2_33 = DF2_KK(r_hb, p_k_xst,
-    d_cut_xst_0_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_lc_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_hc_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_lo_33(a3ptype,atype,btype,b3ptype),
-    d_cut_xst_hi_33(a3ptype,atype,btype,b3ptype),
-    p_b_xst_lo, p_b_xst_hi);
+  // df2_33 = DF2_KK(r_hb, l_k_xst, l_cut_xst_0, l_cut_xst_lc, l_cut_xst_hc,
+  //                 l_cut_xst_lo, l_cut_xst_hi, l_b_xst_lo, l_b_xst_hi);
 
-  df2_55 = DF2_KK(r_hb, p_k_xst,
-    d_cut_xst_0_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_lc_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_hc_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_lo_55(a5ptype,atype,btype,b5ptype),
-    d_cut_xst_hi_55(a5ptype,atype,btype,b5ptype),
-    p_b_xst_lo, p_b_xst_hi);
+  // df2_55 = DF2_KK(r_hb, l_k_xst, l_cut_xst_0, l_cut_xst_lc, p_55.cut_xst_hc,
+  //                 p_55.cut_xst_lo, p_55.cut_xst_hi, l_b_xst_lo, l_b_xst_hi);
 
   return true;
 }
@@ -315,16 +303,24 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta1_terms(const int &atype, const
   if (cost1 < static_cast<KK_FLOAT>(-1.0)) cost1 = static_cast<KK_FLOAT>(-1.0);
   theta1 = acos(cost1);
 
-  f4t1 = F4_KK(theta1, d_a_xst1(atype,btype), d_theta_xst1_0(atype,btype),
-    d_dtheta_xst1_ast(atype,btype), d_b_xst1(atype,btype), d_dtheta_xst1_c(atype,btype));
+  const auto& p_xstk = d_params_xstk(atype, btype);
+
+  const KK_FLOAT l_a_xst1 = p_xstk.a_xst1;
+  const KK_FLOAT l_theta_xst1_0 = p_xstk.theta_xst1_0;
+  const KK_FLOAT l_dtheta_xst1_ast = p_xstk.dtheta_xst1_ast;
+  const KK_FLOAT l_b_xst1 = p_xstk.b_xst1;
+  const KK_FLOAT l_dtheta_xst1_c = p_xstk.dtheta_xst1_c;
+
+  f4t1 = F4_KK(theta1, l_a_xst1, l_theta_xst1_0, l_dtheta_xst1_ast, l_b_xst1, l_dtheta_xst1_c, df4t1);
   if (!f4t1) return false;
 
   KK_FLOAT sin1_sq = Kokkos::fma(-cost1, cost1, static_cast<KK_FLOAT>(1.0));
   if (sin1_sq < static_cast<KK_FLOAT>(0.0)) sin1_sq = static_cast<KK_FLOAT>(0.0);
   if (sin1_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin1 = static_cast<KK_FLOAT>(1.0) / sqrt(sin1_sq);
-  df4t1 = DF4_KK(theta1, d_a_xst1(atype,btype), d_theta_xst1_0(atype,btype),
-    d_dtheta_xst1_ast(atype,btype), d_b_xst1(atype,btype), d_dtheta_xst1_c(atype,btype)) * rsin1;
+  const KK_FLOAT rsin1 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin1_sq);
+  // df4t1 = DF4_KK(theta1, l_a_xst1, l_theta_xst1_0, l_dtheta_xst1_ast,
+  //                l_b_xst1, l_dtheta_xst1_c) * rsin1;
+  df4t1 *= rsin1;
 
   return true;
 }
@@ -340,16 +336,24 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta2_terms(const int &atype, const
   if (cost2 < static_cast<KK_FLOAT>(-1.0)) cost2 = static_cast<KK_FLOAT>(-1.0);
   theta2 = acos(cost2);
 
-  f4t2 = F4_KK(theta2, d_a_xst2(atype,btype), d_theta_xst2_0(atype,btype),
-    d_dtheta_xst2_ast(atype,btype), d_b_xst2(atype,btype), d_dtheta_xst2_c(atype,btype));
+  const auto& p_xstk = d_params_xstk(atype, btype);
+
+  const KK_FLOAT l_a_xst2 = p_xstk.a_xst2;
+  const KK_FLOAT l_theta_xst2_0 = p_xstk.theta_xst2_0;
+  const KK_FLOAT l_dtheta_xst2_ast = p_xstk.dtheta_xst2_ast;
+  const KK_FLOAT l_b_xst2 = p_xstk.b_xst2;
+  const KK_FLOAT l_dtheta_xst2_c = p_xstk.dtheta_xst2_c;
+
+  f4t2 = F4_KK(theta2, l_a_xst2, l_theta_xst2_0, l_dtheta_xst2_ast, l_b_xst2, l_dtheta_xst2_c, df4t2);
   if (!f4t2) return false;
 
   KK_FLOAT sin2_sq = Kokkos::fma(-cost2, cost2, static_cast<KK_FLOAT>(1.0));
   if (sin2_sq < static_cast<KK_FLOAT>(0.0)) sin2_sq = static_cast<KK_FLOAT>(0.0);
   if (sin2_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin2 = static_cast<KK_FLOAT>(1.0) / sqrt(sin2_sq);
-  df4t2 = DF4_KK(theta2, d_a_xst2(atype,btype), d_theta_xst2_0(atype,btype),
-    d_dtheta_xst2_ast(atype,btype), d_b_xst2(atype,btype), d_dtheta_xst2_c(atype,btype)) * rsin2;
+  const KK_FLOAT rsin2 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin2_sq);
+  // df4t2 = DF4_KK(theta2, l_a_xst2, l_theta_xst2_0,
+  //                l_dtheta_xst2_ast, l_b_xst2, l_dtheta_xst2_c) * rsin2;
+  df4t2 *= rsin2;
 
   return true;
 }
@@ -365,16 +369,24 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta3_terms(const int &atype, const
   if (cost3 < static_cast<KK_FLOAT>(-1.0)) cost3 = static_cast<KK_FLOAT>(-1.0);
   theta3 = acos(cost3);
 
-  f4t3 = F4_KK(theta3, d_a_xst3(atype,btype), d_theta_xst3_0(atype,btype),
-    d_dtheta_xst3_ast(atype,btype), d_b_xst3(atype,btype), d_dtheta_xst3_c(atype,btype));
+  const auto& p_xstk = d_params_xstk(atype, btype);
+
+  const KK_FLOAT l_a_xst3 = p_xstk.a_xst3;
+  const KK_FLOAT l_theta_xst3_0 = p_xstk.theta_xst3_0;
+  const KK_FLOAT l_dtheta_xst3_ast = p_xstk.dtheta_xst3_ast;
+  const KK_FLOAT l_b_xst3 = p_xstk.b_xst3;
+  const KK_FLOAT l_dtheta_xst3_c = p_xstk.dtheta_xst3_c;
+
+  f4t3 = F4_KK(theta3, l_a_xst3, l_theta_xst3_0, l_dtheta_xst3_ast, l_b_xst3, l_dtheta_xst3_c, df4t3);
   if (!f4t3) return false;
 
   KK_FLOAT sin3_sq = Kokkos::fma(-cost3, cost3, static_cast<KK_FLOAT>(1.0));
   if (sin3_sq < static_cast<KK_FLOAT>(0.0)) sin3_sq = static_cast<KK_FLOAT>(0.0);
   if (sin3_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin3 = static_cast<KK_FLOAT>(1.0) / sqrt(sin3_sq);
-  df4t3 = DF4_KK(theta3, d_a_xst3(atype,btype), d_theta_xst3_0(atype,btype),
-    d_dtheta_xst3_ast(atype,btype), d_b_xst3(atype,btype), d_dtheta_xst3_c(atype,btype)) * rsin3;
+  const KK_FLOAT rsin3 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin3_sq);
+  // df4t3 = DF4_KK(theta3, l_a_xst3, l_theta_xst3_0,
+  //                l_dtheta_xst3_ast, l_b_xst3, l_dtheta_xst3_c) * rsin3;
+  df4t3 *= rsin3;
 
   return true;
 }
@@ -394,29 +406,33 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta4_terms(const int &atype, const
   if (cost4 < static_cast<KK_FLOAT>(-1.0)) cost4 = static_cast<KK_FLOAT>(-1.0);
   theta4 = acos(cost4);
 
-  f4t4_33 = F4_KK(theta4,
-    d_a_xst4_33(a3ptype,atype,btype,b3ptype), d_theta_xst4_0_33(a3ptype,atype,btype,b3ptype),
-    d_dtheta_xst4_ast_33(a3ptype,atype,btype,b3ptype), d_b_xst4_33(a3ptype,atype,btype,b3ptype),
-    d_dtheta_xst4_c_33(a3ptype,atype,btype,b3ptype));
-  f4t4_55 = F4_KK(theta4,
-    d_a_xst4_55(a5ptype,atype,btype,b5ptype), d_theta_xst4_0_55(a5ptype,atype,btype,b5ptype),
-    d_dtheta_xst4_ast_55(a5ptype,atype,btype,b5ptype), d_b_xst4_55(a5ptype,atype,btype,b5ptype),
-    d_dtheta_xst4_c_55(a5ptype,atype,btype,b5ptype));
+  const auto& p_33 = d_params_33(a3ptype, atype, btype, b3ptype);
+  const auto& p_55 = d_params_55(a5ptype, atype, btype, b5ptype);
+
+  const KK_FLOAT l_a_xst4_33 = p_33.a_xst4;
+  const KK_FLOAT l_theta_xst4_0_33 = p_33.theta_xst4_0;
+  const KK_FLOAT l_dtheta_xst4_ast_33 = p_33.dtheta_xst4_ast;
+  const KK_FLOAT l_b_xst4_33 = p_33.b_xst4;
+  const KK_FLOAT l_dtheta_xst4_c_33 = p_33.dtheta_xst4_c;
+  f4t4_33 = F4_KK(theta4, l_a_xst4_33, l_theta_xst4_0_33, l_dtheta_xst4_ast_33, l_b_xst4_33, l_dtheta_xst4_c_33, df4t4_33);
+
+  const KK_FLOAT l_a_xst4_55 = p_55.a_xst4;
+  const KK_FLOAT l_theta_xst4_0_55 = p_55.theta_xst4_0;
+  const KK_FLOAT l_dtheta_xst4_ast_55 = p_55.dtheta_xst4_ast;
+  const KK_FLOAT l_b_xst4_55 = p_55.b_xst4;
+  const KK_FLOAT l_dtheta_xst4_c_55 = p_55.dtheta_xst4_c;
+  f4t4_55 = F4_KK(theta4, l_a_xst4_55, l_theta_xst4_0_55, l_dtheta_xst4_ast_55, l_b_xst4_55, l_dtheta_xst4_c_55, df4t4_55);
   if (!(f4t4_33 || f4t4_55)) return false;
 
   KK_FLOAT sin4_sq = Kokkos::fma(-cost4, cost4, static_cast<KK_FLOAT>(1.0));
   if (sin4_sq < static_cast<KK_FLOAT>(0.0)) sin4_sq = static_cast<KK_FLOAT>(0.0);
   if (sin4_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin4 = static_cast<KK_FLOAT>(1.0) / sqrt(sin4_sq);
+  const KK_FLOAT rsin4 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin4_sq);
 
-  df4t4_33 = DF4_KK(theta4,
-    d_a_xst4_33(a3ptype,atype,btype,b3ptype), d_theta_xst4_0_33(a3ptype,atype,btype,b3ptype),
-    d_dtheta_xst4_ast_33(a3ptype,atype,btype,b3ptype), d_b_xst4_33(a3ptype,atype,btype,b3ptype),
-    d_dtheta_xst4_c_33(a3ptype,atype,btype,b3ptype)) * rsin4;
-  df4t4_55 = DF4_KK(theta4,
-    d_a_xst4_55(a5ptype,atype,btype,b5ptype), d_theta_xst4_0_55(a5ptype,atype,btype,b5ptype),
-    d_dtheta_xst4_ast_55(a5ptype,atype,btype,b5ptype), d_b_xst4_55(a5ptype,atype,btype,b5ptype),
-    d_dtheta_xst4_c_55(a5ptype,atype,btype,b5ptype)) * rsin4;
+  // df4t4_33 = DF4_KK(theta4, l_a_xst4_33, l_theta_xst4_0_33, l_dtheta_xst4_ast_33, l_b_xst4_33, l_dtheta_xst4_c_33) * rsin4;
+  // df4t4_55 = DF4_KK(theta4, l_a_xst4_55, l_theta_xst4_0_55, l_dtheta_xst4_ast_55, l_b_xst4_55, l_dtheta_xst4_c_55) * rsin4;
+  df4t4_33 *= rsin4;
+  df4t4_55 *= rsin4;
 
   return true;
 }
@@ -434,21 +450,27 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta7_terms(const int &atype, const
   if (cost7 < static_cast<KK_FLOAT>(-1.0)) cost7 = static_cast<KK_FLOAT>(-1.0);
   theta7 = acos(cost7);
 
-  f4t7_33 = F4_KK(theta7, d_a_xst7(atype,btype), d_theta_xst7_0_33(atype,btype),
-    d_dtheta_xst7_ast(atype,btype), d_b_xst7(atype,btype), d_dtheta_xst7_c(atype,btype));
-  f4t7_55 = F4_KK(theta7, d_a_xst7(atype,btype), d_theta_xst7_0_55(atype,btype),
-    d_dtheta_xst7_ast(atype,btype), d_b_xst7(atype,btype), d_dtheta_xst7_c(atype,btype));
+  const auto& p_t7 = d_params_t7(atype, btype);
+
+  const KK_FLOAT l_a_xst7 = p_t7.a_xst7;
+  const KK_FLOAT l_theta_xst7_0_33 = p_t7.theta_xst7_0_33;
+  const KK_FLOAT l_dtheta_xst7_ast = p_t7.dtheta_xst7_ast;
+  const KK_FLOAT l_b_xst7 = p_t7.b_xst7;
+  const KK_FLOAT l_dtheta_xst7_c = p_t7.dtheta_xst7_c;
+  f4t7_33 = F4_KK(theta7, l_a_xst7, l_theta_xst7_0_33, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c, df4t7_33);
+  const KK_FLOAT l_theta_xst7_0_55 = p_t7.theta_xst7_0_55;
+  f4t7_55 = F4_KK(theta7, l_a_xst7, l_theta_xst7_0_55, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c, df4t7_55);
   if (!(f4t7_33 || f4t7_55)) return false;
 
   KK_FLOAT sin7_sq = Kokkos::fma(-cost7, cost7, static_cast<KK_FLOAT>(1.0));
   if (sin7_sq < static_cast<KK_FLOAT>(0.0)) sin7_sq = static_cast<KK_FLOAT>(0.0);
   if (sin7_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin7 = static_cast<KK_FLOAT>(1.0) / sqrt(sin7_sq);
+  const KK_FLOAT rsin7 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin7_sq);
 
-  df4t7_33 = DF4_KK(theta7, d_a_xst7(atype,btype), d_theta_xst7_0_33(atype,btype),
-    d_dtheta_xst7_ast(atype,btype), d_b_xst7(atype,btype), d_dtheta_xst7_c(atype,btype)) * rsin7;
-  df4t7_55 = DF4_KK(theta7, d_a_xst7(atype,btype), d_theta_xst7_0_55(atype,btype),
-    d_dtheta_xst7_ast(atype,btype), d_b_xst7(atype,btype), d_dtheta_xst7_c(atype,btype)) * rsin7;
+  // df4t7_33 = DF4_KK(theta7, l_a_xst7, l_theta_xst7_0_33, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c) * rsin7;
+  // df4t7_55 = DF4_KK(theta7, l_a_xst7, l_theta_xst7_0_55, l_dtheta_xst7_ast, l_b_xst7, l_dtheta_xst7_c) * rsin7;
+  df4t7_33 *= rsin7;
+  df4t7_55 *= rsin7;
 
   return true;
 }
@@ -466,21 +488,27 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta8_terms(const int &atype, const
   if (cost8 < static_cast<KK_FLOAT>(-1.0)) cost8 = static_cast<KK_FLOAT>(-1.0);
   theta8 = acos(cost8);
 
-  f4t8_33 = F4_KK(theta8, d_a_xst8(atype,btype), d_theta_xst8_0_33(atype,btype),
-    d_dtheta_xst8_ast(atype,btype), d_b_xst8(atype,btype), d_dtheta_xst8_c(atype,btype));
-  f4t8_55 = F4_KK(theta8, d_a_xst8(atype,btype), d_theta_xst8_0_55(atype,btype),
-    d_dtheta_xst8_ast(atype,btype), d_b_xst8(atype,btype), d_dtheta_xst8_c(atype,btype));
+  const auto& p_t8 = d_params_t8(atype, btype);
+
+  const KK_FLOAT l_a_xst8 = p_t8.a_xst8;
+  const KK_FLOAT l_theta_xst8_0_33 = p_t8.theta_xst8_0_33;
+  const KK_FLOAT l_dtheta_xst8_ast = p_t8.dtheta_xst8_ast;
+  const KK_FLOAT l_b_xst8 = p_t8.b_xst8;
+  const KK_FLOAT l_dtheta_xst8_c = p_t8.dtheta_xst8_c;
+  f4t8_33 = F4_KK(theta8, l_a_xst8, l_theta_xst8_0_33, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c, df4t8_33);
+  const KK_FLOAT l_theta_xst8_0_55 = p_t8.theta_xst8_0_55;
+  f4t8_55 = F4_KK(theta8, l_a_xst8, l_theta_xst8_0_55, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c, df4t8_55);
   if (!(f4t8_33 || f4t8_55)) return false;
 
   KK_FLOAT sin8_sq = Kokkos::fma(-cost8, cost8, static_cast<KK_FLOAT>(1.0));
   if (sin8_sq < static_cast<KK_FLOAT>(0.0)) sin8_sq = static_cast<KK_FLOAT>(0.0);
   if (sin8_sq <= static_cast<KK_FLOAT>(1.0e-12)) return false;
-  const KK_FLOAT rsin8 = static_cast<KK_FLOAT>(1.0) / sqrt(sin8_sq);
+  const KK_FLOAT rsin8 = static_cast<KK_FLOAT>(1.0) / sqrtf(sin8_sq);
 
-  df4t8_33 = DF4_KK(theta8, d_a_xst8(atype,btype), d_theta_xst8_0_33(atype,btype),
-    d_dtheta_xst8_ast(atype,btype), d_b_xst8(atype,btype), d_dtheta_xst8_c(atype,btype)) * rsin8;
-  df4t8_55 = DF4_KK(theta8, d_a_xst8(atype,btype), d_theta_xst8_0_55(atype,btype),
-    d_dtheta_xst8_ast(atype,btype), d_b_xst8(atype,btype), d_dtheta_xst8_c(atype,btype)) * rsin8;
+  // df4t8_33 = DF4_KK(theta8, l_a_xst8, l_theta_xst8_0_33, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c) * rsin8;
+  // df4t8_55 = DF4_KK(theta8, l_a_xst8, l_theta_xst8_0_55, l_dtheta_xst8_ast, l_b_xst8, l_dtheta_xst8_c) * rsin8;
+  df4t8_33 *= rsin8;
+  df4t8_55 *= rsin8;
 
   return true;
 }
@@ -723,7 +751,7 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
     Kokkos::fma(delr_bsbs[1], delr_bsbs[1], delr_bsbs[0] * delr_bsbs[0]));
   if (rsq_bsbs <= static_cast<KK_FLOAT>(0.0)) return;
 
-  const KK_FLOAT rinv_bsbs = static_cast<KK_FLOAT>(1.0) / sqrt(rsq_bsbs);
+  const KK_FLOAT rinv_bsbs = static_cast<KK_FLOAT>(1.0) / sqrtf(rsq_bsbs);
   const KK_FLOAT r_bsbs = rsq_bsbs * rinv_bsbs;
   delr_bsbs_norm[0] = delr_bsbs[0] * rinv_bsbs;
   delr_bsbs_norm[1] = delr_bsbs[1] * rinv_bsbs;
@@ -862,135 +890,18 @@ void PairOxdna3XstkKokkos<DeviceType>::allocate()
 
   int n = atom->ntypes;
 
-  memoryKK->create_kokkos(k_k_xst,n+1,n+1,"PairOxdna3Xstk:xst");
+  // Allocate consolidated parameter views
+  k_params_xstk = decltype(k_params_xstk)("PairOxdna3Xstk:params_xstk", n + 1, n + 1);
+  k_params_33 = decltype(k_params_33)("PairOxdna3Xstk:params_33", n + 1, n + 1, n + 1, n + 1);
+  k_params_55 = decltype(k_params_55)("PairOxdna3Xstk:params_55", n + 1, n + 1, n + 1, n + 1);
+  k_params_t7 = decltype(k_params_t7)("PairOxdna3Xstk:params_t7", n + 1, n + 1);
+  k_params_t8 = decltype(k_params_t8)("PairOxdna3Xstk:params_t8", n + 1, n + 1);
 
-  memoryKK->create_kokkos(k_cut_xst_0_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_0_33");
-  memoryKK->create_kokkos(k_cut_xst_c_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_c_33");
-  memoryKK->create_kokkos(k_cut_xst_lo_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_lo_33");
-  memoryKK->create_kokkos(k_cut_xst_hi_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_hi_33");
-  memoryKK->create_kokkos(k_cut_xst_lc_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_lc_33");
-  memoryKK->create_kokkos(k_cut_xst_hc_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_hc_33");
-  memoryKK->create_kokkos(k_cutsq_xst_hc_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cutsq_xst_hc_33");
-
-  memoryKK->create_kokkos(k_cut_xst_0_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_0_55");
-  memoryKK->create_kokkos(k_cut_xst_c_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_c_55");
-  memoryKK->create_kokkos(k_cut_xst_lo_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_lo_55");
-  memoryKK->create_kokkos(k_cut_xst_hi_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_hi_55");
-  memoryKK->create_kokkos(k_cut_xst_lc_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_lc_55");
-  memoryKK->create_kokkos(k_cut_xst_hc_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cut_xst_hc_55");
-  memoryKK->create_kokkos(k_cutsq_xst_hc_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:cutsq_xst_hc_55");
-
-  memoryKK->create_kokkos(k_b_xst_lo,n+1,n+1,"PairOxdna3Xstk:b_xst_lo");
-  memoryKK->create_kokkos(k_b_xst_hi,n+1,n+1,"PairOxdna3Xstk:b_xst_hi");
-
-  memoryKK->create_kokkos(k_a_xst1,n+1,n+1,"PairOxdna3Xstk:a_xst1");
-  memoryKK->create_kokkos(k_theta_xst1_0,n+1,n+1,"PairOxdna3Xstk:theta_xst1_0");
-  memoryKK->create_kokkos(k_dtheta_xst1_ast,n+1,n+1,"PairOxdna3Xstk:dtheta_xst1_ast");
-  memoryKK->create_kokkos(k_b_xst1,n+1,n+1,"PairOxdna3Xstk:b_xst1");
-  memoryKK->create_kokkos(k_dtheta_xst1_c,n+1,n+1,"PairOxdna3Xstk:dtheta_xst1_c");
-
-  memoryKK->create_kokkos(k_a_xst2,n+1,n+1,"PairOxdna3Xstk:a_xst2");
-  memoryKK->create_kokkos(k_theta_xst2_0,n+1,n+1,"PairOxdna3Xstk:theta_xst2_0");
-  memoryKK->create_kokkos(k_dtheta_xst2_ast,n+1,n+1,"PairOxdna3Xstk:dtheta_xst2_ast");
-  memoryKK->create_kokkos(k_b_xst2,n+1,n+1,"PairOxdna3Xstk:b_xst2");
-  memoryKK->create_kokkos(k_dtheta_xst2_c,n+1,n+1,"PairOxdna3Xstk:dtheta_xst2_c");
-
-  memoryKK->create_kokkos(k_a_xst3,n+1,n+1,"PairOxdna3Xstk:a_xst3");
-  memoryKK->create_kokkos(k_theta_xst3_0,n+1,n+1,"PairOxdna3Xstk:theta_xst3_0");
-  memoryKK->create_kokkos(k_dtheta_xst3_ast,n+1,n+1,"PairOxdna3Xstk:dtheta_xst3_ast");
-  memoryKK->create_kokkos(k_b_xst3,n+1,n+1,"PairOxdna3Xstk:b_xst3");
-  memoryKK->create_kokkos(k_dtheta_xst3_c,n+1,n+1,"PairOxdna3Xstk:dtheta_xst3_c");
-
-  memoryKK->create_kokkos(k_a_xst4_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:a_xst4_33");
-  memoryKK->create_kokkos(k_theta_xst4_0_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:theta_xst4_0_33");
-  memoryKK->create_kokkos(k_dtheta_xst4_ast_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:dtheta_xst4_ast_33");
-  memoryKK->create_kokkos(k_b_xst4_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:b_xst4_33");
-  memoryKK->create_kokkos(k_dtheta_xst4_c_33,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:dtheta_xst4_c_33");
-
-  memoryKK->create_kokkos(k_a_xst4_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:a_xst4_55");
-  memoryKK->create_kokkos(k_theta_xst4_0_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:theta_xst4_0_55");
-  memoryKK->create_kokkos(k_dtheta_xst4_ast_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:dtheta_xst4_ast_55");
-  memoryKK->create_kokkos(k_b_xst4_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:b_xst4_55");
-  memoryKK->create_kokkos(k_dtheta_xst4_c_55,n+1,n+1,n+1,n+1,"PairOxdna3Xstk:dtheta_xst4_c_55");
-
-  memoryKK->create_kokkos(k_a_xst7,n+1,n+1,"PairOxdna3Xstk:a_xst7");
-  memoryKK->create_kokkos(k_theta_xst7_0_33,n+1,n+1,"PairOxdna3Xstk:theta_xst7_0_33");
-  memoryKK->create_kokkos(k_theta_xst7_0_55,n+1,n+1,"PairOxdna3Xstk:theta_xst7_0_55");
-  memoryKK->create_kokkos(k_dtheta_xst7_ast,n+1,n+1,"PairOxdna3Xstk:dtheta_xst7_ast");
-  memoryKK->create_kokkos(k_b_xst7,n+1,n+1,"PairOxdna3Xstk:b_xst7");
-  memoryKK->create_kokkos(k_dtheta_xst7_c,n+1,n+1,"PairOxdna3Xstk:dtheta_xst7_c");
-
-  memoryKK->create_kokkos(k_a_xst8,n+1,n+1,"PairOxdna3Xstk:a_xst8");
-  memoryKK->create_kokkos(k_theta_xst8_0_33,n+1,n+1,"PairOxdna3Xstk:theta_xst8_0_33");
-  memoryKK->create_kokkos(k_theta_xst8_0_55,n+1,n+1,"PairOxdna3Xstk:theta_xst8_0_55");
-  memoryKK->create_kokkos(k_dtheta_xst8_ast,n+1,n+1,"PairOxdna3Xstk:dtheta_xst8_ast");
-  memoryKK->create_kokkos(k_b_xst8,n+1,n+1,"PairOxdna3Xstk:b_xst8");
-  memoryKK->create_kokkos(k_dtheta_xst8_c,n+1,n+1,"PairOxdna3Xstk:dtheta_xst8_c");
-
-  d_k_xst = k_k_xst.template view<DeviceType>();
-
-  d_cut_xst_0_33 = k_cut_xst_0_33.template view<DeviceType>();
-  d_cut_xst_c_33 = k_cut_xst_c_33.template view<DeviceType>();
-  d_cut_xst_lo_33 = k_cut_xst_lo_33.template view<DeviceType>();
-  d_cut_xst_hi_33 = k_cut_xst_hi_33.template view<DeviceType>();
-  d_cut_xst_lc_33 = k_cut_xst_lc_33.template view<DeviceType>();
-  d_cut_xst_hc_33 = k_cut_xst_hc_33.template view<DeviceType>();
-  d_cutsq_xst_hc_33 = k_cutsq_xst_hc_33.template view<DeviceType>();
-
-  d_cut_xst_0_55 = k_cut_xst_0_55.template view<DeviceType>();
-  d_cut_xst_c_55 = k_cut_xst_c_55.template view<DeviceType>();
-  d_cut_xst_lo_55 = k_cut_xst_lo_55.template view<DeviceType>();
-  d_cut_xst_hi_55 = k_cut_xst_hi_55.template view<DeviceType>();
-  d_cut_xst_lc_55 = k_cut_xst_lc_55.template view<DeviceType>();
-  d_cut_xst_hc_55 = k_cut_xst_hc_55.template view<DeviceType>();
-  d_cutsq_xst_hc_55 = k_cutsq_xst_hc_55.template view<DeviceType>();
-
-  d_b_xst_lo = k_b_xst_lo.template view<DeviceType>();
-  d_b_xst_hi = k_b_xst_hi.template view<DeviceType>();
-
-  d_a_xst1 = k_a_xst1.template view<DeviceType>();
-  d_theta_xst1_0 = k_theta_xst1_0.template view<DeviceType>();
-  d_dtheta_xst1_ast = k_dtheta_xst1_ast.template view<DeviceType>();
-  d_b_xst1 = k_b_xst1.template view<DeviceType>();
-  d_dtheta_xst1_c = k_dtheta_xst1_c.template view<DeviceType>();
-
-  d_a_xst2 = k_a_xst2.template view<DeviceType>();
-  d_theta_xst2_0 = k_theta_xst2_0.template view<DeviceType>();
-  d_dtheta_xst2_ast = k_dtheta_xst2_ast.template view<DeviceType>();
-  d_b_xst2 = k_b_xst2.template view<DeviceType>();
-  d_dtheta_xst2_c = k_dtheta_xst2_c.template view<DeviceType>();
-
-  d_a_xst3 = k_a_xst3.template view<DeviceType>();
-  d_theta_xst3_0 = k_theta_xst3_0.template view<DeviceType>();
-  d_dtheta_xst3_ast = k_dtheta_xst3_ast.template view<DeviceType>();
-  d_b_xst3 = k_b_xst3.template view<DeviceType>();
-  d_dtheta_xst3_c = k_dtheta_xst3_c.template view<DeviceType>();
-
-  d_a_xst4_33 = k_a_xst4_33.template view<DeviceType>();
-  d_theta_xst4_0_33 = k_theta_xst4_0_33.template view<DeviceType>();
-  d_dtheta_xst4_ast_33 = k_dtheta_xst4_ast_33.template view<DeviceType>();
-  d_b_xst4_33 = k_b_xst4_33.template view<DeviceType>();
-  d_dtheta_xst4_c_33 = k_dtheta_xst4_c_33.template view<DeviceType>();
-
-  d_a_xst4_55 = k_a_xst4_55.template view<DeviceType>();
-  d_theta_xst4_0_55 = k_theta_xst4_0_55.template view<DeviceType>();
-  d_dtheta_xst4_ast_55 = k_dtheta_xst4_ast_55.template view<DeviceType>();
-  d_b_xst4_55 = k_b_xst4_55.template view<DeviceType>();
-  d_dtheta_xst4_c_55 = k_dtheta_xst4_c_55.template view<DeviceType>();
-
-  d_a_xst7 = k_a_xst7.template view<DeviceType>();
-  d_theta_xst7_0_33 = k_theta_xst7_0_33.template view<DeviceType>();
-  d_theta_xst7_0_55 = k_theta_xst7_0_55.template view<DeviceType>();
-  d_dtheta_xst7_ast = k_dtheta_xst7_ast.template view<DeviceType>();
-  d_b_xst7 = k_b_xst7.template view<DeviceType>();
-  d_dtheta_xst7_c = k_dtheta_xst7_c.template view<DeviceType>();
-
-  d_a_xst8 = k_a_xst8.template view<DeviceType>();
-  d_theta_xst8_0_33 = k_theta_xst8_0_33.template view<DeviceType>();
-  d_theta_xst8_0_55 = k_theta_xst8_0_55.template view<DeviceType>();
-  d_dtheta_xst8_ast = k_dtheta_xst8_ast.template view<DeviceType>();
-  d_b_xst8 = k_b_xst8.template view<DeviceType>();
-  d_dtheta_xst8_c = k_dtheta_xst8_c.template view<DeviceType>();
+  d_params_xstk = k_params_xstk.template view<DeviceType>();
+  d_params_33 = k_params_33.template view<DeviceType>();
+  d_params_55 = k_params_55.template view<DeviceType>();
+  d_params_t7 = k_params_t7.template view<DeviceType>();
+  d_params_t8 = k_params_t8.template view<DeviceType>();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1053,126 +964,53 @@ double PairOxdna3XstkKokkos<DeviceType>::init_one(int i, int j)
   double cutone = PairOxdna3Xstk::init_one(i,j);
 
   // Assign directionally: [i][j] gets [i][j], [j][i] gets [j][i]
-  k_k_xst.view_host()(i,j) = k_xst[i][j]; k_k_xst.view_host()(j,i) = k_xst[j][i];
-  k_b_xst_lo.view_host()(i,j) = b_xst_lo[i][j]; k_b_xst_lo.view_host()(j,i) = b_xst_lo[j][i];
-  k_b_xst_hi.view_host()(i,j) = b_xst_hi[i][j]; k_b_xst_hi.view_host()(j,i) = b_xst_hi[j][i];
+  // Populate the 2D parameter struct
+  auto h_params_xstk = k_params_xstk.view_host();
+  h_params_xstk(i, j).k_xst = k_xst[i][j]; h_params_xstk(j, i).k_xst = k_xst[j][i];
+  h_params_xstk(i, j).b_xst_lo = b_xst_lo[i][j]; h_params_xstk(j, i).b_xst_lo = b_xst_lo[j][i];
+  h_params_xstk(i, j).b_xst_hi = b_xst_hi[i][j]; h_params_xstk(j, i).b_xst_hi = b_xst_hi[j][i];
 
-  k_a_xst1.view_host()(i,j) = a_xst1[i][j]; k_a_xst1.view_host()(j,i) = a_xst1[j][i];
-  k_theta_xst1_0.view_host()(i,j) = theta_xst1_0[i][j]; k_theta_xst1_0.view_host()(j,i) = theta_xst1_0[j][i];
-  k_dtheta_xst1_ast.view_host()(i,j) = dtheta_xst1_ast[i][j]; k_dtheta_xst1_ast.view_host()(j,i) = dtheta_xst1_ast[j][i];
-  k_b_xst1.view_host()(i,j) = b_xst1[i][j]; k_b_xst1.view_host()(j,i) = b_xst1[j][i];
-  k_dtheta_xst1_c.view_host()(i,j) = dtheta_xst1_c[i][j]; k_dtheta_xst1_c.view_host()(j,i) = dtheta_xst1_c[j][i];
+  h_params_xstk(i, j).a_xst1 = a_xst1[i][j]; h_params_xstk(j, i).a_xst1 = a_xst1[j][i];
+  h_params_xstk(i, j).theta_xst1_0 = theta_xst1_0[i][j]; h_params_xstk(j, i).theta_xst1_0 = theta_xst1_0[j][i];
+  h_params_xstk(i, j).dtheta_xst1_ast = dtheta_xst1_ast[i][j]; h_params_xstk(j, i).dtheta_xst1_ast = dtheta_xst1_ast[j][i];
+  h_params_xstk(i, j).b_xst1 = b_xst1[i][j]; h_params_xstk(j, i).b_xst1 = b_xst1[j][i];
+  h_params_xstk(i, j).dtheta_xst1_c = dtheta_xst1_c[i][j]; h_params_xstk(j, i).dtheta_xst1_c = dtheta_xst1_c[j][i];
+  h_params_xstk(i, j).a_xst2 = a_xst2[i][j]; h_params_xstk(j, i).a_xst2 = a_xst2[j][i];
+  h_params_xstk(i, j).theta_xst2_0 = theta_xst2_0[i][j]; h_params_xstk(j, i).theta_xst2_0 = theta_xst2_0[j][i];
+  h_params_xstk(i, j).dtheta_xst2_ast = dtheta_xst2_ast[i][j]; h_params_xstk(j, i).dtheta_xst2_ast = dtheta_xst2_ast[j][i];
+  h_params_xstk(i, j).b_xst2 = b_xst2[i][j]; h_params_xstk(j, i).b_xst2 = b_xst2[j][i];
+  h_params_xstk(i, j).dtheta_xst2_c = dtheta_xst2_c[i][j]; h_params_xstk(j, i).dtheta_xst2_c = dtheta_xst2_c[j][i];
+  h_params_xstk(i, j).a_xst3 = a_xst3[i][j]; h_params_xstk(j, i).a_xst3 = a_xst3[j][i];
+  h_params_xstk(i, j).theta_xst3_0 = theta_xst3_0[i][j]; h_params_xstk(j, i).theta_xst3_0 = theta_xst3_0[j][i];
+  h_params_xstk(i, j).dtheta_xst3_ast = dtheta_xst3_ast[i][j]; h_params_xstk(j, i).dtheta_xst3_ast = dtheta_xst3_ast[j][i];
+  h_params_xstk(i, j).b_xst3 = b_xst3[i][j]; h_params_xstk(j, i).b_xst3 = b_xst3[j][i];
+  h_params_xstk(i, j).dtheta_xst3_c = dtheta_xst3_c[i][j]; h_params_xstk(j, i).dtheta_xst3_c = dtheta_xst3_c[j][i];
 
-  k_a_xst2.view_host()(i,j) = a_xst2[i][j]; k_a_xst2.view_host()(j,i) = a_xst2[j][i];
-  k_theta_xst2_0.view_host()(i,j) = theta_xst2_0[i][j]; k_theta_xst2_0.view_host()(j,i) = theta_xst2_0[j][i];
-  k_dtheta_xst2_ast.view_host()(i,j) = dtheta_xst2_ast[i][j]; k_dtheta_xst2_ast.view_host()(j,i) = dtheta_xst2_ast[j][i];
-  k_b_xst2.view_host()(i,j) = b_xst2[i][j]; k_b_xst2.view_host()(j,i) = b_xst2[j][i];
-  k_dtheta_xst2_c.view_host()(i,j) = dtheta_xst2_c[i][j]; k_dtheta_xst2_c.view_host()(j,i) = dtheta_xst2_c[j][i];
+  // Populate theta7 and theta8 parameter structs
+  auto h_params_t7 = k_params_t7.view_host();
+  h_params_t7(i, j).a_xst7 = a_xst7[i][j]; h_params_t7(j, i).a_xst7 = a_xst7[j][i];
+  h_params_t7(i, j).theta_xst7_0_33 = theta_xst7_0_33[i][j]; h_params_t7(j, i).theta_xst7_0_33 = theta_xst7_0_33[j][i];
+  h_params_t7(i, j).theta_xst7_0_55 = theta_xst7_0_55[i][j]; h_params_t7(j, i).theta_xst7_0_55 = theta_xst7_0_55[j][i];
+  h_params_t7(i, j).dtheta_xst7_ast = dtheta_xst7_ast[i][j]; h_params_t7(j, i).dtheta_xst7_ast = dtheta_xst7_ast[j][i];
+  h_params_t7(i, j).b_xst7 = b_xst7[i][j]; h_params_t7(j, i).b_xst7 = b_xst7[j][i];
+  h_params_t7(i, j).dtheta_xst7_c = dtheta_xst7_c[i][j]; h_params_t7(j, i).dtheta_xst7_c = dtheta_xst7_c[j][i];
 
-  k_a_xst3.view_host()(i,j) = a_xst3[i][j]; k_a_xst3.view_host()(j,i) = a_xst3[j][i];
-  k_theta_xst3_0.view_host()(i,j) = theta_xst3_0[i][j]; k_theta_xst3_0.view_host()(j,i) = theta_xst3_0[j][i];
-  k_dtheta_xst3_ast.view_host()(i,j) = dtheta_xst3_ast[i][j]; k_dtheta_xst3_ast.view_host()(j,i) = dtheta_xst3_ast[j][i];
-  k_b_xst3.view_host()(i,j) = b_xst3[i][j]; k_b_xst3.view_host()(j,i) = b_xst3[j][i];
-  k_dtheta_xst3_c.view_host()(i,j) = dtheta_xst3_c[i][j]; k_dtheta_xst3_c.view_host()(j,i) = dtheta_xst3_c[j][i];
+  auto h_params_t8 = k_params_t8.view_host();
+  h_params_t8(i, j).a_xst8 = a_xst8[i][j]; h_params_t8(j, i).a_xst8 = a_xst8[j][i];
+  h_params_t8(i, j).theta_xst8_0_33 = theta_xst8_0_33[i][j]; h_params_t8(j, i).theta_xst8_0_33 = theta_xst8_0_33[j][i];
+  h_params_t8(i, j).theta_xst8_0_55 = theta_xst8_0_55[i][j]; h_params_t8(j, i).theta_xst8_0_55 = theta_xst8_0_55[j][i];
+  h_params_t8(i, j).dtheta_xst8_ast = dtheta_xst8_ast[i][j]; h_params_t8(j, i).dtheta_xst8_ast = dtheta_xst8_ast[j][i];
+  h_params_t8(i, j).b_xst8 = b_xst8[i][j]; h_params_t8(j, i).b_xst8 = b_xst8[j][i];
+  h_params_t8(i, j).dtheta_xst8_c = dtheta_xst8_c[i][j]; h_params_t8(j, i).dtheta_xst8_c = dtheta_xst8_c[j][i];
 
-  k_a_xst7.view_host()(i,j) = a_xst7[i][j]; k_a_xst7.view_host()(j,i) = a_xst7[j][i];
-  k_theta_xst7_0_33.view_host()(i,j) = theta_xst7_0_33[i][j];
-  k_theta_xst7_0_33.view_host()(j,i) = theta_xst7_0_33[j][i];
-  k_theta_xst7_0_55.view_host()(i,j) = theta_xst7_0_55[i][j];
-  k_theta_xst7_0_55.view_host()(j,i) = theta_xst7_0_55[j][i];
-  k_dtheta_xst7_ast.view_host()(i,j) = dtheta_xst7_ast[i][j]; k_dtheta_xst7_ast.view_host()(j,i) = dtheta_xst7_ast[j][i];
-  k_b_xst7.view_host()(i,j) = b_xst7[i][j]; k_b_xst7.view_host()(j,i) = b_xst7[j][i];
-  k_dtheta_xst7_c.view_host()(i,j) = dtheta_xst7_c[i][j]; k_dtheta_xst7_c.view_host()(j,i) = dtheta_xst7_c[j][i];
+  k_params_xstk.template modify<LMPHostType>();
+  k_params_t7.template modify<LMPHostType>();
+  k_params_t8.template modify<LMPHostType>();
 
-  k_a_xst8.view_host()(i,j) = a_xst8[i][j]; k_a_xst8.view_host()(j,i) = a_xst8[j][i];
-  k_theta_xst8_0_33.view_host()(i,j) = theta_xst8_0_33[i][j];
-  k_theta_xst8_0_33.view_host()(j,i) = theta_xst8_0_33[j][i];
-  k_theta_xst8_0_55.view_host()(i,j) = theta_xst8_0_55[i][j];
-  k_theta_xst8_0_55.view_host()(j,i) = theta_xst8_0_55[j][i];
-  k_dtheta_xst8_ast.view_host()(i,j) = dtheta_xst8_ast[i][j]; k_dtheta_xst8_ast.view_host()(j,i) = dtheta_xst8_ast[j][i];
-  k_b_xst8.view_host()(i,j) = b_xst8[i][j]; k_b_xst8.view_host()(j,i) = b_xst8[j][i];
-  k_dtheta_xst8_c.view_host()(i,j) = dtheta_xst8_c[i][j]; k_dtheta_xst8_c.view_host()(j,i) = dtheta_xst8_c[j][i];
+  k_params_xstk.template sync<DeviceType>();
+  k_params_t7.template sync<DeviceType>();
+  k_params_t8.template sync<DeviceType>();
 
-  k_k_xst.template modify<LMPHostType>();
-  k_b_xst_lo.template modify<LMPHostType>();
-  k_b_xst_hi.template modify<LMPHostType>();
-
-  k_a_xst1.template modify<LMPHostType>();
-  k_theta_xst1_0.template modify<LMPHostType>();
-  k_dtheta_xst1_ast.template modify<LMPHostType>();
-  k_b_xst1.template modify<LMPHostType>();
-  k_dtheta_xst1_c.template modify<LMPHostType>();
-
-  k_a_xst2.template modify<LMPHostType>();
-  k_theta_xst2_0.template modify<LMPHostType>();
-  k_dtheta_xst2_ast.template modify<LMPHostType>();
-  k_b_xst2.template modify<LMPHostType>();
-  k_dtheta_xst2_c.template modify<LMPHostType>();
-
-  k_a_xst3.template modify<LMPHostType>();
-  k_theta_xst3_0.template modify<LMPHostType>();
-  k_dtheta_xst3_ast.template modify<LMPHostType>();
-  k_b_xst3.template modify<LMPHostType>();
-  k_dtheta_xst3_c.template modify<LMPHostType>();
-
-  k_a_xst7.template modify<LMPHostType>();
-  k_theta_xst7_0_33.template modify<LMPHostType>();
-  k_theta_xst7_0_55.template modify<LMPHostType>();
-  k_dtheta_xst7_ast.template modify<LMPHostType>();
-  k_b_xst7.template modify<LMPHostType>();
-  k_dtheta_xst7_c.template modify<LMPHostType>();
-
-  k_a_xst8.template modify<LMPHostType>();
-  k_theta_xst8_0_33.template modify<LMPHostType>();
-  k_theta_xst8_0_55.template modify<LMPHostType>();
-  k_dtheta_xst8_ast.template modify<LMPHostType>();
-  k_b_xst8.template modify<LMPHostType>();
-  k_dtheta_xst8_c.template modify<LMPHostType>();
-
-  // Sync to device
-  k_k_xst.template sync<DeviceType>();
-  k_b_xst_lo.template sync<DeviceType>();
-  k_b_xst_hi.template sync<DeviceType>();
-
-  k_a_xst1.template sync<DeviceType>();
-  k_theta_xst1_0.template sync<DeviceType>();
-  k_dtheta_xst1_ast.template sync<DeviceType>();
-  k_b_xst1.template sync<DeviceType>();
-  k_dtheta_xst1_c.template sync<DeviceType>();
-
-  k_a_xst2.template sync<DeviceType>();
-  k_theta_xst2_0.template sync<DeviceType>();
-  k_dtheta_xst2_ast.template sync<DeviceType>();
-  k_b_xst2.template sync<DeviceType>();
-  k_dtheta_xst2_c.template sync<DeviceType>();
-
-  k_a_xst3.template sync<DeviceType>();
-  k_theta_xst3_0.template sync<DeviceType>();
-  k_dtheta_xst3_ast.template sync<DeviceType>();
-  k_b_xst3.template sync<DeviceType>();
-  k_dtheta_xst3_c.template sync<DeviceType>();
-
-  k_a_xst7.template sync<DeviceType>();
-  k_theta_xst7_0_33.template sync<DeviceType>();
-  k_theta_xst7_0_55.template sync<DeviceType>();
-  k_dtheta_xst7_ast.template sync<DeviceType>();
-  k_b_xst7.template sync<DeviceType>();
-  k_dtheta_xst7_c.template sync<DeviceType>();
-
-  k_a_xst8.template sync<DeviceType>();
-  k_theta_xst8_0_33.template sync<DeviceType>();
-  k_theta_xst8_0_55.template sync<DeviceType>();
-  k_dtheta_xst8_ast.template sync<DeviceType>();
-  k_b_xst8.template sync<DeviceType>();
-  k_dtheta_xst8_c.template sync<DeviceType>();
-
-  // Register the COM screen cutoff for this pair: cross-stacking acts at the
-  // base site (COM +/- 0.4*nx on each atom), so a COM-distance screen needs a
-  // 2*0.4 margin to never drop an interacting pair. The npair fix takes the max
-  // over all consuming styles and type-pairs.
-  if (fix_oxdna_npairKK) fix_oxdna_npairKK->request_screen_cutoff(cutone + 0.8);
-
-  // "cutone" is "cut_xst_hc[i][j]", sets the master list distance cutoff
   return cutone;
 }
 
@@ -1188,91 +1026,52 @@ void PairOxdna3XstkKokkos<DeviceType>::coeff(int narg, char **arg)
 
   const int n = atom->ntypes;
 
+  // Populate the 4D parameter structs
+  auto h_params_33 = k_params_33.view_host();
+  auto h_params_55 = k_params_55.view_host();
   for (int i = 0; i <= n; i++) {
     for (int j = 0; j <= n; j++) {
       for (int k = 0; k <= n; k++) {
         for (int l = 0; l <= n; l++) {
-          k_cut_xst_0_33.view_host()(i,j,k,l) = cut_xst_0_33[i][j][k][l];
-          k_cut_xst_c_33.view_host()(i,j,k,l) = cut_xst_c_33[i][j][k][l];
-          k_cut_xst_lo_33.view_host()(i,j,k,l) = cut_xst_lo_33[i][j][k][l];
-          k_cut_xst_hi_33.view_host()(i,j,k,l) = cut_xst_hi_33[i][j][k][l];
-          k_cut_xst_lc_33.view_host()(i,j,k,l) = cut_xst_lc_33[i][j][k][l];
-          k_cut_xst_hc_33.view_host()(i,j,k,l) = cut_xst_hc_33[i][j][k][l];
-          k_cutsq_xst_hc_33.view_host()(i,j,k,l) = cutsq_xst_hc_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_0 = cut_xst_0_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_c = cut_xst_c_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_lo = cut_xst_lo_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_hi = cut_xst_hi_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_lc = cut_xst_lc_33[i][j][k][l];
+          h_params_33(i,j,k,l).cut_xst_hc = cut_xst_hc_33[i][j][k][l];
+          h_params_33(i,j,k,l).a_xst4 = a_xst4_33[i][j][k][l];
+          h_params_33(i,j,k,l).theta_xst4_0 = theta_xst4_0_33[i][j][k][l];
+          h_params_33(i,j,k,l).dtheta_xst4_ast = dtheta_xst4_ast_33[i][j][k][l];
+          h_params_33(i,j,k,l).b_xst4 = b_xst4_33[i][j][k][l];
+          h_params_33(i,j,k,l).dtheta_xst4_c = dtheta_xst4_c_33[i][j][k][l];
 
-          k_cut_xst_0_55.view_host()(i,j,k,l) = cut_xst_0_55[i][j][k][l];
-          k_cut_xst_c_55.view_host()(i,j,k,l) = cut_xst_c_55[i][j][k][l];
-          k_cut_xst_lo_55.view_host()(i,j,k,l) = cut_xst_lo_55[i][j][k][l];
-          k_cut_xst_hi_55.view_host()(i,j,k,l) = cut_xst_hi_55[i][j][k][l];
-          k_cut_xst_lc_55.view_host()(i,j,k,l) = cut_xst_lc_55[i][j][k][l];
-          k_cut_xst_hc_55.view_host()(i,j,k,l) = cut_xst_hc_55[i][j][k][l];
-          k_cutsq_xst_hc_55.view_host()(i,j,k,l) = cutsq_xst_hc_55[i][j][k][l];
-
-          k_a_xst4_33.view_host()(i,j,k,l) = a_xst4_33[i][j][k][l];
-          k_theta_xst4_0_33.view_host()(i,j,k,l) = theta_xst4_0_33[i][j][k][l];
-          k_dtheta_xst4_ast_33.view_host()(i,j,k,l) = dtheta_xst4_ast_33[i][j][k][l];
-          k_b_xst4_33.view_host()(i,j,k,l) = b_xst4_33[i][j][k][l];
-          k_dtheta_xst4_c_33.view_host()(i,j,k,l) = dtheta_xst4_c_33[i][j][k][l];
-
-          k_a_xst4_55.view_host()(i,j,k,l) = a_xst4_55[i][j][k][l];
-          k_theta_xst4_0_55.view_host()(i,j,k,l) = theta_xst4_0_55[i][j][k][l];
-          k_dtheta_xst4_ast_55.view_host()(i,j,k,l) = dtheta_xst4_ast_55[i][j][k][l];
-          k_b_xst4_55.view_host()(i,j,k,l) = b_xst4_55[i][j][k][l];
-          k_dtheta_xst4_c_55.view_host()(i,j,k,l) = dtheta_xst4_c_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_0 = cut_xst_0_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_c = cut_xst_c_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_lo = cut_xst_lo_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_hi = cut_xst_hi_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_lc = cut_xst_lc_55[i][j][k][l];
+          h_params_55(i,j,k,l).cut_xst_hc = cut_xst_hc_55[i][j][k][l];
+          h_params_55(i,j,k,l).a_xst4 = a_xst4_55[i][j][k][l];
+          h_params_55(i,j,k,l).theta_xst4_0 = theta_xst4_0_55[i][j][k][l];
+          h_params_55(i,j,k,l).dtheta_xst4_ast = dtheta_xst4_ast_55[i][j][k][l];
+          h_params_55(i,j,k,l).b_xst4 = b_xst4_55[i][j][k][l];
+          h_params_55(i,j,k,l).dtheta_xst4_c = dtheta_xst4_c_55[i][j][k][l];
         }
       }
     }
   }
 
-  k_cut_xst_0_33.template modify<LMPHostType>();
-  k_cut_xst_c_33.template modify<LMPHostType>();
-  k_cut_xst_lo_33.template modify<LMPHostType>();
-  k_cut_xst_hi_33.template modify<LMPHostType>();
-  k_cut_xst_lc_33.template modify<LMPHostType>();
-  k_cut_xst_hc_33.template modify<LMPHostType>();
-  k_cutsq_xst_hc_33.template modify<LMPHostType>();
-  k_cut_xst_0_55.template modify<LMPHostType>();
-  k_cut_xst_c_55.template modify<LMPHostType>();
-  k_cut_xst_lo_55.template modify<LMPHostType>();
-  k_cut_xst_hi_55.template modify<LMPHostType>();
-  k_cut_xst_lc_55.template modify<LMPHostType>();
-  k_cut_xst_hc_55.template modify<LMPHostType>();
-  k_cutsq_xst_hc_55.template modify<LMPHostType>();
-  k_a_xst4_33.template modify<LMPHostType>();
-  k_theta_xst4_0_33.template modify<LMPHostType>();
-  k_dtheta_xst4_ast_33.template modify<LMPHostType>();
-  k_b_xst4_33.template modify<LMPHostType>();
-  k_dtheta_xst4_c_33.template modify<LMPHostType>();
-  k_a_xst4_55.template modify<LMPHostType>();
-  k_theta_xst4_0_55.template modify<LMPHostType>();
-  k_dtheta_xst4_ast_55.template modify<LMPHostType>();
-  k_b_xst4_55.template modify<LMPHostType>();
-  k_dtheta_xst4_c_55.template modify<LMPHostType>();
+  k_params_xstk.template modify<LMPHostType>();
+  k_params_33.template modify<LMPHostType>();
+  k_params_55.template modify<LMPHostType>();
+  k_params_t7.template modify<LMPHostType>();
+  k_params_t8.template modify<LMPHostType>();
 
-  k_cut_xst_0_33.template sync<DeviceType>();
-  k_cut_xst_c_33.template sync<DeviceType>();
-  k_cut_xst_lo_33.template sync<DeviceType>();
-  k_cut_xst_hi_33.template sync<DeviceType>();
-  k_cut_xst_lc_33.template sync<DeviceType>();
-  k_cut_xst_hc_33.template sync<DeviceType>();
-  k_cutsq_xst_hc_33.template sync<DeviceType>();
-  k_cut_xst_0_55.template sync<DeviceType>();
-  k_cut_xst_c_55.template sync<DeviceType>();
-  k_cut_xst_lo_55.template sync<DeviceType>();
-  k_cut_xst_hi_55.template sync<DeviceType>();
-  k_cut_xst_lc_55.template sync<DeviceType>();
-  k_cut_xst_hc_55.template sync<DeviceType>();
-  k_cutsq_xst_hc_55.template sync<DeviceType>();
-  k_a_xst4_33.template sync<DeviceType>();
-  k_theta_xst4_0_33.template sync<DeviceType>();
-  k_dtheta_xst4_ast_33.template sync<DeviceType>();
-  k_b_xst4_33.template sync<DeviceType>();
-  k_dtheta_xst4_c_33.template sync<DeviceType>();
-  k_a_xst4_55.template sync<DeviceType>();
-  k_theta_xst4_0_55.template sync<DeviceType>();
-  k_dtheta_xst4_ast_55.template sync<DeviceType>();
-  k_b_xst4_55.template sync<DeviceType>();
-  k_dtheta_xst4_c_55.template sync<DeviceType>();
+  k_params_xstk.template sync<DeviceType>();
+  k_params_33.template sync<DeviceType>();
+  k_params_55.template sync<DeviceType>();
+  k_params_t7.template sync<DeviceType>();
+  k_params_t8.template sync<DeviceType>();
 }
 
 /* ---------------------------------------------------------------------- */

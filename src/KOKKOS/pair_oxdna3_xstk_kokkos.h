@@ -28,7 +28,40 @@ PairStyle(oxdna3/xstk/kk/host,PairOxdna3XstkKokkos<LMPHostType>);
 #include "pair_oxdna3_xstk.h"
 #include "neigh_list_kokkos.h"
 
+#include "fix_oxdna_prime_neighs_kokkos.h"
+#include "mf_oxdna_kokkos.h"
+
 namespace LAMMPS_NS {
+
+// Structure to hold all 2D cross-stacking parameters
+struct ParamsXSTK {
+  KK_FLOAT k_xst, b_xst_lo, b_xst_hi;
+  KK_FLOAT a_xst1, theta_xst1_0, dtheta_xst1_ast, b_xst1, dtheta_xst1_c;
+  KK_FLOAT a_xst2, theta_xst2_0, dtheta_xst2_ast, b_xst2, dtheta_xst2_c;
+  KK_FLOAT a_xst3, theta_xst3_0, dtheta_xst3_ast, b_xst3, dtheta_xst3_c;
+};
+
+// Structure for 4D parameters (3'-3' interactions)
+struct ParamsXSTK33 {
+  KK_FLOAT cut_xst_0, cut_xst_c, cut_xst_lo, cut_xst_hi, cut_xst_lc, cut_xst_hc;
+  KK_FLOAT a_xst4, theta_xst4_0, dtheta_xst4_ast, b_xst4, dtheta_xst4_c;
+};
+
+// Structure for 4D parameters (5'-5' interactions)
+struct ParamsXSTK55 {
+  KK_FLOAT cut_xst_0, cut_xst_c, cut_xst_lo, cut_xst_hi, cut_xst_lc, cut_xst_hc;
+  KK_FLOAT a_xst4, theta_xst4_0, dtheta_xst4_ast, b_xst4, dtheta_xst4_c;
+};
+
+// Structure for theta7 parameters
+struct ParamsXSTK7 {
+  KK_FLOAT a_xst7, theta_xst7_0_33, theta_xst7_0_55, dtheta_xst7_ast, b_xst7, dtheta_xst7_c;
+};
+
+// Structure for theta8 parameters
+struct ParamsXSTK8 {
+  KK_FLOAT a_xst8, theta_xst8_0_33, theta_xst8_0_55, dtheta_xst8_ast, b_xst8, dtheta_xst8_c;
+};
 
 template<class DeviceType>
 class FixOxdnaLRFKokkos;  // forward declaration
@@ -89,6 +122,19 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   typename AT::t_kkacc_1d_3 f;
   typename AT::t_kkacc_1d_3 torque;
   typename AT::t_int_1d_randomread type;
+
+  // Consolidated parameter views
+  Kokkos::DualView<ParamsXSTK **, DeviceType> k_params_xstk;
+  Kokkos::DualView<ParamsXSTK33 ****, DeviceType> k_params_33;
+  Kokkos::DualView<ParamsXSTK55 ****, DeviceType> k_params_55;
+  Kokkos::DualView<ParamsXSTK7 **, DeviceType> k_params_t7;
+  Kokkos::DualView<ParamsXSTK8 **, DeviceType> k_params_t8;
+
+  typename Kokkos::DualView<ParamsXSTK **, DeviceType>::t_dev d_params_xstk;
+  typename Kokkos::DualView<ParamsXSTK33 ****, DeviceType>::t_dev d_params_33;
+  typename Kokkos::DualView<ParamsXSTK55 ****, DeviceType>::t_dev d_params_55;
+  typename Kokkos::DualView<ParamsXSTK7 **, DeviceType>::t_dev d_params_t7;
+  typename Kokkos::DualView<ParamsXSTK8 **, DeviceType>::t_dev d_params_t8;
 
   DAT::ttransform_kkacc_1d k_eatom;
   DAT::ttransform_kkacc_1d_6 k_vatom;
