@@ -130,11 +130,11 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   Kokkos::DualView<ParamsXSTK7 **, DeviceType> k_params_t7;
   Kokkos::DualView<ParamsXSTK8 **, DeviceType> k_params_t8;
 
-  typename Kokkos::DualView<ParamsXSTK **, DeviceType>::t_dev d_params_xstk;
-  typename Kokkos::DualView<ParamsXSTK33 ****, DeviceType>::t_dev d_params_33;
-  typename Kokkos::DualView<ParamsXSTK55 ****, DeviceType>::t_dev d_params_55;
-  typename Kokkos::DualView<ParamsXSTK7 **, DeviceType>::t_dev d_params_t7;
-  typename Kokkos::DualView<ParamsXSTK8 **, DeviceType>::t_dev d_params_t8;
+  typename Kokkos::DualView<ParamsXSTK **, DeviceType>::t_dev_const_randomread d_params_xstk;
+  typename Kokkos::DualView<ParamsXSTK33 ****, DeviceType>::t_dev_const_randomread d_params_33;
+  typename Kokkos::DualView<ParamsXSTK55 ****, DeviceType>::t_dev_const_randomread d_params_55;
+  typename Kokkos::DualView<ParamsXSTK7 **, DeviceType>::t_dev_const_randomread d_params_t7;
+  typename Kokkos::DualView<ParamsXSTK8 **, DeviceType>::t_dev_const_randomread d_params_t8;
 
   DAT::ttransform_kkacc_1d k_eatom;
   DAT::ttransform_kkacc_1d_6 k_vatom;
