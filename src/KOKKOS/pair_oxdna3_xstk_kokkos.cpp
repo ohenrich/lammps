@@ -741,24 +741,24 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
   if (!xstk_radial_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
       r_bsbs, f2_33, f2_55, df2_33, df2_55)) return;
 
-    KK_FLOAT f4t1, df4t1;
-    if (!xstk_theta1_terms(atype, btype, a_nx, b_nx, f4t1, df4t1)) return;
+  KK_FLOAT f4t1, df4t1;
+  if (!xstk_theta1_terms(atype, btype, a_nx, b_nx, f4t1, df4t1)) return;
 
-    KK_FLOAT cost2, f4t2, df4t2;
-    if (!xstk_theta2_terms(atype, btype, a_nx, delr_bsbs_norm, cost2, f4t2, df4t2)) return;
+  KK_FLOAT cost2, f4t2, df4t2;
+  if (!xstk_theta2_terms(atype, btype, a_nx, delr_bsbs_norm, cost2, f4t2, df4t2)) return;
 
-    KK_FLOAT cost3, f4t3, df4t3;
-    if (!xstk_theta3_terms(atype, btype, b_nx, delr_bsbs_norm, cost3, f4t3, df4t3)) return;
+  KK_FLOAT cost3, f4t3, df4t3;
+  if (!xstk_theta3_terms(atype, btype, b_nx, delr_bsbs_norm, cost3, f4t3, df4t3)) return;
 
-    KK_FLOAT f4t4_33, f4t4_55, df4t4_33, df4t4_55;
+  KK_FLOAT f4t4_33, f4t4_55, df4t4_33, df4t4_55;
   if (!xstk_theta4_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
       a_nz, b_nz, f4t4_33, f4t4_55, df4t4_33, df4t4_55)) return;
 
-    KK_FLOAT cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55;
+  KK_FLOAT cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55;
   if (!xstk_theta7_terms(atype, btype, a_nz, delr_bsbs_norm,
       cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55)) return;
 
-    KK_FLOAT cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55;
+  KK_FLOAT cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55;
   if (!xstk_theta8_terms(atype, btype, b_nz, delr_bsbs_norm,
       cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55)) return;
 
