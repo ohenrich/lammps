@@ -296,12 +296,12 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta1_terms(const int &atype, const int &btype,
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
-  KK_FLOAT &theta1, KK_FLOAT &f4t1, KK_FLOAT &df4t1) const
+  KK_FLOAT &f4t1, KK_FLOAT &df4t1) const
 {
   KK_FLOAT cost1 = -Kokkos::fma(a_nx[2], b_nx[2], Kokkos::fma(a_nx[1], b_nx[1], a_nx[0] * b_nx[0]));
   if (cost1 > static_cast<KK_FLOAT>(1.0)) cost1 = static_cast<KK_FLOAT>(1.0);
   if (cost1 < static_cast<KK_FLOAT>(-1.0)) cost1 = static_cast<KK_FLOAT>(-1.0);
-  theta1 = acos(cost1);
+  const KK_FLOAT theta1 = acos(cost1);
 
   const auto& p_xstk = d_params_xstk(atype, btype);
 
@@ -329,12 +329,12 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta2_terms(const int &atype, const int &btype,
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&delr_hb_norm)[3],
-  KK_FLOAT &theta2, KK_FLOAT &cost2, KK_FLOAT &f4t2, KK_FLOAT &df4t2) const
+  KK_FLOAT &cost2, KK_FLOAT &f4t2, KK_FLOAT &df4t2) const
 {
   cost2 = -Kokkos::fma(a_nx[2], delr_hb_norm[2], Kokkos::fma(a_nx[1], delr_hb_norm[1], a_nx[0] * delr_hb_norm[0]));
   if (cost2 > static_cast<KK_FLOAT>(1.0)) cost2 = static_cast<KK_FLOAT>(1.0);
   if (cost2 < static_cast<KK_FLOAT>(-1.0)) cost2 = static_cast<KK_FLOAT>(-1.0);
-  theta2 = acos(cost2);
+  const KK_FLOAT theta2 = acos(cost2);
 
   const auto& p_xstk = d_params_xstk(atype, btype);
 
@@ -362,12 +362,12 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta3_terms(const int &atype, const int &btype,
   const KK_FLOAT (&b_nx)[3], const KK_FLOAT (&delr_hb_norm)[3],
-  KK_FLOAT &theta3, KK_FLOAT &cost3, KK_FLOAT &f4t3, KK_FLOAT &df4t3) const
+  KK_FLOAT &cost3, KK_FLOAT &f4t3, KK_FLOAT &df4t3) const
 {
   cost3 = Kokkos::fma(b_nx[2], delr_hb_norm[2], Kokkos::fma(b_nx[1], delr_hb_norm[1], b_nx[0] * delr_hb_norm[0]));
   if (cost3 > static_cast<KK_FLOAT>(1.0)) cost3 = static_cast<KK_FLOAT>(1.0);
   if (cost3 < static_cast<KK_FLOAT>(-1.0)) cost3 = static_cast<KK_FLOAT>(-1.0);
-  theta3 = acos(cost3);
+  const KK_FLOAT theta3 = acos(cost3);
 
   const auto& p_xstk = d_params_xstk(atype, btype);
 
@@ -397,14 +397,13 @@ bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta4_terms(const int &atype, const
   const int &a3ptype, const int &a5ptype,
   const int &b3ptype, const int &b5ptype,
   const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
-  KK_FLOAT &theta4,
   KK_FLOAT &f4t4_33, KK_FLOAT &f4t4_55,
   KK_FLOAT &df4t4_33, KK_FLOAT &df4t4_55) const
 {
   KK_FLOAT cost4 = Kokkos::fma(a_nz[2], b_nz[2], Kokkos::fma(a_nz[1], b_nz[1], a_nz[0] * b_nz[0]));
   if (cost4 > static_cast<KK_FLOAT>(1.0)) cost4 = static_cast<KK_FLOAT>(1.0);
   if (cost4 < static_cast<KK_FLOAT>(-1.0)) cost4 = static_cast<KK_FLOAT>(-1.0);
-  theta4 = acos(cost4);
+  const KK_FLOAT theta4 = acos(cost4);
 
   const auto& p_33 = d_params_33(a3ptype, atype, btype, b3ptype);
   const auto& p_55 = d_params_55(a5ptype, atype, btype, b5ptype);
@@ -441,14 +440,14 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta7_terms(const int &atype, const int &btype,
   const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-  KK_FLOAT &theta7, KK_FLOAT &cost7,
+  KK_FLOAT &cost7,
   KK_FLOAT &f4t7_33, KK_FLOAT &f4t7_55,
   KK_FLOAT &df4t7_33, KK_FLOAT &df4t7_55) const
 {
   cost7 = -Kokkos::fma(a_nz[2], delr_hb_norm[2], Kokkos::fma(a_nz[1], delr_hb_norm[1], a_nz[0] * delr_hb_norm[0]));
   if (cost7 > static_cast<KK_FLOAT>(1.0)) cost7 = static_cast<KK_FLOAT>(1.0);
   if (cost7 < static_cast<KK_FLOAT>(-1.0)) cost7 = static_cast<KK_FLOAT>(-1.0);
-  theta7 = acos(cost7);
+  const KK_FLOAT theta7 = acos(cost7);
 
   const auto& p_t7 = d_params_t7(atype, btype);
 
@@ -479,14 +478,14 @@ template<class DeviceType>
 KOKKOS_INLINE_FUNCTION
 bool PairOxdna3XstkKokkos<DeviceType>::xstk_theta8_terms(const int &atype, const int &btype,
   const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-  KK_FLOAT &theta8, KK_FLOAT &cost8,
+  KK_FLOAT &cost8,
   KK_FLOAT &f4t8_33, KK_FLOAT &f4t8_55,
   KK_FLOAT &df4t8_33, KK_FLOAT &df4t8_55) const
 {
   cost8 = Kokkos::fma(b_nz[2], delr_hb_norm[2], Kokkos::fma(b_nz[1], delr_hb_norm[1], b_nz[0] * delr_hb_norm[0]));
   if (cost8 > static_cast<KK_FLOAT>(1.0)) cost8 = static_cast<KK_FLOAT>(1.0);
   if (cost8 < static_cast<KK_FLOAT>(-1.0)) cost8 = static_cast<KK_FLOAT>(-1.0);
-  theta8 = acos(cost8);
+  const KK_FLOAT theta8 = acos(cost8);
 
   const auto& p_t8 = d_params_t8(atype, btype);
 
@@ -525,7 +524,6 @@ void PairOxdna3XstkKokkos<DeviceType>::xstk_force_contrib(const KK_FLOAT &f2_33,
   const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
   const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
   const KK_FLOAT &rinv_hb, const KK_FLOAT &factor_lj,
-  const KK_FLOAT &theta2, const KK_FLOAT &theta3, const KK_FLOAT &theta7, const KK_FLOAT &theta8,
   const KK_FLOAT &cost2, const KK_FLOAT &cost3, const KK_FLOAT &cost7, const KK_FLOAT &cost8,
   const KK_FLOAT (&delr_hb)[3], const KK_FLOAT (&delr_hb_norm)[3],
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
@@ -536,40 +534,34 @@ void PairOxdna3XstkKokkos<DeviceType>::xstk_force_contrib(const KK_FLOAT &f2_33,
   const KK_FLOAT mixsum = f2_33 * f4t4_33 * f4t7_33 * f4t8_33 + f2_55 * f4t4_55 * f4t7_55 * f4t8_55;
   const KK_FLOAT rsum_df2 = df2_33 * f4t4_33 * f4t7_33 * f4t8_33 + df2_55 * f4t4_55 * f4t7_55 * f4t8_55;
 
+  // NOTE: Our early rejection in previous functions already covers the "if !theta" checks here that
+  // are seen in vanilla.
   KK_FLOAT finc = -f4t1 * f4t2 * f4t3 * rsum_df2 * rinv_hb * factor_lj;
   delf[0] = Kokkos::fma(delr_hb[0], finc, delf[0]);
   delf[1] = Kokkos::fma(delr_hb[1], finc, delf[1]);
   delf[2] = Kokkos::fma(delr_hb[2], finc, delf[2]);
 
-  if (theta2) {
-    finc = -f4t1 * df4t2 * f4t3 * mixsum * rinv_hb * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost2, a_nx[0]), finc, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost2, a_nx[1]), finc, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost2, a_nx[2]), finc, delf[2]);
-  }
+  finc = -f4t1 * df4t2 * f4t3 * mixsum * rinv_hb * factor_lj;
+  delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost2, a_nx[0]), finc, delf[0]);
+  delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost2, a_nx[1]), finc, delf[1]);
+  delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost2, a_nx[2]), finc, delf[2]);
 
-  if (theta3) {
-    finc = -f4t1 * f4t2 * df4t3 * mixsum * rinv_hb * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost3, -b_nx[0]), finc, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost3, -b_nx[1]), finc, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost3, -b_nx[2]), finc, delf[2]);
-  }
+  finc = -f4t1 * f4t2 * df4t3 * mixsum * rinv_hb * factor_lj;
+  delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost3, -b_nx[0]), finc, delf[0]);
+  delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost3, -b_nx[1]), finc, delf[1]);
+  delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost3, -b_nx[2]), finc, delf[2]);
 
-  if (theta7) {
-    const KK_FLOAT t7sum = f2_33 * f4t4_33 * df4t7_33 * f4t8_33 + f2_55 * f4t4_55 * df4t7_55 * f4t8_55;
-    finc = -f4t1 * f4t2 * f4t3 * t7sum * rinv_hb * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost7, a_nz[0]), finc, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost7, a_nz[1]), finc, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost7, a_nz[2]), finc, delf[2]);
-  }
+  const KK_FLOAT t7sum = f2_33 * f4t4_33 * df4t7_33 * f4t8_33 + f2_55 * f4t4_55 * df4t7_55 * f4t8_55;
+  finc = -f4t1 * f4t2 * f4t3 * t7sum * rinv_hb * factor_lj;
+  delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost7, a_nz[0]), finc, delf[0]);
+  delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost7, a_nz[1]), finc, delf[1]);
+  delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost7, a_nz[2]), finc, delf[2]);
 
-  if (theta8) {
-    const KK_FLOAT t8sum = f2_33 * f4t4_33 * f4t7_33 * df4t8_33 + f2_55 * f4t4_55 * f4t7_55 * df4t8_55;
-    finc = -f4t1 * f4t2 * f4t3 * t8sum * rinv_hb * factor_lj;
-    delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost8, -b_nz[0]), finc, delf[0]);
-    delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost8, -b_nz[1]), finc, delf[1]);
-    delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost8, -b_nz[2]), finc, delf[2]);
-  }
+  const KK_FLOAT t8sum = f2_33 * f4t4_33 * f4t7_33 * df4t8_33 + f2_55 * f4t4_55 * f4t7_55 * df4t8_55;
+  finc = -f4t1 * f4t2 * f4t3 * t8sum * rinv_hb * factor_lj;
+  delf[0] = Kokkos::fma(Kokkos::fma(delr_hb_norm[0], cost8, -b_nz[0]), finc, delf[0]);
+  delf[1] = Kokkos::fma(Kokkos::fma(delr_hb_norm[1], cost8, -b_nz[1]), finc, delf[1]);
+  delf[2] = Kokkos::fma(Kokkos::fma(delr_hb_norm[2], cost8, -b_nz[2]), finc, delf[2]);
 
   delta[0] = Kokkos::fma(ra_chb[1], delf[2], -ra_chb[2] * delf[1]);
   delta[1] = Kokkos::fma(ra_chb[2], delf[0], -ra_chb[0] * delf[2]);
@@ -592,8 +584,6 @@ void PairOxdna3XstkKokkos<DeviceType>::xstk_torque_contrib(const KK_FLOAT &f2_33
   const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
   const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
   const KK_FLOAT &factor_lj,
-  const KK_FLOAT &theta1, const KK_FLOAT &theta2, const KK_FLOAT &theta3,
-  const KK_FLOAT &theta4, const KK_FLOAT &theta7, const KK_FLOAT &theta8,
   const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
   const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
   const KK_FLOAT (&delr_hb_norm)[3],
@@ -609,74 +599,64 @@ void PairOxdna3XstkKokkos<DeviceType>::xstk_torque_contrib(const KK_FLOAT &f2_33
   const KK_FLOAT mixsum = f2_33 * f4t4_33 * f4t7_33 * f4t8_33 + f2_55 * f4t4_55 * f4t7_55 * f4t8_55;
   const KK_FLOAT pure_torque_common = f4t1 * f4t2 * f4t3 * factor_lj;
 
-  if (theta1) {
-    const KK_FLOAT tpair = -df4t1 * f4t2 * f4t3 * mixsum * factor_lj;
-    const KK_FLOAT t1dir0 = Kokkos::fma(a_nx[1], b_nx[2], -a_nx[2] * b_nx[1]);
-    const KK_FLOAT t1dir1 = Kokkos::fma(a_nx[2], b_nx[0], -a_nx[0] * b_nx[2]);
-    const KK_FLOAT t1dir2 = Kokkos::fma(a_nx[0], b_nx[1], -a_nx[1] * b_nx[0]);
-    delta[0] += t1dir0 * tpair;
-    delta[1] += t1dir1 * tpair;
-    delta[2] += t1dir2 * tpair;
-    deltb[0] += t1dir0 * tpair;
-    deltb[1] += t1dir1 * tpair;
-    deltb[2] += t1dir2 * tpair;
-  }
+  // NOTE: Our early rejection in previous functions already covers the "if !theta" checks here that
+  // are seen in vanilla.
+  const KK_FLOAT tpair1 = -df4t1 * f4t2 * f4t3 * mixsum * factor_lj;
+  const KK_FLOAT t1dir0 = Kokkos::fma(a_nx[1], b_nx[2], -a_nx[2] * b_nx[1]);
+  const KK_FLOAT t1dir1 = Kokkos::fma(a_nx[2], b_nx[0], -a_nx[0] * b_nx[2]);
+  const KK_FLOAT t1dir2 = Kokkos::fma(a_nx[0], b_nx[1], -a_nx[1] * b_nx[0]);
+  delta[0] += t1dir0 * tpair1;
+  delta[1] += t1dir1 * tpair1;
+  delta[2] += t1dir2 * tpair1;
+  deltb[0] += t1dir0 * tpair1;
+  deltb[1] += t1dir1 * tpair1;
+  deltb[2] += t1dir2 * tpair1;
 
-  if (theta2) {
-    const KK_FLOAT tpair = -f4t1 * df4t2 * f4t3 * mixsum * factor_lj;
-    const KK_FLOAT t2dir0 = Kokkos::fma(a_nx[1], delr_hb_norm[2], -a_nx[2] * delr_hb_norm[1]);
-    const KK_FLOAT t2dir1 = Kokkos::fma(a_nx[2], delr_hb_norm[0], -a_nx[0] * delr_hb_norm[2]);
-    const KK_FLOAT t2dir2 = Kokkos::fma(a_nx[0], delr_hb_norm[1], -a_nx[1] * delr_hb_norm[0]);
-    delta[0] += t2dir0 * tpair;
-    delta[1] += t2dir1 * tpair;
-    delta[2] += t2dir2 * tpair;
-  }
+  const KK_FLOAT tpair2 = -f4t1 * df4t2 * f4t3 * mixsum * factor_lj;
+  const KK_FLOAT t2dir0 = Kokkos::fma(a_nx[1], delr_hb_norm[2], -a_nx[2] * delr_hb_norm[1]);
+  const KK_FLOAT t2dir1 = Kokkos::fma(a_nx[2], delr_hb_norm[0], -a_nx[0] * delr_hb_norm[2]);
+  const KK_FLOAT t2dir2 = Kokkos::fma(a_nx[0], delr_hb_norm[1], -a_nx[1] * delr_hb_norm[0]);
+  delta[0] += t2dir0 * tpair2;
+  delta[1] += t2dir1 * tpair2;
+  delta[2] += t2dir2 * tpair2;
 
-  if (theta3) {
-    const KK_FLOAT tpair = -f4t1 * f4t2 * df4t3 * mixsum * factor_lj;
-    const KK_FLOAT t3dir0 = Kokkos::fma(b_nx[1], delr_hb_norm[2], -b_nx[2] * delr_hb_norm[1]);
-    const KK_FLOAT t3dir1 = Kokkos::fma(b_nx[2], delr_hb_norm[0], -b_nx[0] * delr_hb_norm[2]);
-    const KK_FLOAT t3dir2 = Kokkos::fma(b_nx[0], delr_hb_norm[1], -b_nx[1] * delr_hb_norm[0]);
-    deltb[0] += t3dir0 * tpair;
-    deltb[1] += t3dir1 * tpair;
-    deltb[2] += t3dir2 * tpair;
-  }
+  const KK_FLOAT tpair3 = -f4t1 * f4t2 * df4t3 * mixsum * factor_lj;
+  const KK_FLOAT t3dir0 = Kokkos::fma(b_nx[1], delr_hb_norm[2], -b_nx[2] * delr_hb_norm[1]);
+  const KK_FLOAT t3dir1 = Kokkos::fma(b_nx[2], delr_hb_norm[0], -b_nx[0] * delr_hb_norm[2]);
+  const KK_FLOAT t3dir2 = Kokkos::fma(b_nx[0], delr_hb_norm[1], -b_nx[1] * delr_hb_norm[0]);
+  deltb[0] += t3dir0 * tpair3;
+  deltb[1] += t3dir1 * tpair3;
+  deltb[2] += t3dir2 * tpair3;
 
-  if (theta4) {
-    const KK_FLOAT t4sum = f2_33 * df4t4_33 * f4t7_33 * f4t8_33 + f2_55 * df4t4_55 * f4t7_55 * f4t8_55;
-    const KK_FLOAT tpair = -pure_torque_common * t4sum;
-    const KK_FLOAT t4dir0 = Kokkos::fma(b_nz[1], a_nz[2], -b_nz[2] * a_nz[1]);
-    const KK_FLOAT t4dir1 = Kokkos::fma(b_nz[2], a_nz[0], -b_nz[0] * a_nz[2]);
-    const KK_FLOAT t4dir2 = Kokkos::fma(b_nz[0], a_nz[1], -b_nz[1] * a_nz[0]);
-    delta[0] += t4dir0 * tpair;
-    delta[1] += t4dir1 * tpair;
-    delta[2] += t4dir2 * tpair;
-    deltb[0] += t4dir0 * tpair;
-    deltb[1] += t4dir1 * tpair;
-    deltb[2] += t4dir2 * tpair;
-  }
+  const KK_FLOAT t4sum = f2_33 * df4t4_33 * f4t7_33 * f4t8_33 + f2_55 * df4t4_55 * f4t7_55 * f4t8_55;
+  const KK_FLOAT tpair4 = -pure_torque_common * t4sum;
+  const KK_FLOAT t4dir0 = Kokkos::fma(b_nz[1], a_nz[2], -b_nz[2] * a_nz[1]);
+  const KK_FLOAT t4dir1 = Kokkos::fma(b_nz[2], a_nz[0], -b_nz[0] * a_nz[2]);
+  const KK_FLOAT t4dir2 = Kokkos::fma(b_nz[0], a_nz[1], -b_nz[1] * a_nz[0]);
+  delta[0] += t4dir0 * tpair4;
+  delta[1] += t4dir1 * tpair4;
+  delta[2] += t4dir2 * tpair4;
+  deltb[0] += t4dir0 * tpair4;
+  deltb[1] += t4dir1 * tpair4;
+  deltb[2] += t4dir2 * tpair4;
 
-  if (theta7) {
-    const KK_FLOAT t7sum = f2_33 * f4t4_33 * df4t7_33 * f4t8_33 + f2_55 * f4t4_55 * df4t7_55 * f4t8_55;
-    const KK_FLOAT tpair = -pure_torque_common * t7sum;
-    const KK_FLOAT t7dir0 = Kokkos::fma(a_nz[1], delr_hb_norm[2], -a_nz[2] * delr_hb_norm[1]);
-    const KK_FLOAT t7dir1 = Kokkos::fma(a_nz[2], delr_hb_norm[0], -a_nz[0] * delr_hb_norm[2]);
-    const KK_FLOAT t7dir2 = Kokkos::fma(a_nz[0], delr_hb_norm[1], -a_nz[1] * delr_hb_norm[0]);
-    delta[0] += t7dir0 * tpair;
-    delta[1] += t7dir1 * tpair;
-    delta[2] += t7dir2 * tpair;
-  }
+  const KK_FLOAT t7sum = f2_33 * f4t4_33 * df4t7_33 * f4t8_33 + f2_55 * f4t4_55 * df4t7_55 * f4t8_55;
+  const KK_FLOAT tpair7 = -pure_torque_common * t7sum;
+  const KK_FLOAT t7dir0 = Kokkos::fma(a_nz[1], delr_hb_norm[2], -a_nz[2] * delr_hb_norm[1]);
+  const KK_FLOAT t7dir1 = Kokkos::fma(a_nz[2], delr_hb_norm[0], -a_nz[0] * delr_hb_norm[2]);
+  const KK_FLOAT t7dir2 = Kokkos::fma(a_nz[0], delr_hb_norm[1], -a_nz[1] * delr_hb_norm[0]);
+  delta[0] += t7dir0 * tpair7;
+  delta[1] += t7dir1 * tpair7;
+  delta[2] += t7dir2 * tpair7;
 
-  if (theta8) {
-    const KK_FLOAT t8sum = f2_33 * f4t4_33 * f4t7_33 * df4t8_33 + f2_55 * f4t4_55 * f4t7_55 * df4t8_55;
-    const KK_FLOAT tpair = -pure_torque_common * t8sum;
-    const KK_FLOAT t8dir0 = Kokkos::fma(b_nz[1], delr_hb_norm[2], -b_nz[2] * delr_hb_norm[1]);
-    const KK_FLOAT t8dir1 = Kokkos::fma(b_nz[2], delr_hb_norm[0], -b_nz[0] * delr_hb_norm[2]);
-    const KK_FLOAT t8dir2 = Kokkos::fma(b_nz[0], delr_hb_norm[1], -b_nz[1] * delr_hb_norm[0]);
-    deltb[0] += t8dir0 * tpair;
-    deltb[1] += t8dir1 * tpair;
-    deltb[2] += t8dir2 * tpair;
-  }
+  const KK_FLOAT t8sum = f2_33 * f4t4_33 * f4t7_33 * df4t8_33 + f2_55 * f4t4_55 * f4t7_55 * df4t8_55;
+  const KK_FLOAT tpair8 = -pure_torque_common * t8sum;
+  const KK_FLOAT t8dir0 = Kokkos::fma(b_nz[1], delr_hb_norm[2], -b_nz[2] * delr_hb_norm[1]);
+  const KK_FLOAT t8dir1 = Kokkos::fma(b_nz[2], delr_hb_norm[0], -b_nz[0] * delr_hb_norm[2]);
+  const KK_FLOAT t8dir2 = Kokkos::fma(b_nz[0], delr_hb_norm[1], -b_nz[1] * delr_hb_norm[0]);
+  deltb[0] += t8dir0 * tpair8;
+  deltb[1] += t8dir1 * tpair8;
+  deltb[2] += t8dir2 * tpair8;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -761,26 +741,26 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
   if (!xstk_radial_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
       r_bsbs, f2_33, f2_55, df2_33, df2_55)) return;
 
-  KK_FLOAT theta1, f4t1, df4t1;
-  if (!xstk_theta1_terms(atype, btype, a_nx, b_nx, theta1, f4t1, df4t1)) return;
+    KK_FLOAT f4t1, df4t1;
+    if (!xstk_theta1_terms(atype, btype, a_nx, b_nx, f4t1, df4t1)) return;
 
-  KK_FLOAT theta2, cost2, f4t2, df4t2;
-  if (!xstk_theta2_terms(atype, btype, a_nx, delr_bsbs_norm, theta2, cost2, f4t2, df4t2)) return;
+    KK_FLOAT cost2, f4t2, df4t2;
+    if (!xstk_theta2_terms(atype, btype, a_nx, delr_bsbs_norm, cost2, f4t2, df4t2)) return;
 
-  KK_FLOAT theta3, cost3, f4t3, df4t3;
-  if (!xstk_theta3_terms(atype, btype, b_nx, delr_bsbs_norm, theta3, cost3, f4t3, df4t3)) return;
+    KK_FLOAT cost3, f4t3, df4t3;
+    if (!xstk_theta3_terms(atype, btype, b_nx, delr_bsbs_norm, cost3, f4t3, df4t3)) return;
 
-  KK_FLOAT theta4, f4t4_33, f4t4_55, df4t4_33, df4t4_55;
+    KK_FLOAT f4t4_33, f4t4_55, df4t4_33, df4t4_55;
   if (!xstk_theta4_terms(atype, btype, a3ptype, a5ptype, b3ptype, b5ptype,
-      a_nz, b_nz, theta4, f4t4_33, f4t4_55, df4t4_33, df4t4_55)) return;
+      a_nz, b_nz, f4t4_33, f4t4_55, df4t4_33, df4t4_55)) return;
 
-  KK_FLOAT theta7, cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55;
+    KK_FLOAT cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55;
   if (!xstk_theta7_terms(atype, btype, a_nz, delr_bsbs_norm,
-      theta7, cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55)) return;
+      cost7, f4t7_33, f4t7_55, df4t7_33, df4t7_55)) return;
 
-  KK_FLOAT theta8, cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55;
+    KK_FLOAT cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55;
   if (!xstk_theta8_terms(atype, btype, b_nz, delr_bsbs_norm,
-      theta8, cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55)) return;
+      cost8, f4t8_33, f4t8_55, df4t8_33, df4t8_55)) return;
 
   const KK_FLOAT sum33 = f2_33 * f4t4_33 * f4t7_33 * f4t8_33;
   const KK_FLOAT sum55 = f2_55 * f4t4_55 * f4t7_55 * f4t8_55;
@@ -810,7 +790,6 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
     df4t7_33, df4t7_55,
     df4t8_33, df4t8_55,
     rinv_bsbs, factor_lj,
-    theta2, theta3, theta7, theta8,
     cost2, cost3, cost7, cost8,
     delr_bsbs, delr_bsbs_norm,
     a_nx, b_nx, a_nz, b_nz,
@@ -855,7 +834,6 @@ void PairOxdna3XstkKokkos<DeviceType>::operator()(TagPairOxdna3XstkComputeNpair<
     df4t7_33, df4t7_55,
     df4t8_33, df4t8_55,
     factor_lj,
-    theta1, theta2, theta3, theta4, theta7, theta8,
     a_nx, b_nx, a_nz, b_nz,
     delr_bsbs_norm,
     delta, deltb);

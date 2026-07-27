@@ -124,6 +124,12 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   typename AT::t_int_1d_randomread type;
 
   // Consolidated parameter views
+  // NOTE: I put all the parameters into combined DualViews with structs as seen here.
+  // This is in constrast to all our other Kokkos pairs which use separate DualViews for each parameter,
+  // essentially the same idea as vanilla.
+  // I was curious if there was any speed-up to be had with this, but it didn't make any noticable difference.
+  // Having already spent the time to implement this alongside other optimisations however, I've decided to keep it
+  // like this - it isn't doing any harm, and it is a bit more elegant to have all the parameters in one place anyway.
   Kokkos::DualView<ParamsXSTK **, DeviceType> k_params_xstk;
   Kokkos::DualView<ParamsXSTK33 ****, DeviceType> k_params_33;
   Kokkos::DualView<ParamsXSTK55 ****, DeviceType> k_params_55;
@@ -158,49 +164,7 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   typename AT::t_uint64_1d d_pairs_screened;
   int screened_pair_count;
 
-  // cross-stacking interaction parameters
-  typename AT::tdual_kkfloat_2d k_k_xst;
-  typename AT::tdual_kkfloat_4d k_cut_xst_0_33, k_cut_xst_c_33, k_cut_xst_lo_33, k_cut_xst_hi_33;
-  typename AT::tdual_kkfloat_4d k_cut_xst_lc_33, k_cut_xst_hc_33, k_cutsq_xst_hc_33;
-  typename AT::tdual_kkfloat_4d k_cut_xst_0_55, k_cut_xst_c_55, k_cut_xst_lo_55, k_cut_xst_hi_55;
-  typename AT::tdual_kkfloat_4d k_cut_xst_lc_55, k_cut_xst_hc_55, k_cutsq_xst_hc_55;
-  typename AT::tdual_kkfloat_2d k_b_xst_lo, k_b_xst_hi;
-  typename AT::tdual_kkfloat_2d k_a_xst1, k_theta_xst1_0, k_dtheta_xst1_ast;
-  typename AT::tdual_kkfloat_2d k_b_xst1, k_dtheta_xst1_c;
-  typename AT::tdual_kkfloat_2d k_a_xst2, k_theta_xst2_0, k_dtheta_xst2_ast;
-  typename AT::tdual_kkfloat_2d k_b_xst2, k_dtheta_xst2_c;
-  typename AT::tdual_kkfloat_2d k_a_xst3, k_theta_xst3_0, k_dtheta_xst3_ast;
-  typename AT::tdual_kkfloat_2d k_b_xst3, k_dtheta_xst3_c;
-  typename AT::tdual_kkfloat_4d k_a_xst4_33, k_theta_xst4_0_33, k_dtheta_xst4_ast_33;
-  typename AT::tdual_kkfloat_4d k_b_xst4_33, k_dtheta_xst4_c_33;
-  typename AT::tdual_kkfloat_4d k_a_xst4_55, k_theta_xst4_0_55, k_dtheta_xst4_ast_55;
-  typename AT::tdual_kkfloat_4d k_b_xst4_55, k_dtheta_xst4_c_55;
-  typename AT::tdual_kkfloat_2d k_a_xst7, k_theta_xst7_0_33, k_theta_xst7_0_55, k_dtheta_xst7_ast;
-  typename AT::tdual_kkfloat_2d k_b_xst7, k_dtheta_xst7_c;
-  typename AT::tdual_kkfloat_2d k_a_xst8, k_theta_xst8_0_33, k_theta_xst8_0_55, k_dtheta_xst8_ast;
-  typename AT::tdual_kkfloat_2d k_b_xst8, k_dtheta_xst8_c;
-  typename AT::t_kkfloat_2d_randomread d_k_xst;
-  typename AT::t_kkfloat_4d_randomread d_cut_xst_0_33, d_cut_xst_c_33, d_cut_xst_lo_33, d_cut_xst_hi_33;
-  typename AT::t_kkfloat_4d_randomread d_cut_xst_lc_33, d_cut_xst_hc_33, d_cutsq_xst_hc_33;
-  typename AT::t_kkfloat_4d_randomread d_cut_xst_0_55, d_cut_xst_c_55, d_cut_xst_lo_55, d_cut_xst_hi_55;
-  typename AT::t_kkfloat_4d_randomread d_cut_xst_lc_55, d_cut_xst_hc_55, d_cutsq_xst_hc_55;
-  typename AT::t_kkfloat_2d_randomread d_b_xst_lo, d_b_xst_hi;
-  typename AT::t_kkfloat_2d_randomread d_a_xst1, d_theta_xst1_0, d_dtheta_xst1_ast;
-  typename AT::t_kkfloat_2d_randomread d_b_xst1, d_dtheta_xst1_c;
-  typename AT::t_kkfloat_2d_randomread d_a_xst2, d_theta_xst2_0, d_dtheta_xst2_ast;
-  typename AT::t_kkfloat_2d_randomread d_b_xst2, d_dtheta_xst2_c;
-  typename AT::t_kkfloat_2d_randomread d_a_xst3, d_theta_xst3_0, d_dtheta_xst3_ast;
-  typename AT::t_kkfloat_2d_randomread d_b_xst3, d_dtheta_xst3_c;
-  typename AT::t_kkfloat_4d_randomread d_a_xst4_33, d_theta_xst4_0_33, d_dtheta_xst4_ast_33;
-  typename AT::t_kkfloat_4d_randomread d_b_xst4_33, d_dtheta_xst4_c_33;
-  typename AT::t_kkfloat_4d_randomread d_a_xst4_55, d_theta_xst4_0_55, d_dtheta_xst4_ast_55;
-  typename AT::t_kkfloat_4d_randomread d_b_xst4_55, d_dtheta_xst4_c_55;
-  typename AT::t_kkfloat_2d_randomread d_a_xst7, d_theta_xst7_0_33, d_theta_xst7_0_55, d_dtheta_xst7_ast;
-  typename AT::t_kkfloat_2d_randomread d_b_xst7, d_dtheta_xst7_c;
-  typename AT::t_kkfloat_2d_randomread d_a_xst8, d_theta_xst8_0_33, d_theta_xst8_0_55, d_dtheta_xst8_ast;
-  typename AT::t_kkfloat_2d_randomread d_b_xst8, d_dtheta_xst8_c;
   // per-atom arrays for local unit vectors
-  DAT::tdual_kkfloat_1d_3 k_nx_xtrct, k_ny_xtrct, k_nz_xtrct;
   typename AT::t_kkfloat_1d_3_randomread d_nx_xtrct, d_ny_xtrct, d_nz_xtrct;
 
   using KKDeviceType = typename KKDevice<DeviceType>::value;
@@ -261,19 +225,19 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta1_terms(const int &atype, const int &btype,
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
-    KK_FLOAT &theta1, KK_FLOAT &f4t1, KK_FLOAT &df4t1) const;
+    KK_FLOAT &f4t1, KK_FLOAT &df4t1) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta2_terms(const int &atype, const int &btype,
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta2, KK_FLOAT &cost2, KK_FLOAT &f4t2, KK_FLOAT &df4t2) const;
+    KK_FLOAT &cost2, KK_FLOAT &f4t2, KK_FLOAT &df4t2) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta3_terms(const int &atype, const int &btype,
     const KK_FLOAT (&b_nx)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta3, KK_FLOAT &cost3, KK_FLOAT &f4t3, KK_FLOAT &df4t3) const;
+    KK_FLOAT &cost3, KK_FLOAT &f4t3, KK_FLOAT &df4t3) const;
 
 // NOLINTNEXTLINE
   KOKKOS_INLINE_FUNCTION
@@ -281,7 +245,6 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
     const int &a3ptype, const int &a5ptype,
     const int &b3ptype, const int &b5ptype,
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
-    KK_FLOAT &theta4,
     KK_FLOAT &f4t4_33, KK_FLOAT &f4t4_55,
     KK_FLOAT &df4t4_33, KK_FLOAT &df4t4_55) const;
 
@@ -289,7 +252,7 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta7_terms(const int &atype, const int &btype,
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta7, KK_FLOAT &cost7,
+    KK_FLOAT &cost7,
     KK_FLOAT &f4t7_33, KK_FLOAT &f4t7_55,
     KK_FLOAT &df4t7_33, KK_FLOAT &df4t7_55) const;
 
@@ -297,7 +260,7 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
   KOKKOS_INLINE_FUNCTION
   bool xstk_theta8_terms(const int &atype, const int &btype,
     const KK_FLOAT (&b_nz)[3], const KK_FLOAT (&delr_hb_norm)[3],
-    KK_FLOAT &theta8, KK_FLOAT &cost8,
+    KK_FLOAT &cost8,
     KK_FLOAT &f4t8_33, KK_FLOAT &f4t8_55,
     KK_FLOAT &df4t8_33, KK_FLOAT &df4t8_55) const;
 
@@ -313,7 +276,6 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
     const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
     const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
     const KK_FLOAT &rinv_hb, const KK_FLOAT &factor_lj,
-    const KK_FLOAT &theta2, const KK_FLOAT &theta3, const KK_FLOAT &theta7, const KK_FLOAT &theta8,
     const KK_FLOAT &cost2, const KK_FLOAT &cost3, const KK_FLOAT &cost7, const KK_FLOAT &cost8,
     const KK_FLOAT (&delr_hb)[3], const KK_FLOAT (&delr_hb_norm)[3],
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
@@ -333,9 +295,6 @@ class PairOxdna3XstkKokkos : public PairOxdna3Xstk, public KokkosBase {
     const KK_FLOAT &df4t7_33, const KK_FLOAT &df4t7_55,
     const KK_FLOAT &df4t8_33, const KK_FLOAT &df4t8_55,
     const KK_FLOAT &factor_lj,
-    const KK_FLOAT &theta1, const KK_FLOAT &theta2, const KK_FLOAT &theta3,
-    const KK_FLOAT &theta4,
-    const KK_FLOAT &theta7, const KK_FLOAT &theta8,
     const KK_FLOAT (&a_nx)[3], const KK_FLOAT (&b_nx)[3],
     const KK_FLOAT (&a_nz)[3], const KK_FLOAT (&b_nz)[3],
     const KK_FLOAT (&delr_hb_norm)[3],
