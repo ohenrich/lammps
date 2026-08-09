@@ -18,6 +18,17 @@
 
 namespace MFOxdnaKokkos {
 
+#if defined(KOKKOS_ENABLE_HIP)
+template<class DeviceType, class Tag>
+using OxdnaRangePolicy = Kokkos::RangePolicy<DeviceType, Tag, Kokkos::LaunchBounds<128, 1>>;
+#elif defined(KOKKOS_ENABLE_CUDA)
+template<class DeviceType, class Tag>
+using OxdnaRangePolicy = Kokkos::RangePolicy<DeviceType, Tag, Kokkos::LaunchBounds<64, 1>>;
+#else
+template<class DeviceType, class Tag>
+using OxdnaRangePolicy = Kokkos::RangePolicy<DeviceType, Tag>;
+#endif
+
 /* ----------------------------------------------------------------------
    f1 modulation factor
    ---------------------------------------------------------------------- */

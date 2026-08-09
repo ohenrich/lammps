@@ -173,11 +173,11 @@ void PairOxdnaExcvKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
       constexpr int MODEL = decltype(model_tag)::value;
       if constexpr (EVFLAG) {
         Kokkos::parallel_reduce(
-          Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
+          OxdnaRangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
           *this,ev);
       } else {
         Kokkos::parallel_for(
-          Kokkos::RangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
+          OxdnaRangePolicy<DeviceType, TagPairOxdnaExcvCompute<MODEL,NEIGHFLAG,NEWTON_PAIR,EVFLAG> >(0,anum),
           *this);
       }
     };
