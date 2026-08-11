@@ -30,10 +30,8 @@
 #include "pair.h"
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_prime_neighs_kokkos.h"
-#include "mf_oxdna_kokkos.h"
 
 using namespace LAMMPS_NS;
-using namespace MFOxdnaKokkos;
 
 /* ---------------------------------------------------------------------- */
 
@@ -147,37 +145,37 @@ void BondOxdnaFENEKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   if (evflag) {
     if (newton_bond) {
       if (oxdnaflag == OXDNA) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,1,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,1,1> >(0,nbondlist),*this,ev);
       } else if (oxdnaflag == OXDNA2) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,1,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,1,1> >(0,nbondlist),*this,ev);
       } else if (oxdnaflag == OXRNA2) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,1,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,1,1> >(0,nbondlist),*this,ev);
       }
     } else {
       if (oxdnaflag == OXDNA) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,0,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,0,1> >(0,nbondlist),*this,ev);
       } else if (oxdnaflag == OXDNA2) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,0,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,0,1> >(0,nbondlist),*this,ev);
       } else if (oxdnaflag == OXRNA2) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,0,1> >(0,nbondlist),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,0,1> >(0,nbondlist),*this,ev);
       }
     }
   } else {
     if (newton_bond) {
       if (oxdnaflag == OXDNA) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,1,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,1,0> >(0,nbondlist),*this);
       } else if (oxdnaflag == OXDNA2) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,1,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,1,0> >(0,nbondlist),*this);
       } else if (oxdnaflag == OXRNA2) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,1,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,1,0> >(0,nbondlist),*this);
       }
     } else {
       if (oxdnaflag == OXDNA) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,0,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA,0,0> >(0,nbondlist),*this);
       } else if (oxdnaflag == OXDNA2) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,0,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXDNA2,0,0> >(0,nbondlist),*this);
       } else if (oxdnaflag == OXRNA2) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,0,0> >(0,nbondlist),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagBondOxdnaFENECompute<OXRNA2,0,0> >(0,nbondlist),*this);
       }
     }
   }

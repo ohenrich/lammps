@@ -137,41 +137,41 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   if (evflag) {
     if (neighflag == HALF) {
       if (newton_pair) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,1,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,1,1> >(0,anum),*this,ev);
       } else {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,0,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,0,1> >(0,anum),*this,ev);
       }
     } else if (neighflag == HALFTHREAD) {
       if (newton_pair) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,1,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,1,1> >(0,anum),*this,ev);
       } else {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,0,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,0,1> >(0,anum),*this,ev);
       }
     } else if (neighflag == FULL) {
       if (newton_pair) {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,1,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,1,1> >(0,anum),*this,ev);
       } else {
-        Kokkos::parallel_reduce(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,0,1> >(0,anum),*this,ev);
+        Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,0,1> >(0,anum),*this,ev);
       }
     }
   } else {
     if (neighflag == HALF) {
       if (newton_pair) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,1,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,1,0> >(0,anum),*this);
       } else {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,0,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALF,0,0> >(0,anum),*this);
       }
     } else if (neighflag == HALFTHREAD) {
       if (newton_pair) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,1,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,1,0> >(0,anum),*this);
       } else {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,0,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<HALFTHREAD,0,0> >(0,anum),*this);
       }
     } else if (neighflag == FULL) {
       if (newton_pair) {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,1,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,1,0> >(0,anum),*this);
       } else {
-        Kokkos::parallel_for(OxdnaRangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,0,0> >(0,anum),*this);
+        Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxdnaCoaxstkCompute<FULL,0,0> >(0,anum),*this);
       }
     }
   }
