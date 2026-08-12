@@ -117,7 +117,8 @@ if [[ $# -ge 1 ]] && [[ $1 = run ]]; then
   run_nve_case "oxDNA2 potential file NVE test" "oxDNA2/potential_file" "in.duplex1" "data.duplex1" "duplex1" "standard" "" "oxdna2_lj.cgdna" "oxdna2_real.cgdna"
   run_nve_case "oxDNA3 duplex2 / potential file NVE test" "oxDNA3/duplex2" "in.duplex2" "data.duplex2" "duplex2" "extended" "oxdna3_lj.cgdna"
   run_oxdna3_nvt_case
-  printf '\n# Skipping oxRNA2 test - not yet supported\n' | tee -a $EXDIR/test_KOKKOS.log
+  run_nve_case "oxRNA2 duplex2 NVE test" "oxRNA2/duplex2" "in.duplex2" "data.duplex2" "duplex2" "standard"
+  run_nve_case "oxRNA2 potential file NVE test" "oxRNA2/potential_file" "in.duplex2" "data.duplex2" "duplex2" "standard" "" "oxrna2_lj.cgdna" "oxrna2_real.cgdna"
 
  ######################################################
 
