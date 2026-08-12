@@ -298,292 +298,291 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
           d_b_st_lo(atype, btype), d_b_st_hi(atype, btype), d_shift_st(a3ptype,atype,btype,b5ptype));
 
   // start early rejection criterium
-  if (f1) {
-    // theta4 angle and correction
-    cost4 = d_nz_xtrct(b,0) * d_nz_xtrct(a,0) + 
-            d_nz_xtrct(b,1) * d_nz_xtrct(a,1) + 
-            d_nz_xtrct(b,2) * d_nz_xtrct(a,2);
-    if (cost4 > 1.0) cost4 = 1.0;
-    if (cost4 < -1.0) cost4 = -1.0;
-    theta4 = acos(cost4);
-    // f4t4 = f4 modulation factor
-    f4t4 = F4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype), 
-                 d_dtheta_st4_ast(a3ptype,atype,btype,b5ptype), d_b_st4(a3ptype,atype,btype,b5ptype),
-                 d_dtheta_st4_c(a3ptype,atype,btype,b5ptype));
+  if (f1 == 0.0) return;
+
+  // theta4 angle and correction
+  cost4 = d_nz_xtrct(b,0) * d_nz_xtrct(a,0) + 
+          d_nz_xtrct(b,1) * d_nz_xtrct(a,1) + 
+          d_nz_xtrct(b,2) * d_nz_xtrct(a,2);
+  if (cost4 > 1.0) cost4 = 1.0;
+  if (cost4 < -1.0) cost4 = -1.0;
+  theta4 = acos(cost4);
+  // f4t4 = f4 modulation factor
+  f4t4 = F4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype), 
+               d_dtheta_st4_ast(a3ptype,atype,btype,b5ptype), d_b_st4(a3ptype,atype,btype,b5ptype),
+               d_dtheta_st4_c(a3ptype,atype,btype,b5ptype));
 
   // early rejection criterium
-  if (f4t4) {
-    // theta5 angle and correction
-    cost5p = d_nz_xtrct(b,0) * delr_stkstk_norm[0] + 
-             d_nz_xtrct(b,1) * delr_stkstk_norm[1] + 
-             d_nz_xtrct(b,2) * delr_stkstk_norm[2];
-    if (cost5p > 1.0) cost5p = 1.0;
-    if (cost5p < -1.0) cost5p = -1.0;
-    theta5p = acos(cost5p);
-    // f4t5 = f4 modulation factor
-    f4t5 = F4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype), 
-                 d_dtheta_st5_ast(atype, btype), d_b_st5(atype, btype), d_dtheta_st5_c(atype, btype));
+  if (f4t4 == 0.0) return;
+
+  // theta5 angle and correction
+  cost5p = d_nz_xtrct(b,0) * delr_stkstk_norm[0] + 
+           d_nz_xtrct(b,1) * delr_stkstk_norm[1] + 
+           d_nz_xtrct(b,2) * delr_stkstk_norm[2];
+  if (cost5p > 1.0) cost5p = 1.0;
+  if (cost5p < -1.0) cost5p = -1.0;
+  theta5p = acos(cost5p);
+  // f4t5 = f4 modulation factor
+  f4t5 = F4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype), 
+               d_dtheta_st5_ast(atype, btype), d_b_st5(atype, btype), d_dtheta_st5_c(atype, btype));
 
   // early rejection criterium
-  if (f4t5) {
-    // theta6 angle and correction
-    cost6p = delr_stkstk_norm[0] * d_nz_xtrct(a,0) + 
-             delr_stkstk_norm[1] * d_nz_xtrct(a,1) + 
-             delr_stkstk_norm[2] * d_nz_xtrct(a,2);
-    if (cost6p > 1.0) cost6p = 1.0;
-    if (cost6p < -1.0) cost6p = -1.0;
-    theta6p = acos(cost6p);
-    // cosphi1 and cosphi2 angles
-    cosphi1 = delr_bkbk_norm[0] * d_ny_xtrct(b,0) + 
-              delr_bkbk_norm[1] * d_ny_xtrct(b,1) + 
-              delr_bkbk_norm[2] * d_ny_xtrct(b,2);
-    cosphi2 = delr_bkbk_norm[0] * d_ny_xtrct(a,0) +
-              delr_bkbk_norm[1] * d_ny_xtrct(a,1) +
-              delr_bkbk_norm[2] * d_ny_xtrct(a,2);
-    if (cosphi1 > 1.0) cosphi1 = 1.0;
-    if (cosphi1 < -1.0) cosphi1 = -1.0;
-    if (cosphi2 > 1.0) cosphi2 = 1.0;
-    if (cosphi2 < -1.0) cosphi2 = -1.0;
-    // f4t6 = f4 modulation factor
-    f4t6 = F4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), 
-                 d_dtheta_st6_ast(atype, btype), d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype));
-    // f5c1 = f5 modulation factor
-    f5c1 = F5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
-                 d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
-    // f5c2 = f5 modulation factor
-    f5c2 = F5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
-                 d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
+  if (f4t5 == 0.0) return;
 
-    evdwl = f1 * f4t4 * f4t5 * f4t6 * f5c1 * f5c2;
+  // theta6 angle and correction
+  cost6p = delr_stkstk_norm[0] * d_nz_xtrct(a,0) + 
+           delr_stkstk_norm[1] * d_nz_xtrct(a,1) + 
+           delr_stkstk_norm[2] * d_nz_xtrct(a,2);
+  if (cost6p > 1.0) cost6p = 1.0;
+  if (cost6p < -1.0) cost6p = -1.0;
+  theta6p = acos(cost6p);
+  // cosphi1 and cosphi2 angles
+  cosphi1 = delr_bkbk_norm[0] * d_ny_xtrct(b,0) + 
+            delr_bkbk_norm[1] * d_ny_xtrct(b,1) + 
+            delr_bkbk_norm[2] * d_ny_xtrct(b,2);
+  cosphi2 = delr_bkbk_norm[0] * d_ny_xtrct(a,0) +
+            delr_bkbk_norm[1] * d_ny_xtrct(a,1) +
+            delr_bkbk_norm[2] * d_ny_xtrct(a,2);
+  if (cosphi1 > 1.0) cosphi1 = 1.0;
+  if (cosphi1 < -1.0) cosphi1 = -1.0;
+  if (cosphi2 > 1.0) cosphi2 = 1.0;
+  if (cosphi2 < -1.0) cosphi2 = -1.0;
+  // f4t6 = f4 modulation factor
+  f4t6 = F4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), 
+               d_dtheta_st6_ast(atype, btype), d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype));
+  // f5c1 = f5 modulation factor
+  f5c1 = F5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
+               d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
+  // f5c2 = f5 modulation factor
+  f5c2 = F5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
+               d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
+
+  evdwl = f1 * f4t4 * f4t5 * f4t6 * f5c1 * f5c2;
   
   // early rejection criterium
-  if (evdwl) {
-    // df1 = derivative of f1 modulation factor
-    df1 = DF1_KK(r_stkstk, d_epsilon_st(atype, btype), d_a_st(atype, btype),
-        d_cut_st_0(a3ptype,atype,btype,b5ptype),
-        d_cut_st_lc(a3ptype,atype,btype,b5ptype), d_cut_st_hc(a3ptype,atype,btype,b5ptype),
-        d_cut_st_lo(a3ptype,atype,btype,b5ptype), d_cut_st_hi(a3ptype,atype,btype,b5ptype),
-        d_b_st_lo(atype, btype), d_b_st_hi(atype, btype));
-    // df4t4 = derivative of f4 modulation factor
-    df4t4 = DF4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype),
-        d_dtheta_st4_ast(a3ptype,atype,btype,b5ptype), d_b_st4(a3ptype,atype,btype,b5ptype),
-        d_dtheta_st4_c(a3ptype,atype,btype,b5ptype))/sin(theta4);
-    // df4t5 = derivative of f4 modulation factor
-    df4t5 = DF4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype), d_dtheta_st5_ast(atype, btype),
-        d_b_st5(atype, btype), d_dtheta_st5_c(atype, btype))/sin(theta5p);
-    // df4t6 = derivative of f4 modulation factor
-    df4t6 = DF4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), d_dtheta_st6_ast(atype, btype),
-        d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype))/sin(theta6p);
-    // df5c1 = derivative of f5 modulation factor
-    df5c1 = DF5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
-        d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
-    // df5c2 = derivative of f5 modulation factor
-    df5c2 = DF5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
-        d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
+  if (evdwl == 0.0) return;
 
-    // force, torque and virial contribution for forces between stacking sites
-    delf[0] = 0.0;
-    delf[1] = 0.0;
-    delf[2] = 0.0;
-    delta[0] = 0.0;
-    delta[1] = 0.0;
-    delta[2] = 0.0;
-    deltb[0] = 0.0;
-    deltb[1] = 0.0;
-    deltb[2] = 0.0;
+  // df1 = derivative of f1 modulation factor
+  df1 = DF1_KK(r_stkstk, d_epsilon_st(atype, btype), d_a_st(atype, btype),
+      d_cut_st_0(a3ptype,atype,btype,b5ptype),
+      d_cut_st_lc(a3ptype,atype,btype,b5ptype), d_cut_st_hc(a3ptype,atype,btype,b5ptype),
+      d_cut_st_lo(a3ptype,atype,btype,b5ptype), d_cut_st_hi(a3ptype,atype,btype,b5ptype),
+      d_b_st_lo(atype, btype), d_b_st_hi(atype, btype));
+  // df4t4 = derivative of f4 modulation factor
+  df4t4 = DF4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype),
+      d_dtheta_st4_ast(a3ptype,atype,btype,b5ptype), d_b_st4(a3ptype,atype,btype,b5ptype),
+      d_dtheta_st4_c(a3ptype,atype,btype,b5ptype))/sin(theta4);
+  // df4t5 = derivative of f4 modulation factor
+  df4t5 = DF4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype), d_dtheta_st5_ast(atype, btype),
+      d_b_st5(atype, btype), d_dtheta_st5_c(atype, btype))/sin(theta5p);
+  // df4t6 = derivative of f4 modulation factor
+  df4t6 = DF4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), d_dtheta_st6_ast(atype, btype),
+      d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype))/sin(theta6p);
+  // df5c1 = derivative of f5 modulation factor
+  df5c1 = DF5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
+      d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
+  // df5c2 = derivative of f5 modulation factor
+  df5c2 = DF5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
+      d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
 
-    // radial force
-    finc = -df1 * f4t4 * f4t5 * f4t6 * f5c1 * f5c2;
+  // force, torque and virial contribution for forces between stacking sites
+  delf[0] = 0.0;
+  delf[1] = 0.0;
+  delf[2] = 0.0;
+  delta[0] = 0.0;
+  delta[1] = 0.0;
+  delta[2] = 0.0;
+  deltb[0] = 0.0;
+  deltb[1] = 0.0;
+  deltb[2] = 0.0;
 
-    delf[0] += delr_stkstk[0] * finc;
-    delf[1] += delr_stkstk[1] * finc;
-    delf[2] += delr_stkstk[2] * finc;
+  // radial force
+  finc = -df1 * f4t4 * f4t5 * f4t6 * f5c1 * f5c2;
 
-    // theta5p force
-    if (theta5p) {
-      finc = -f1 * f4t4 * df4t5 * f4t6 * f5c1 * f5c2 * rinv_stkstk;
+  delf[0] += delr_stkstk[0] * finc;
+  delf[1] += delr_stkstk[1] * finc;
+  delf[2] += delr_stkstk[2] * finc;
 
-      delf[0] += (delr_stkstk_norm[0]*cost5p - d_nz_xtrct(b,0)) * finc;
-      delf[1] += (delr_stkstk_norm[1]*cost5p - d_nz_xtrct(b,1)) * finc;
-      delf[2] += (delr_stkstk_norm[2]*cost5p - d_nz_xtrct(b,2)) * finc;
-    }
+  // theta5p force
+  if (theta5p != 0.0) {
+    finc = -f1 * f4t4 * df4t5 * f4t6 * f5c1 * f5c2 * rinv_stkstk;
 
-    // theta6p force
-    if (theta6p) {
-      finc = -f1 * f4t4 * f4t5 * df4t6 * f5c1 * f5c2 * rinv_stkstk;
+    delf[0] += (delr_stkstk_norm[0]*cost5p - d_nz_xtrct(b,0)) * finc;
+    delf[1] += (delr_stkstk_norm[1]*cost5p - d_nz_xtrct(b,1)) * finc;
+    delf[2] += (delr_stkstk_norm[2]*cost5p - d_nz_xtrct(b,2)) * finc;
+  }
 
-      delf[0] += (delr_stkstk_norm[0]*cost6p - d_nz_xtrct(a,0)) * finc;
-      delf[1] += (delr_stkstk_norm[1]*cost6p - d_nz_xtrct(a,1)) * finc;
-      delf[2] += (delr_stkstk_norm[2]*cost6p - d_nz_xtrct(a,2)) * finc;
-    }
+  // theta6p force
+  if (theta6p != 0.0) {
+    finc = -f1 * f4t4 * f4t5 * df4t6 * f5c1 * f5c2 * rinv_stkstk;
 
-    // increment forces and torques
-    if ( NEWTON_BOND || a < nlocal ) {
-      a_f(a,0) -= delf[0];
-      a_f(a,1) -= delf[1];
-      a_f(a,2) -= delf[2];
-      delta[0] = ra_cstk[1]*delf[2] - ra_cstk[2]*delf[1];
-      delta[1] = ra_cstk[2]*delf[0] - ra_cstk[0]*delf[2];
-      delta[2] = ra_cstk[0]*delf[1] - ra_cstk[1]*delf[0];
-      a_torque(a,0) -= delta[0];
-      a_torque(a,1) -= delta[1];
-      a_torque(a,2) -= delta[2];
-    }
-    if ( NEWTON_BOND || b < nlocal ) {
-      a_f(b,0) += delf[0];
-      a_f(b,1) += delf[1];
-      a_f(b,2) += delf[2];
-      deltb[0] = rb_cstk[1]*delf[2] - rb_cstk[2]*delf[1];
-      deltb[1] = rb_cstk[2]*delf[0] - rb_cstk[0]*delf[2];
-      deltb[2] = rb_cstk[0]*delf[1] - rb_cstk[1]*delf[0];
-      a_torque(b,0) += deltb[0];
-      a_torque(b,1) += deltb[1];
-      a_torque(b,2) += deltb[2];
-    }
+    delf[0] += (delr_stkstk_norm[0]*cost6p - d_nz_xtrct(a,0)) * finc;
+    delf[1] += (delr_stkstk_norm[1]*cost6p - d_nz_xtrct(a,1)) * finc;
+    delf[2] += (delr_stkstk_norm[2]*cost6p - d_nz_xtrct(a,2)) * finc;
+  }
 
-    if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, evdwl, delf[0], delf[1], delf[2], \
-      x(b,0)-x(a,0), x(b,1)-x(a,1), x(b,2)-x(a,2)); }
+  // increment forces and torques
+  if ( NEWTON_BOND || a < nlocal ) {
+    a_f(a,0) -= delf[0];
+    a_f(a,1) -= delf[1];
+    a_f(a,2) -= delf[2];
+    delta[0] = ra_cstk[1]*delf[2] - ra_cstk[2]*delf[1];
+    delta[1] = ra_cstk[2]*delf[0] - ra_cstk[0]*delf[2];
+    delta[2] = ra_cstk[0]*delf[1] - ra_cstk[1]*delf[0];
+    a_torque(a,0) -= delta[0];
+    a_torque(a,1) -= delta[1];
+    a_torque(a,2) -= delta[2];
+  }
+  if ( NEWTON_BOND || b < nlocal ) {
+    a_f(b,0) += delf[0];
+    a_f(b,1) += delf[1];
+    a_f(b,2) += delf[2];
+    deltb[0] = rb_cstk[1]*delf[2] - rb_cstk[2]*delf[1];
+    deltb[1] = rb_cstk[2]*delf[0] - rb_cstk[0]*delf[2];
+    deltb[2] = rb_cstk[0]*delf[1] - rb_cstk[1]*delf[0];
+    a_torque(b,0) += deltb[0];
+    a_torque(b,1) += deltb[1];
+    a_torque(b,2) += deltb[2];
+  }
 
-    // force, torque and virial contribution for forces between backbone sites
-    delf[0] = 0.0;
-    delf[1] = 0.0;
-    delf[2] = 0.0;
-    delta[0] = 0.0;
-    delta[1] = 0.0;
-    delta[2] = 0.0;
-    deltb[0] = 0.0;
-    deltb[1] = 0.0;
-    deltb[2] = 0.0;
+  if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, evdwl, delf[0], delf[1], delf[2], \
+    x(b,0)-x(a,0), x(b,1)-x(a,1), x(b,2)-x(a,2)); }
 
-    // cosphi1 force
-    if (cosphi1) {
-      finc = -f1 * f4t4 * f4t5 * f4t6 * df5c1 * f5c2 * rinv_bkbk;
+  // force, torque and virial contribution for forces between backbone sites
+  delf[0] = 0.0;
+  delf[1] = 0.0;
+  delf[2] = 0.0;
+  delta[0] = 0.0;
+  delta[1] = 0.0;
+  delta[2] = 0.0;
+  deltb[0] = 0.0;
+  deltb[1] = 0.0;
+  deltb[2] = 0.0;
 
-      delf[0] += (delr_bkbk_norm[0]*cosphi1 - d_ny_xtrct(b,0)) * finc;
-      delf[1] += (delr_bkbk_norm[1]*cosphi1 - d_ny_xtrct(b,1)) * finc;
-      delf[2] += (delr_bkbk_norm[2]*cosphi1 - d_ny_xtrct(b,2)) * finc;
-    }
+  // cosphi1 force
+  if (cosphi1 != 0.0) {
+    finc = -f1 * f4t4 * f4t5 * f4t6 * df5c1 * f5c2 * rinv_bkbk;
 
-    // cosphi2 force
-    if (cosphi2) {
-      finc = -f1 * f4t4 * f4t5 * f4t6 * f5c1 * df5c2 * rinv_bkbk;
+    delf[0] += (delr_bkbk_norm[0]*cosphi1 - d_ny_xtrct(b,0)) * finc;
+    delf[1] += (delr_bkbk_norm[1]*cosphi1 - d_ny_xtrct(b,1)) * finc;
+    delf[2] += (delr_bkbk_norm[2]*cosphi1 - d_ny_xtrct(b,2)) * finc;
+  }
 
-      delf[0] += (delr_bkbk_norm[0]*cosphi2 - d_ny_xtrct(a,0)) * finc;
-      delf[1] += (delr_bkbk_norm[1]*cosphi2 - d_ny_xtrct(a,1)) * finc;
-      delf[2] += (delr_bkbk_norm[2]*cosphi2 - d_ny_xtrct(a,2)) * finc;
-    }
+  // cosphi2 force
+  if (cosphi2 != 0.0) {
+    finc = -f1 * f4t4 * f4t5 * f4t6 * f5c1 * df5c2 * rinv_bkbk;
 
-    // increment forces and torques
-    if ( NEWTON_BOND || a < nlocal ) {
-      a_f(a,0) -= delf[0];
-      a_f(a,1) -= delf[1];
-      a_f(a,2) -= delf[2];
-      delta[0] = ra_cbk[1]*delf[2] - ra_cbk[2]*delf[1];
-      delta[1] = ra_cbk[2]*delf[0] - ra_cbk[0]*delf[2];
-      delta[2] = ra_cbk[0]*delf[1] - ra_cbk[1]*delf[0];
-      a_torque(a,0) -= delta[0];
-      a_torque(a,1) -= delta[1];
-      a_torque(a,2) -= delta[2];
-    }
-    if ( NEWTON_BOND || b < nlocal ) {
-      a_f(b,0) += delf[0];
-      a_f(b,1) += delf[1];
-      a_f(b,2) += delf[2];
-      deltb[0] = rb_cbk[1]*delf[2] - rb_cbk[2]*delf[1];
-      deltb[1] = rb_cbk[2]*delf[0] - rb_cbk[0]*delf[2];
-      deltb[2] = rb_cbk[0]*delf[1] - rb_cbk[1]*delf[0];
-      a_torque(b,0) += deltb[0];
-      a_torque(b,1) += deltb[1];
-      a_torque(b,2) += deltb[2];
-    }
-    
-    // increment viral only
-    if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, 0.0, delf[0], delf[1], delf[2], \
-      x(b,0)-x(a,0), x(b,1)-x(a,1), x(b,2)-x(a,2)); }
+    delf[0] += (delr_bkbk_norm[0]*cosphi2 - d_ny_xtrct(a,0)) * finc;
+    delf[1] += (delr_bkbk_norm[1]*cosphi2 - d_ny_xtrct(a,1)) * finc;
+    delf[2] += (delr_bkbk_norm[2]*cosphi2 - d_ny_xtrct(a,2)) * finc;
+  }
 
-    // pure torques not expressible as r x f
+  // increment forces and torques
+  if ( NEWTON_BOND || a < nlocal ) {
+    a_f(a,0) -= delf[0];
+    a_f(a,1) -= delf[1];
+    a_f(a,2) -= delf[2];
+    delta[0] = ra_cbk[1]*delf[2] - ra_cbk[2]*delf[1];
+    delta[1] = ra_cbk[2]*delf[0] - ra_cbk[0]*delf[2];
+    delta[2] = ra_cbk[0]*delf[1] - ra_cbk[1]*delf[0];
+    a_torque(a,0) -= delta[0];
+    a_torque(a,1) -= delta[1];
+    a_torque(a,2) -= delta[2];
+  }
+  if ( NEWTON_BOND || b < nlocal ) {
+    a_f(b,0) += delf[0];
+    a_f(b,1) += delf[1];
+    a_f(b,2) += delf[2];
+    deltb[0] = rb_cbk[1]*delf[2] - rb_cbk[2]*delf[1];
+    deltb[1] = rb_cbk[2]*delf[0] - rb_cbk[0]*delf[2];
+    deltb[2] = rb_cbk[0]*delf[1] - rb_cbk[1]*delf[0];
+    a_torque(b,0) += deltb[0];
+    a_torque(b,1) += deltb[1];
+    a_torque(b,2) += deltb[2];
+  }
+  
+  // increment viral only
+  if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, 0.0, delf[0], delf[1], delf[2], \
+    x(b,0)-x(a,0), x(b,1)-x(a,1), x(b,2)-x(a,2)); }
 
-    delta[0] = 0.0;
-    delta[1] = 0.0;
-    delta[2] = 0.0;
-    deltb[0] = 0.0;
-    deltb[1] = 0.0;
-    deltb[2] = 0.0;
+  // pure torques not expressible as r x f
 
-    // theta4 torque
-    if (theta4) {
-      tpair = -f1 * df4t4 * f4t5 * f4t6 * f5c1 * f5c2;
-      t4dir[0] = d_nz_xtrct(a,1) * d_nz_xtrct(b,2) - d_nz_xtrct(a,2) * d_nz_xtrct(b,1);
-      t4dir[1] = d_nz_xtrct(a,2) * d_nz_xtrct(b,0) - d_nz_xtrct(a,0) * d_nz_xtrct(b,2);
-      t4dir[2] = d_nz_xtrct(a,0) * d_nz_xtrct(b,1) - d_nz_xtrct(a,1) * d_nz_xtrct(b,0);
-      delta[0] += t4dir[0] * tpair;
-      delta[1] += t4dir[1] * tpair;
-      delta[2] += t4dir[2] * tpair;
-      deltb[0] += t4dir[0] * tpair;
-      deltb[1] += t4dir[1] * tpair;
-      deltb[2] += t4dir[2] * tpair;
-    }
+  delta[0] = 0.0;
+  delta[1] = 0.0;
+  delta[2] = 0.0;
+  deltb[0] = 0.0;
+  deltb[1] = 0.0;
+  deltb[2] = 0.0;
 
-    // theta5p torque
-    if (theta5p) {
-      tpair = -f1 * f4t4 * df4t5 * f4t6 * f5c1 * f5c2;
-      t5pdir[0] = delr_stkstk_norm[1] * d_nz_xtrct(b,2) - delr_stkstk_norm[2] * d_nz_xtrct(b,1);
-      t5pdir[1] = delr_stkstk_norm[2] * d_nz_xtrct(b,0) - delr_stkstk_norm[0] * d_nz_xtrct(b,2);
-      t5pdir[2] = delr_stkstk_norm[0] * d_nz_xtrct(b,1) - delr_stkstk_norm[1] * d_nz_xtrct(b,0);
-      deltb[0] += t5pdir[0] * tpair;
-      deltb[1] += t5pdir[1] * tpair;
-      deltb[2] += t5pdir[2] * tpair;
-    }
+  // theta4 torque
+  if (theta4 != 0.0) {
+    tpair = -f1 * df4t4 * f4t5 * f4t6 * f5c1 * f5c2;
+    t4dir[0] = d_nz_xtrct(a,1) * d_nz_xtrct(b,2) - d_nz_xtrct(a,2) * d_nz_xtrct(b,1);
+    t4dir[1] = d_nz_xtrct(a,2) * d_nz_xtrct(b,0) - d_nz_xtrct(a,0) * d_nz_xtrct(b,2);
+    t4dir[2] = d_nz_xtrct(a,0) * d_nz_xtrct(b,1) - d_nz_xtrct(a,1) * d_nz_xtrct(b,0);
+    delta[0] += t4dir[0] * tpair;
+    delta[1] += t4dir[1] * tpair;
+    delta[2] += t4dir[2] * tpair;
+    deltb[0] += t4dir[0] * tpair;
+    deltb[1] += t4dir[1] * tpair;
+    deltb[2] += t4dir[2] * tpair;
+  }
 
-    // theta6p torque
-    if (theta6p) {
-      tpair = -f1 * f4t4 * f4t5 * df4t6 * f5c1 * f5c2;
-      t6pdir[0] = delr_stkstk_norm[1] * d_nz_xtrct(a,2) - delr_stkstk_norm[2] * d_nz_xtrct(a,1);
-      t6pdir[1] = delr_stkstk_norm[2] * d_nz_xtrct(a,0) - delr_stkstk_norm[0] * d_nz_xtrct(a,2);
-      t6pdir[2] = delr_stkstk_norm[0] * d_nz_xtrct(a,1) - delr_stkstk_norm[1] * d_nz_xtrct(a,0);
-      delta[0] -= t6pdir[0] * tpair;
-      delta[1] -= t6pdir[1] * tpair;
-      delta[2] -= t6pdir[2] * tpair;
-    }
+  // theta5p torque
+  if (theta5p != 0.0) {
+    tpair = -f1 * f4t4 * df4t5 * f4t6 * f5c1 * f5c2;
+    t5pdir[0] = delr_stkstk_norm[1] * d_nz_xtrct(b,2) - delr_stkstk_norm[2] * d_nz_xtrct(b,1);
+    t5pdir[1] = delr_stkstk_norm[2] * d_nz_xtrct(b,0) - delr_stkstk_norm[0] * d_nz_xtrct(b,2);
+    t5pdir[2] = delr_stkstk_norm[0] * d_nz_xtrct(b,1) - delr_stkstk_norm[1] * d_nz_xtrct(b,0);
+    deltb[0] += t5pdir[0] * tpair;
+    deltb[1] += t5pdir[1] * tpair;
+    deltb[2] += t5pdir[2] * tpair;
+  }
 
-    // cosphi1 torque
-    if (cosphi1) {
-      tpair = -f1 * f4t4 * f4t5 * f4t6 * df5c1 * f5c2;
-      cosphi1dir[0] = delr_bkbk_norm[1] * d_ny_xtrct(b,2) - delr_bkbk_norm[2] * d_ny_xtrct(b,1);
-      cosphi1dir[1] = delr_bkbk_norm[2] * d_ny_xtrct(b,0) - delr_bkbk_norm[0] * d_ny_xtrct(b,2);
-      cosphi1dir[2] = delr_bkbk_norm[0] * d_ny_xtrct(b,1) - delr_bkbk_norm[1] * d_ny_xtrct(b,0);
-      deltb[0] += cosphi1dir[0] * tpair;
-      deltb[1] += cosphi1dir[1] * tpair;
-      deltb[2] += cosphi1dir[2] * tpair;
-    }
+  // theta6p torque
+  if (theta6p != 0.0) {
+    tpair = -f1 * f4t4 * f4t5 * df4t6 * f5c1 * f5c2;
+    t6pdir[0] = delr_stkstk_norm[1] * d_nz_xtrct(a,2) - delr_stkstk_norm[2] * d_nz_xtrct(a,1);
+    t6pdir[1] = delr_stkstk_norm[2] * d_nz_xtrct(a,0) - delr_stkstk_norm[0] * d_nz_xtrct(a,2);
+    t6pdir[2] = delr_stkstk_norm[0] * d_nz_xtrct(a,1) - delr_stkstk_norm[1] * d_nz_xtrct(a,0);
+    delta[0] -= t6pdir[0] * tpair;
+    delta[1] -= t6pdir[1] * tpair;
+    delta[2] -= t6pdir[2] * tpair;
+  }
 
-    // cosphi2 torque
-    if (cosphi2) {
-      tpair = -f1 * f4t4 * f4t5 * f4t6 * f5c1 * df5c2;
-      cosphi2dir[0] = delr_bkbk_norm[1] * d_ny_xtrct(a,2) - delr_bkbk_norm[2] * d_ny_xtrct(a,1);
-      cosphi2dir[1] = delr_bkbk_norm[2] * d_ny_xtrct(a,0) - delr_bkbk_norm[0] * d_ny_xtrct(a,2);
-      cosphi2dir[2] = delr_bkbk_norm[0] * d_ny_xtrct(a,1) - delr_bkbk_norm[1] * d_ny_xtrct(a,0);
-      delta[0] -= cosphi2dir[0] * tpair;
-      delta[1] -= cosphi2dir[1] * tpair;
-      delta[2] -= cosphi2dir[2] * tpair;
-    }
+  // cosphi1 torque
+  if (cosphi1 != 0.0) {
+    tpair = -f1 * f4t4 * f4t5 * f4t6 * df5c1 * f5c2;
+    cosphi1dir[0] = delr_bkbk_norm[1] * d_ny_xtrct(b,2) - delr_bkbk_norm[2] * d_ny_xtrct(b,1);
+    cosphi1dir[1] = delr_bkbk_norm[2] * d_ny_xtrct(b,0) - delr_bkbk_norm[0] * d_ny_xtrct(b,2);
+    cosphi1dir[2] = delr_bkbk_norm[0] * d_ny_xtrct(b,1) - delr_bkbk_norm[1] * d_ny_xtrct(b,0);
+    deltb[0] += cosphi1dir[0] * tpair;
+    deltb[1] += cosphi1dir[1] * tpair;
+    deltb[2] += cosphi1dir[2] * tpair;
+  }
 
-    // increment torques
-    if ( NEWTON_BOND || a < nlocal ) {
-      a_torque(a,0) -= delta[0];
-      a_torque(a,1) -= delta[1];
-      a_torque(a,2) -= delta[2];
-    }
-    if ( NEWTON_BOND || b < nlocal ) {
-      a_torque(b,0) += deltb[0];
-      a_torque(b,1) += deltb[1];
-      a_torque(b,2) += deltb[2];
-    }
-  // end of early rejection criterium:
-  }    // evdwl
-  }    // f4t5
-  }    // f4t4
-  }    // f1
+  // cosphi2 torque
+  if (cosphi2 != 0.0) {
+    tpair = -f1 * f4t4 * f4t5 * f4t6 * f5c1 * df5c2;
+    cosphi2dir[0] = delr_bkbk_norm[1] * d_ny_xtrct(a,2) - delr_bkbk_norm[2] * d_ny_xtrct(a,1);
+    cosphi2dir[1] = delr_bkbk_norm[2] * d_ny_xtrct(a,0) - delr_bkbk_norm[0] * d_ny_xtrct(a,2);
+    cosphi2dir[2] = delr_bkbk_norm[0] * d_ny_xtrct(a,1) - delr_bkbk_norm[1] * d_ny_xtrct(a,0);
+    delta[0] -= cosphi2dir[0] * tpair;
+    delta[1] -= cosphi2dir[1] * tpair;
+    delta[2] -= cosphi2dir[2] * tpair;
+  }
+
+  // increment torques
+  if ( NEWTON_BOND || a < nlocal ) {
+    a_torque(a,0) -= delta[0];
+    a_torque(a,1) -= delta[1];
+    a_torque(a,2) -= delta[2];
+  }
+  if ( NEWTON_BOND || b < nlocal ) {
+    a_torque(b,0) += deltb[0];
+    a_torque(b,1) += deltb[1];
+    a_torque(b,2) += deltb[2];
+  }
 }
 
 template<class DeviceType>

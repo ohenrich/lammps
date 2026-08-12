@@ -405,7 +405,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
            F6_KK(theta1, d_AA_cxst1(atype,btype), d_BB_cxst1(atype,btype));
 
     // start early rejection criterium
-    if (f4f6t1) {
+    if (f4f6t1 != static_cast<KK_FLOAT>(0.0)) {
       // theta4 calculation
       cost4 = d_nz_xtrct(a,0)*d_nz_xtrct(b,0) + d_nz_xtrct(a,1)*d_nz_xtrct(b,1) + d_nz_xtrct(a,2)*d_nz_xtrct(b,2);
       if (cost4 > 1.0) cost4 = 1.0;
@@ -419,7 +419,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // end of f4f6t1
 
     // f4t4 early rejection criterium
-    if (f4t4) {
+    if (f4t4 != static_cast<KK_FLOAT>(0.0)) {
       cost5 = (d_nz_xtrct(a,0)*delr_stkstk_norm[0] + d_nz_xtrct(a,1)*delr_stkstk_norm[1] + d_nz_xtrct(a,2)*delr_stkstk_norm[2]);
       if (cost5 > 1.0) cost5 = 1.0;
       if (cost5 < -1.0) cost5 = -1.0;
@@ -433,7 +433,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // end of f4t4
 
     // f4t5 early rejection criterium
-    if (f4t5) {
+    if (f4t5 != static_cast<KK_FLOAT>(0.0)) {
       cost6 = d_nz_xtrct(b,0)*delr_stkstk_norm[0] + d_nz_xtrct(b,1)*delr_stkstk_norm[1] + d_nz_xtrct(b,2)*delr_stkstk_norm[2];
       if (cost6 > 1.0) cost6 = 1.0;
       if (cost6 < -1.0) cost6 = -1.0;
@@ -471,7 +471,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
     // end of f4t5
 
     // evdwl early rejection criterium
-    if (evdwl) {
+    if (evdwl != static_cast<KK_FLOAT>(0.0)) {
       // df2 = DF2 modulation factor
       df2 = DF2_KK(r_stkstk, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
               d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
@@ -518,7 +518,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       delf[2] += delr_stkstk[2] * finc;
 
       // theta5 force
-      if (theta5 && theta5p) {
+      if (theta5 != static_cast<KK_FLOAT>(0.0) && theta5p != static_cast<KK_FLOAT>(0.0)) {
 
         finc  = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * rinv_stkstk * factor_lj;
 
@@ -528,7 +528,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       }
 
       // theta6 force
-      if (theta6 && theta6p) {
+      if (theta6 != static_cast<KK_FLOAT>(0.0) && theta6p != static_cast<KK_FLOAT>(0.0)) {
 
         finc  = -f2 * f4f6t1* f4t4 * f4t5 * df4t6 * rinv_stkstk * factor_lj;
 
@@ -584,7 +584,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
       deltb[2] = 0.0;
 
       // theta1 torque
-      if (theta1 && theta1p) {
+      if (theta1 != static_cast<KK_FLOAT>(0.0) && theta1p != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f2 * df4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
 
@@ -599,7 +599,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
         deltb[2] += t1dir[2] * tpair;
       }
       //theta4 torque
-      if (theta4) {
+      if (theta4 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f2 * f4f6t1 * df4t4 * f4t5 * f4t6 * factor_lj;
 
@@ -614,7 +614,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
         deltb[2] += t4dir[2] * tpair;
       }
       //theta5 torque
-      if (theta5 && theta5p) {
+      if (theta5 != static_cast<KK_FLOAT>(0.0) && theta5p != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * factor_lj;
 
@@ -626,7 +626,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
         delta[2] += t5dir[2] * tpair;
       }
       // theta6 torque
-      if (theta6 && theta6p) {
+      if (theta6 != static_cast<KK_FLOAT>(0.0) && theta6p != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f2 * f4f6t1 * f4t4 * f4t5 * df4t6 * factor_lj;
 
@@ -693,7 +693,7 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta1_terms(const int &atype,
   theta1p = 2 * MY_PI_KK - theta1;
 
   f4f6t1 = F4_KK(theta1, a1, t10, dt1a, b1, dt1c) + F6_KK(theta1, aa1, bb1);
-  if (f4f6t1 == 0.0) return false;
+  if (f4f6t1 == static_cast<KK_FLOAT>(0.0)) return false;
 
   // df4f6t1 = (DF4 + DF6) / sin(theta1)
   KK_FLOAT sin1_sq = Kokkos::fma(-cost1, cost1, static_cast<KK_FLOAT>(1.0));
@@ -722,7 +722,7 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta4_terms(const int &atype,
   theta4 = acos(cost4);
   f4t4 = F4_KK(theta4, a4, t40, dt4a, b4, dt4c) +
          F4_KK(theta4, a4, MY_PI - t40, dt4a, b4, dt4c);
-  if (f4t4 == 0.0) return false;
+  if (f4t4 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin4_sq = Kokkos::fma(-cost4, cost4, static_cast<KK_FLOAT>(1.0));
   if (sin4_sq <= 0.0) return false;
@@ -749,7 +749,7 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta5_terms(const int &atype,
   theta5p = MY_PI_KK - theta5;
   f4t5 = F4_KK(theta5, a5, t50, dt5a, b5, dt5c) +
          F4_KK(theta5p, a5, t50, dt5a, b5, dt5c);
-  if (f4t5 == 0.0) return false;
+  if (f4t5 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin5_sq = Kokkos::fma(-cost5, cost5, static_cast<KK_FLOAT>(1.0));
   if (sin5_sq <= 0.0) return false;
@@ -776,7 +776,7 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_theta6_terms(const int &atype,
   theta6p = MY_PI_KK - theta6;
   f4t6 = F4_KK(theta6, a6, t60, dt6a, b6, dt6c) +
          F4_KK(theta6p, a6, t60, dt6a, b6, dt6c);
-  if (f4t6 == 0.0) return false;
+  if (f4t6 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin6_sq = Kokkos::fma(-cost6, cost6, static_cast<KK_FLOAT>(1.0));
   if (sin6_sq <= 0.0) return false;
@@ -820,7 +820,7 @@ bool PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_radial_terms(const int &atype,
   f2 = F2_KK(r_st, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
              d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), d_cut_cxst_c(atype,btype));
-  if (f2 == 0.0) return false;
+  if (f2 == static_cast<KK_FLOAT>(0.0)) return false;
   df2 = DF2_KK(r_st, prime_cxst_ab, d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
                d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
                d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
@@ -850,7 +850,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_force_contrib(const KK_FLOAT &
   delf[2] = Kokkos::fma(delr_stkstk[2], finc, delf[2]);
 
   // theta5
-  if (theta5 && theta5p) {
+  if (theta5 != static_cast<KK_FLOAT>(0.0) && theta5p != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT prod5 = f4f6t1 * f4t4 * df4t5 * f4t6;
     KK_FLOAT finc5 = -f2 * prod5 * rinv_st * factor_lj;
     delf[0] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[0], cost5, -a_nz[0]), finc5, delf[0]);
@@ -859,7 +859,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_force_contrib(const KK_FLOAT &
   }
 
   // theta6
-  if (theta6 && theta6p) {
+  if (theta6 != static_cast<KK_FLOAT>(0.0) && theta6p != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT prod6 = f4f6t1 * f4t4 * f4t5 * df4t6;
     KK_FLOAT finc6 = -f2 * prod6 * rinv_st * factor_lj;
     delf[0] = Kokkos::fma(Kokkos::fma(delr_stkstk_norm[0], cost6, -b_nz[0]), finc6, delf[0]);
@@ -886,7 +886,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   const KK_FLOAT (&delr_stkstk_norm)[3], KK_ACC_FLOAT (&delta)[3], KK_ACC_FLOAT (&deltb)[3]) const
 {
   // theta1
-  if (theta1 && theta1p) {
+  if (theta1 != static_cast<KK_FLOAT>(0.0) && theta1p != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT tpair = -f2 * df4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
     KK_FLOAT t1x = Kokkos::fma(a_nx[1], b_nx[2], - a_nx[2] * b_nx[1]);
     KK_FLOAT t1y = Kokkos::fma(a_nx[2], b_nx[0], - a_nx[0] * b_nx[2]);
@@ -900,7 +900,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   }
 
   // theta4
-  if (theta4) {
+  if (theta4 != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT tpair = -f2 * f4f6t1 * df4t4 * f4t5 * f4t6 * factor_lj;
     KK_FLOAT t4x = Kokkos::fma(b_nz[1], a_nz[2], - b_nz[2] * a_nz[1]);
     KK_FLOAT t4y = Kokkos::fma(b_nz[2], a_nz[0], - b_nz[0] * a_nz[2]);
@@ -914,7 +914,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   }
 
   // theta5
-  if (theta5 && theta5p) {
+  if (theta5 != static_cast<KK_FLOAT>(0.0) && theta5p != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT tpair = -f2 * f4f6t1 * f4t4 * df4t5 * f4t6 * factor_lj;
     KK_FLOAT t5x = Kokkos::fma(delr_stkstk_norm[1], a_nz[2], - delr_stkstk_norm[2] * a_nz[1]);
     KK_FLOAT t5y = Kokkos::fma(delr_stkstk_norm[2], a_nz[0], - delr_stkstk_norm[0] * a_nz[2]);
@@ -925,7 +925,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::coaxstk_torque_contrib(const KK_FLOAT 
   }
 
   // theta6
-  if (theta6 && theta6p) {
+  if (theta6 != static_cast<KK_FLOAT>(0.0) && theta6p != static_cast<KK_FLOAT>(0.0)) {
     KK_FLOAT tpair = -f2 * f4f6t1 * f4t4 * f4t5 * df4t6 * factor_lj;
     KK_FLOAT t6x = Kokkos::fma(delr_stkstk_norm[1], b_nz[2], - delr_stkstk_norm[2] * b_nz[1]);
     KK_FLOAT t6y = Kokkos::fma(delr_stkstk_norm[2], b_nz[0], - delr_stkstk_norm[0] * b_nz[2]);
@@ -960,7 +960,7 @@ void PairOxdna2CoaxstkKokkos<DeviceType>::operator()(TagPairOxdna2CoaxstkCompute
   // "pair & 0xffffffffu" keeps only the lower 32 bits to recover the atom-b index.
   int b = static_cast<int>(pair & 0xffffffffu);
   const KK_FLOAT factor_lj = special_lj[sbmask(b)];
-  if (!factor_lj) return;
+  if (factor_lj == static_cast<KK_FLOAT>(0.0)) return;
   b &= NEIGHMASK;
 
   // a has to be terminal nucleotide

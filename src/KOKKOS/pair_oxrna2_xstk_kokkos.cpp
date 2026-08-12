@@ -260,7 +260,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
   for (int ib = 0; ib < bnum; ib++) {
     int b = d_neighbors(a, ib);
     const KK_FLOAT factor_lj = special_lj[sbmask(b)];
-    if (!factor_lj) continue;
+    if (factor_lj == static_cast<KK_FLOAT>(0.0)) continue;
     b &= NEIGHMASK;
 
     const int btype = type(b);
@@ -297,7 +297,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
               d_cut_xst_lo(atype, btype), d_cut_xst_hi(atype, btype),
               d_b_xst_lo(atype, btype), d_b_xst_hi(atype, btype),
               d_cut_xst_c(atype, btype));
-    if (!f2) continue;
+    if (f2 == static_cast<KK_FLOAT>(0.0)) continue;
 
     KK_FLOAT cost1 = -(a_nx0 * b_nx0 + a_nx1 * b_nx1 + a_nx2 * b_nx2);
     if (cost1 > 1.0) cost1 = 1.0;
@@ -306,7 +306,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
     const KK_FLOAT f4t1 = F4_KK(theta1, d_a_xst1(atype, btype), d_theta_xst1_0(atype, btype),
                                  d_dtheta_xst1_ast(atype, btype), d_b_xst1(atype, btype),
                                  d_dtheta_xst1_c(atype, btype));
-    if (!f4t1) continue;
+    if (f4t1 == static_cast<KK_FLOAT>(0.0)) continue;
 
     KK_FLOAT cost2 = -(a_nx0 * delr_bsbs_norm[0] + a_nx1 * delr_bsbs_norm[1] +
                        a_nx2 * delr_bsbs_norm[2]);
@@ -316,7 +316,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
     const KK_FLOAT f4t2 = F4_KK(theta2, d_a_xst2(atype, btype), d_theta_xst2_0(atype, btype),
                                  d_dtheta_xst2_ast(atype, btype), d_b_xst2(atype, btype),
                                  d_dtheta_xst2_c(atype, btype));
-    if (!f4t2) continue;
+    if (f4t2 == static_cast<KK_FLOAT>(0.0)) continue;
 
     KK_FLOAT cost3 = b_nx0 * delr_bsbs_norm[0] + b_nx1 * delr_bsbs_norm[1] +
         b_nx2 * delr_bsbs_norm[2];
@@ -326,7 +326,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
     const KK_FLOAT f4t3 = F4_KK(theta3, d_a_xst3(atype, btype), d_theta_xst3_0(atype, btype),
                                  d_dtheta_xst3_ast(atype, btype), d_b_xst3(atype, btype),
                                  d_dtheta_xst3_c(atype, btype));
-    if (!f4t3) continue;
+    if (f4t3 == static_cast<KK_FLOAT>(0.0)) continue;
 
     KK_FLOAT cost7 = -(a_nz0 * delr_bsbs_norm[0] + a_nz1 * delr_bsbs_norm[1] +
                        a_nz2 * delr_bsbs_norm[2]);
@@ -340,7 +340,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
         F4_KK(theta7p, d_a_xst7(atype, btype), d_theta_xst7_0(atype, btype),
               d_dtheta_xst7_ast(atype, btype), d_b_xst7(atype, btype),
               d_dtheta_xst7_c(atype, btype));
-    if (!f4t7) continue;
+    if (f4t7 == static_cast<KK_FLOAT>(0.0)) continue;
 
     KK_FLOAT cost8 = b_nz0 * delr_bsbs_norm[0] + b_nz1 * delr_bsbs_norm[1] +
         b_nz2 * delr_bsbs_norm[2];
@@ -356,7 +356,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
               d_dtheta_xst8_c(atype, btype));
 
     const KK_ACC_FLOAT evdwl = f2 * f4t1 * f4t2 * f4t3 * f4t7 * f4t8 * factor_lj;
-    if (!evdwl) continue;
+    if (evdwl == static_cast<KK_FLOAT>(0.0)) continue;
 
     const KK_FLOAT df2 =
         DF2_KK(r_bsbs, d_k_xst(atype, btype), d_cut_xst_0(atype, btype),
@@ -409,28 +409,28 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
     delf[1] += delr_bsbs[1] * finc;
     delf[2] += delr_bsbs[2] * finc;
 
-    if (theta2 != 0.0) {
+    if (theta2 != static_cast<KK_FLOAT>(0.0)) {
       finc = -f2 * f4t1 * df4t2 * f4t3 * f4t7 * f4t8 * rinv_bsbs * factor_lj;
       delf[0] += (delr_bsbs_norm[0] * cost2 + a_nx0) * finc;
       delf[1] += (delr_bsbs_norm[1] * cost2 + a_nx1) * finc;
       delf[2] += (delr_bsbs_norm[2] * cost2 + a_nx2) * finc;
     }
 
-    if (theta3 != 0.0) {
+    if (theta3 != static_cast<KK_FLOAT>(0.0)) {
       finc = -f2 * f4t1 * f4t2 * df4t3 * f4t7 * f4t8 * rinv_bsbs * factor_lj;
       delf[0] += (delr_bsbs_norm[0] * cost3 - b_nx0) * finc;
       delf[1] += (delr_bsbs_norm[1] * cost3 - b_nx1) * finc;
       delf[2] += (delr_bsbs_norm[2] * cost3 - b_nx2) * finc;
     }
 
-    if (theta7 != 0.0) {
+    if (theta7 != static_cast<KK_FLOAT>(0.0)) {
       finc = -f2 * f4t1 * f4t2 * f4t3 * df4t7 * f4t8 * rinv_bsbs * factor_lj;
       delf[0] += (delr_bsbs_norm[0] * cost7 + a_nz0) * finc;
       delf[1] += (delr_bsbs_norm[1] * cost7 + a_nz1) * finc;
       delf[2] += (delr_bsbs_norm[2] * cost7 + a_nz2) * finc;
     }
 
-    if (theta8 != 0.0) {
+    if (theta8 != static_cast<KK_FLOAT>(0.0)) {
       finc = -f2 * f4t1 * f4t2 * f4t3 * f4t7 * df4t8 * rinv_bsbs * factor_lj;
       delf[0] += (delr_bsbs_norm[0] * cost8 - b_nz0) * finc;
       delf[1] += (delr_bsbs_norm[1] * cost8 - b_nz1) * finc;
@@ -486,7 +486,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
 
     KK_ACC_FLOAT tpair;
 
-    if (theta1 != 0.0) {
+    if (theta1 != static_cast<KK_FLOAT>(0.0)) {
       tpair = -f2 * df4t1 * f4t2 * f4t3 * f4t7 * f4t8 * factor_lj;
       const KK_FLOAT t1dir0 = a_nx1 * b_nx2 - a_nx2 * b_nx1;
       const KK_FLOAT t1dir1 = a_nx2 * b_nx0 - a_nx0 * b_nx2;
@@ -499,7 +499,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
       deltb[2] += t1dir2 * tpair;
     }
 
-    if (theta2 != 0.0) {
+    if (theta2 != static_cast<KK_FLOAT>(0.0)) {
       tpair = -f2 * f4t1 * df4t2 * f4t3 * f4t7 * f4t8 * factor_lj;
       const KK_FLOAT t2dir0 = a_nx1 * delr_bsbs_norm[2] - a_nx2 * delr_bsbs_norm[1];
       const KK_FLOAT t2dir1 = a_nx2 * delr_bsbs_norm[0] - a_nx0 * delr_bsbs_norm[2];
@@ -509,7 +509,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
       delta[2] += t2dir2 * tpair;
     }
 
-    if (theta3 != 0.0) {
+    if (theta3 != static_cast<KK_FLOAT>(0.0)) {
       tpair = -f2 * f4t1 * f4t2 * df4t3 * f4t7 * f4t8 * factor_lj;
       const KK_FLOAT t3dir0 = b_nx1 * delr_bsbs_norm[2] - b_nx2 * delr_bsbs_norm[1];
       const KK_FLOAT t3dir1 = b_nx2 * delr_bsbs_norm[0] - b_nx0 * delr_bsbs_norm[2];
@@ -519,7 +519,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
       deltb[2] += t3dir2 * tpair;
     }
 
-    if (theta7 != 0.0) {
+    if (theta7 != static_cast<KK_FLOAT>(0.0)) {
       tpair = -f2 * f4t1 * f4t2 * f4t3 * df4t7 * f4t8 * factor_lj;
       const KK_FLOAT t7dir0 = a_nz1 * delr_bsbs_norm[2] - a_nz2 * delr_bsbs_norm[1];
       const KK_FLOAT t7dir1 = a_nz2 * delr_bsbs_norm[0] - a_nz0 * delr_bsbs_norm[2];
@@ -529,7 +529,7 @@ void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGH
       delta[2] += t7dir2 * tpair;
     }
 
-    if (theta8 != 0.0) {
+    if (theta8 != static_cast<KK_FLOAT>(0.0)) {
       tpair = -f2 * f4t1 * f4t2 * f4t3 * f4t7 * df4t8 * factor_lj;
       const KK_FLOAT t8dir0 = b_nz1 * delr_bsbs_norm[2] - b_nz2 * delr_bsbs_norm[1];
       const KK_FLOAT t8dir1 = b_nz2 * delr_bsbs_norm[0] - b_nz0 * delr_bsbs_norm[2];

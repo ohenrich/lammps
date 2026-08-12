@@ -323,7 +323,7 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
 
     int b = d_neighbors(a,ib);
     const KK_FLOAT factor_lj = special_lj[sbmask(b)];
-    if (!factor_lj) continue;
+    if (factor_lj == static_cast<KK_FLOAT>(0.0)) continue;
     b &= NEIGHMASK;
     const int btype = type(b);
 

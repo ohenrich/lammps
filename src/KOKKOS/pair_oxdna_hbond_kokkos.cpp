@@ -507,7 +507,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       delf[2] += delr_hb[2] * finc;
 
       // theta2 force
-      if (theta2) {
+      if (theta2 != static_cast<KK_FLOAT>(0.0)) {
 
         finc  = -f1 * f4t1 * df4t2 * f4t3 * f4t4 * f4t7 * f4t8 * rinv_hb * factor_lj;
 
@@ -517,7 +517,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       }
 
       // theta3 force
-      if (theta3) {
+      if (theta3 != static_cast<KK_FLOAT>(0.0)) {
 
         finc  = -f1 * f4t1 * f4t2 * df4t3 * f4t4 * f4t7 * f4t8 * rinv_hb * factor_lj;
 
@@ -527,7 +527,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       }
 
       // theta7 force
-      if (theta7) {
+      if (theta7 != static_cast<KK_FLOAT>(0.0)) {
         
         finc  = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * rinv_hb * factor_lj;
 
@@ -538,7 +538,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       }
 
       // theta8 force
-      if (theta8) {
+      if (theta8 != static_cast<KK_FLOAT>(0.0)) {
 
         finc  = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * df4t8 * rinv_hb * factor_lj;
 
@@ -595,7 +595,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       deltb[2] = 0.0;
 
       // theta1 torque
-      if (theta1) {
+      if (theta1 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * df4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
@@ -610,7 +610,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         deltb[2] += t1dir[2] * tpair;
       }
       //theta2 torque
-      if (theta2) {
+      if (theta2 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * f4t1 * df4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
@@ -622,7 +622,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         delta[2] += t2dir[2] * tpair;
       }
       //theta3 torque
-      if (theta3) {
+      if (theta3 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * f4t1 * f4t2 * df4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
@@ -634,7 +634,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         deltb[2] += t3dir[2] * tpair;
       }
       //theta4 torque
-      if (theta4) {
+      if (theta4 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * f4t1 * f4t2 * f4t3 * df4t4 * f4t7 * f4t8 * factor_lj;
 
@@ -649,7 +649,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         deltb[2] += t4dir[2] * tpair;
       }
       //theta7 torque
-      if (theta7) {
+      if (theta7 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * factor_lj;
 
@@ -661,7 +661,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         delta[2] += t7dir[2] * tpair;
       }
       //theta8 torque
-      if (theta8) {
+      if (theta8 != static_cast<KK_FLOAT>(0.0)) {
 
         tpair = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * df4t8 * factor_lj;
 
@@ -727,10 +727,10 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_radial_terms(const int &atype, cons
   const KK_FLOAT p_b_hb_hi = d_b_hb_hi(atype,btype);
   const KK_FLOAT p_shift_hb = d_shift_hb(atype,btype);
 
-  f1 = F1_KK(r_hb, p_epsilon_hb, p_a_hb, p_cut_hb_0,
+    f1 = F1_KK(r_hb, p_epsilon_hb, p_a_hb, p_cut_hb_0,
       p_cut_hb_lc, p_cut_hb_hc, p_cut_hb_lo, p_cut_hb_hi,
       p_b_hb_lo, p_b_hb_hi, p_shift_hb);
-  if (!f1) return false;
+    if (f1 == static_cast<KK_FLOAT>(0.0)) return false;
 
   df1 = DF1_KK(r_hb, p_epsilon_hb, p_a_hb, p_cut_hb_0,
       p_cut_hb_lc, p_cut_hb_hc, p_cut_hb_lo, p_cut_hb_hi,
@@ -756,7 +756,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta1_terms(const int &atype, cons
   theta1 = acos(cost1);
 
   f4t1 = F4_KK(theta1, p_a_hb1, p_theta_hb1_0, p_dtheta_hb1_ast, p_b_hb1, p_dtheta_hb1_c);
-  if (!f4t1) return false;
+  if (f4t1 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin1_sq = Kokkos::fma(-cost1, cost1, static_cast<KK_FLOAT>(1.0));
   if (sin1_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -783,7 +783,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta2_terms(const int &atype, cons
   theta2 = acos(cost2);
 
   f4t2 = F4_KK(theta2, p_a_hb2, p_theta_hb2_0, p_dtheta_hb2_ast, p_b_hb2, p_dtheta_hb2_c);
-  if (!f4t2) return false;
+  if (f4t2 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin2_sq = Kokkos::fma(-cost2, cost2, static_cast<KK_FLOAT>(1.0));
   if (sin2_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -810,7 +810,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta3_terms(const int &atype, cons
   theta3 = acos(cost3);
 
   f4t3 = F4_KK(theta3, p_a_hb3, p_theta_hb3_0, p_dtheta_hb3_ast, p_b_hb3, p_dtheta_hb3_c);
-  if (!f4t3) return false;
+  if (f4t3 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin3_sq = Kokkos::fma(-cost3, cost3, static_cast<KK_FLOAT>(1.0));
   if (sin3_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -837,7 +837,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta4_terms(const int &atype, cons
   theta4 = acos(cost4);
 
   f4t4 = F4_KK(theta4, p_a_hb4, p_theta_hb4_0, p_dtheta_hb4_ast, p_b_hb4, p_dtheta_hb4_c);
-  if (!f4t4) return false;
+  if (f4t4 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin4_sq = Kokkos::fma(-cost4, cost4, static_cast<KK_FLOAT>(1.0));
   if (sin4_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -864,7 +864,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta7_terms(const int &atype, cons
   theta7 = acos(cost7);
 
   f4t7 = F4_KK(theta7, p_a_hb7, p_theta_hb7_0, p_dtheta_hb7_ast, p_b_hb7, p_dtheta_hb7_c);
-  if (!f4t7) return false;
+  if (f4t7 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin7_sq = Kokkos::fma(-cost7, cost7, static_cast<KK_FLOAT>(1.0));
   if (sin7_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -891,7 +891,7 @@ bool PairOxdnaHbondKokkos<DeviceType>::hbond_theta8_terms(const int &atype, cons
   theta8 = acos(cost8);
 
   f4t8 = F4_KK(theta8, p_a_hb8, p_theta_hb8_0, p_dtheta_hb8_ast, p_b_hb8, p_dtheta_hb8_c);
-  if (!f4t8) return false;
+  if (f4t8 == static_cast<KK_FLOAT>(0.0)) return false;
 
   KK_FLOAT sin8_sq = Kokkos::fma(-cost8, cost8, static_cast<KK_FLOAT>(1.0));
   if (sin8_sq <= static_cast<KK_FLOAT>(0.0)) return false;
@@ -922,7 +922,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_force_contrib(const KK_FLOAT &f1,
   delf[1] = Kokkos::fma(delr_hb[1], finc, delf[1]);
   delf[2] = Kokkos::fma(delr_hb[2], finc, delf[2]);
 
-  if (theta2) {
+  if (theta2 != static_cast<KK_FLOAT>(0.0)) {
     finc = -f1 * f4t1 * df4t2 * f4t3 * f4t4 * f4t7 * f4t8 * rinv_hb * factor_lj;
     const KK_FLOAT t2f0 = Kokkos::fma(delr_hb_norm[0], cost2, a_nx[0]);
     const KK_FLOAT t2f1 = Kokkos::fma(delr_hb_norm[1], cost2, a_nx[1]);
@@ -932,7 +932,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_force_contrib(const KK_FLOAT &f1,
     delf[2] = Kokkos::fma(t2f2, finc, delf[2]);
   }
 
-  if (theta3) {
+  if (theta3 != static_cast<KK_FLOAT>(0.0)) {
     finc = -f1 * f4t1 * f4t2 * df4t3 * f4t4 * f4t7 * f4t8 * rinv_hb * factor_lj;
     const KK_FLOAT t3f0 = Kokkos::fma(delr_hb_norm[0], cost3, -b_nx[0]);
     const KK_FLOAT t3f1 = Kokkos::fma(delr_hb_norm[1], cost3, -b_nx[1]);
@@ -942,7 +942,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_force_contrib(const KK_FLOAT &f1,
     delf[2] = Kokkos::fma(t3f2, finc, delf[2]);
   }
 
-  if (theta7) {
+  if (theta7 != static_cast<KK_FLOAT>(0.0)) {
     finc = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * rinv_hb * factor_lj;
     const KK_FLOAT t7f0 = Kokkos::fma(delr_hb_norm[0], cost7, a_nz[0]);
     const KK_FLOAT t7f1 = Kokkos::fma(delr_hb_norm[1], cost7, a_nz[1]);
@@ -952,7 +952,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_force_contrib(const KK_FLOAT &f1,
     delf[2] = Kokkos::fma(t7f2, finc, delf[2]);
   }
 
-  if (theta8) {
+  if (theta8 != static_cast<KK_FLOAT>(0.0)) {
     finc = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * df4t8 * rinv_hb * factor_lj;
     const KK_FLOAT t8f0 = Kokkos::fma(delr_hb_norm[0], cost8, -b_nz[0]);
     const KK_FLOAT t8f1 = Kokkos::fma(delr_hb_norm[1], cost8, -b_nz[1]);
@@ -995,7 +995,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
 
   KK_FLOAT tpair;
 
-  if (theta1) {
+  if (theta1 != static_cast<KK_FLOAT>(0.0)) {
     tpair = -f1 * df4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
     const KK_FLOAT t1dir0 = Kokkos::fma(a_nx[1], b_nx[2], -a_nx[2] * b_nx[1]);
@@ -1009,7 +1009,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
     deltb[2] = Kokkos::fma(t1dir2, tpair, deltb[2]);
   }
 
-  if (theta2) {
+  if (theta2 != static_cast<KK_FLOAT>(0.0)) {
     tpair = -f1 * f4t1 * df4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
     const KK_FLOAT t2dir0 = Kokkos::fma(a_nx[1], delr_hb_norm[2], -a_nx[2] * delr_hb_norm[1]);
@@ -1020,7 +1020,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
     delta[2] = Kokkos::fma(t2dir2, tpair, delta[2]);
   }
 
-  if (theta3) {
+  if (theta3 != static_cast<KK_FLOAT>(0.0)) {
     tpair = -f1 * f4t1 * f4t2 * df4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
     const KK_FLOAT t3dir0 = Kokkos::fma(b_nx[1], delr_hb_norm[2], -b_nx[2] * delr_hb_norm[1]);
@@ -1045,7 +1045,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
     deltb[2] = Kokkos::fma(t4dir2, tpair, deltb[2]);
   }
 
-  if (theta7) {
+  if (theta7 != static_cast<KK_FLOAT>(0.0)) {
     tpair = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * factor_lj;
 
     const KK_FLOAT t7dir0 = Kokkos::fma(a_nz[1], delr_hb_norm[2], -a_nz[2] * delr_hb_norm[1]);
@@ -1056,7 +1056,7 @@ void PairOxdnaHbondKokkos<DeviceType>::hbond_torque_contrib(const KK_FLOAT &f1,
     delta[2] = Kokkos::fma(t7dir2, tpair, delta[2]);
   }
 
-  if (theta8) {
+  if (theta8 != static_cast<KK_FLOAT>(0.0)) {
     tpair = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * df4t8 * factor_lj;
 
     const KK_FLOAT t8dir0 = Kokkos::fma(b_nz[1], delr_hb_norm[2], -b_nz[2] * delr_hb_norm[1]);
@@ -1089,7 +1089,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPai
   // "pair & 0xffffffffu" keeps only the lower 32 bits to recover the atom-b index.
   int b = static_cast<int>(pair & 0xffffffffu);
   const KK_FLOAT factor_lj = special_lj[sbmask(b)];
-  if (!factor_lj) return;
+  if (factor_lj == static_cast<KK_FLOAT>(0.0)) return;
   b &= NEIGHMASK;
   const int btype = type(b);
 
@@ -1182,7 +1182,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondComputeGPUPai
   if (!hbond_theta8_terms(atype, btype, b_nz, delr_hb_norm, theta8, cost8, f4t8, df4t8)) return;
 
   evdwl = f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
-  if (!evdwl) return;
+  if (evdwl == static_cast<KK_FLOAT>(0.0)) return;
 
   KK_ACC_FLOAT delf[3], delta[3], deltb[3];
   delf[0] = 0.0;
