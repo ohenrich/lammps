@@ -533,6 +533,7 @@ action pair_oxdna2_dh_kokkos.cpp pair_oxdna2_dh.cpp
 action pair_oxdna2_dh_kokkos.h pair_oxdna2_dh.h
 action pair_oxdna2_excv_kokkos.h pair_oxdna_excv_kokkos.h
 action pair_oxrna2_excv_kokkos.h pair_oxdna_excv_kokkos.h
+action pair_oxrna2_hbond_kokkos.h pair_oxdna_hbond_kokkos.h
 action pair_oxrna2_stk_kokkos.cpp pair_oxrna2_stk.cpp
 action pair_oxrna2_stk_kokkos.h pair_oxrna2_stk.h
 action pair_oxrna2_xstk_kokkos.cpp pair_oxrna2_xstk.cpp

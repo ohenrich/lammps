@@ -681,6 +681,8 @@ void PairOxrna2XstkKokkos<DeviceType>::init_style()
     error->all(FLERR, "Fix OXDNA/LRF/kk not found. Ensure pair ox*na*/excv/kk is present");
   else
     fix_oxdna_lrfKK = dynamic_cast<FixOxdnaLRFKokkos<DeviceType> *>(fixes[0]);
+  if (!fix_oxdna_lrfKK)
+    error->all(FLERR, "Fix OXDNA/LRF/kk lookup failed");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -863,17 +865,13 @@ void PairOxrna2XstkKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, 
   const int EFLAG = eflag;
   const int VFLAG = vflag_either;
 
-  // The eatom and vatom arrays are duplicated for OpenMP, atomic for GPU, and neither for Serial
-  auto v_eatom = ScatterViewHelper<NeedDup_v<NEIGHFLAG,DeviceType>,
-    decltype(dup_eatom),decltype(ndup_eatom)>::get(dup_eatom,ndup_eatom);
-  auto a_eatom = v_eatom.template access<AtomicDup_v<NEIGHFLAG,DeviceType>>();
-
-  auto v_vatom = ScatterViewHelper<NeedDup_v<NEIGHFLAG,DeviceType>,
-    decltype(dup_vatom),decltype(ndup_vatom)>::get(dup_vatom,ndup_vatom);
-  auto a_vatom = v_vatom.template access<AtomicDup_v<NEIGHFLAG,DeviceType>>();
-
   if (EFLAG) {
     if (eflag_atom) {
+      // The eatom array is duplicated for OpenMP, atomic for GPU, and neither for Serial.
+      auto v_eatom = ScatterViewHelper<NeedDup_v<NEIGHFLAG,DeviceType>,
+        decltype(dup_eatom),decltype(ndup_eatom)>::get(dup_eatom,ndup_eatom);
+      auto a_eatom = v_eatom.template access<AtomicDup_v<NEIGHFLAG,DeviceType>>();
+
       const KK_ACC_FLOAT epairhalf = static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * epair);
       if (NEIGHFLAG != FULL) {
         if (NEWTON_PAIR || i < nlocal) a_eatom[i] += epairhalf;
@@ -921,6 +919,11 @@ void PairOxrna2XstkKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, 
     }
 
     if (vflag_atom) {
+      // The vatom array is duplicated for OpenMP, atomic for GPU, and neither for Serial.
+      auto v_vatom = ScatterViewHelper<NeedDup_v<NEIGHFLAG,DeviceType>,
+        decltype(dup_vatom),decltype(ndup_vatom)>::get(dup_vatom,ndup_vatom);
+      auto a_vatom = v_vatom.template access<AtomicDup_v<NEIGHFLAG,DeviceType>>();
+
       if (NEIGHFLAG != FULL) {
         if (NEWTON_PAIR || i < nlocal) {
           a_vatom(i,0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
