@@ -70,7 +70,7 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   if (neighflag == FULL) no_virial_fdotr_compute = 1;
 
-  ev_init(eflag, vflag, 0);
+  ev_init(eflag,vflag,0);
 
   if (eflag_atom) {
     memoryKK->destroy_kokkos(k_eatom, eatom);
@@ -83,12 +83,10 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
     d_vatom = k_vatom.template view<DeviceType>();
   }
 
-  atomKK->sync(execution_space, datamask_read);
+  atomKK->sync(execution_space,datamask_read);
 
-  if (eflag || vflag)
-    atomKK->modified(execution_space, datamask_modify);
-  else
-    atomKK->modified(execution_space, F_MASK | TORQUE_MASK);
+  if (eflag || vflag) atomKK->modified(execution_space,datamask_modify);
+  else atomKK->modified(execution_space,F_MASK | TORQUE_MASK);
 
   x = atomKK->k_x.template view<DeviceType>();
   f = atomKK->k_f.template view<DeviceType>();
@@ -102,23 +100,31 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   special_lj[2] = force->special_lj[2];
   special_lj[3] = force->special_lj[3];
 
-  NeighListKokkos<DeviceType> *k_list = static_cast<NeighListKokkos<DeviceType> *>(list);
+  // get the neighbor list and neighbors used in operator()
+  NeighListKokkos<DeviceType>* k_list = static_cast<NeighListKokkos<DeviceType>*>(list);
   d_neighbors = k_list->d_neighbors;
   anum = list->inum;
   d_alist = k_list->d_ilist;
   d_numneigh = k_list->d_numneigh;
 
-  const int need_dup = lmp->kokkos->need_dup<DeviceType>();
-  if (need_dup) {
-    dup_eatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
-      Kokkos::Experimental::ScatterDuplicated>(d_eatom);
-    dup_vatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
-      Kokkos::Experimental::ScatterDuplicated>(d_vatom);
-  } else {
-    ndup_eatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
-      Kokkos::Experimental::ScatterNonDuplicated>(d_eatom);
-    ndup_vatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
-      Kokkos::Experimental::ScatterNonDuplicated>(d_vatom);
+  int need_dup = lmp->kokkos->need_dup<DeviceType>();
+  if (eflag_atom) {
+    if (need_dup) {
+      dup_eatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
+        Kokkos::Experimental::ScatterDuplicated>(d_eatom);
+    } else {
+      ndup_eatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
+        Kokkos::Experimental::ScatterNonDuplicated>(d_eatom);
+    }
+  }
+  if (vflag_atom) {
+    if (need_dup) {
+      dup_vatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
+        Kokkos::Experimental::ScatterDuplicated>(d_vatom);
+    } else {
+      ndup_vatom = Kokkos::Experimental::create_scatter_view<Kokkos::Experimental::ScatterSum,
+        Kokkos::Experimental::ScatterNonDuplicated>(d_vatom);
+    }
   }
 
   copymode = 1;
@@ -128,13 +134,13 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   d_ny_xtrct = fix_oxdna_lrfKK->k_ny.template view<DeviceType>();
   d_nz_xtrct = fix_oxdna_lrfKK->k_nz.template view<DeviceType>();
 
+  // loop over pair interaction neighbors of my atoms
   EV_FLOAT ev;
 
   const int dispatch_neigh =
-      (neighflag == HALF)       ? 0
-      : (neighflag == HALFTHREAD) ? 1
-      : (neighflag == FULL)       ? 2
-                                 : -1;
+      (neighflag == HALF) ? 0 :
+      (neighflag == HALFTHREAD) ? 1 :
+      (neighflag == FULL) ? 2 : -1;
 
   if (dispatch_neigh < 0) {
     error->all(FLERR, "Unsupported neighbor flag in pair oxrna2/xstk/kk");
@@ -144,40 +150,40 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
   switch (dispatch_key) {
     case 0:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF, 0, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF,0,0>>(0,anum),*this);
       break;
     case 1:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD, 0, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD,0,0>>(0,anum),*this);
       break;
     case 2:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL, 0, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL,0,0>>(0,anum),*this);
       break;
     case 4:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF, 1, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF,1,0>>(0,anum),*this);
       break;
     case 5:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD, 1, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD,1,0>>(0,anum),*this);
       break;
     case 6:
-      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL, 1, 0>>(0, anum), *this);
+      Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL,1,0>>(0,anum),*this);
       break;
     case 8:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF, 0, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF,0,1>>(0,anum),*this,ev);
       break;
     case 9:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD, 0, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD,0,1>>(0,anum),*this,ev);
       break;
     case 10:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL, 0, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL,0,1>>(0,anum),*this,ev);
       break;
     case 12:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF, 1, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALF,1,1>>(0,anum),*this,ev);
       break;
     case 13:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD, 1, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<HALFTHREAD,1,1>>(0,anum),*this,ev);
       break;
     case 14:
-      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL, 1, 1>>(0, anum), *this, ev);
+      Kokkos::parallel_reduce(Kokkos::RangePolicy<DeviceType, TagPairOxrna2XstkCompute<FULL,1,1>>(0,anum),*this,ev);
       break;
     default:
       error->all(FLERR, "Internal dispatch error in pair oxrna2/xstk/kk");
@@ -196,23 +202,25 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   if (vflag_fdotr) pair_virial_fdotr_compute(this);
 
   if (eflag_atom) {
-    if (need_dup) Kokkos::Experimental::contribute(d_eatom, dup_eatom);
+    if (need_dup)
+      Kokkos::Experimental::contribute(d_eatom,dup_eatom);
     k_eatom.template modify<DeviceType>();
     k_eatom.template sync<LMPHostType>();
   }
 
   if (vflag_atom) {
-    if (need_dup) Kokkos::Experimental::contribute(d_vatom, dup_vatom);
+    if (need_dup)
+      Kokkos::Experimental::contribute(d_vatom,dup_vatom);
     k_vatom.template modify<DeviceType>();
     k_vatom.template sync<LMPHostType>();
   }
 
   if (need_dup) {
-    dup_eatom = decltype(dup_eatom)();
-    dup_vatom = decltype(dup_vatom)();
+    if (eflag_atom) dup_eatom = decltype(dup_eatom)();
+    if (vflag_atom) dup_vatom = decltype(dup_vatom)();
   } else {
-    ndup_eatom = decltype(ndup_eatom)();
-    ndup_vatom = decltype(ndup_vatom)();
+    if (eflag_atom) ndup_eatom = decltype(ndup_eatom)();
+    if (vflag_atom) ndup_vatom = decltype(ndup_vatom)();
   }
 
   copymode = 0;
@@ -222,9 +230,9 @@ void PairOxrna2XstkKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
 
 template<class DeviceType>
 template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
-KOKKOS_INLINE_FUNCTION void PairOxrna2XstkKokkos<DeviceType>::operator()(
-    TagPairOxrna2XstkCompute<NEIGHFLAG, NEWTON_PAIR, EVFLAG>, const int &ia,
-    EV_FLOAT &ev) const
+KOKKOS_INLINE_FUNCTION
+void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>,
+  const int &ia, EV_FLOAT &ev) const
 {
   Kokkos::View<KK_ACC_FLOAT *[3], typename AT::t_kkacc_1d_3::array_layout,
                typename KKDevice<DeviceType>::value,
@@ -545,12 +553,13 @@ KOKKOS_INLINE_FUNCTION void PairOxrna2XstkKokkos<DeviceType>::operator()(
 
 template<class DeviceType>
 template<int NEIGHFLAG, int NEWTON_PAIR, int EVFLAG>
-KOKKOS_INLINE_FUNCTION void PairOxrna2XstkKokkos<DeviceType>::operator()(
-    TagPairOxrna2XstkCompute<NEIGHFLAG, NEWTON_PAIR, EVFLAG>, const int &ia) const
+KOKKOS_INLINE_FUNCTION
+void PairOxrna2XstkKokkos<DeviceType>::operator()(TagPairOxrna2XstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>,
+  const int &ia) const
 {
   EV_FLOAT ev;
-  this->template operator()<NEIGHFLAG, NEWTON_PAIR, EVFLAG>(
-      TagPairOxrna2XstkCompute<NEIGHFLAG, NEWTON_PAIR, EVFLAG>(), ia, ev);
+  this->template operator()<NEIGHFLAG,NEWTON_PAIR,EVFLAG>
+    (TagPairOxrna2XstkCompute<NEIGHFLAG,NEWTON_PAIR,EVFLAG>(),ia,ev);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -846,10 +855,10 @@ double PairOxrna2XstkKokkos<DeviceType>::init_one(int i, int j)
 
 template<class DeviceType>
 template<int NEIGHFLAG, int NEWTON_PAIR>
-KOKKOS_INLINE_FUNCTION void PairOxrna2XstkKokkos<DeviceType>::ev_tally_xyz(
-    EV_FLOAT &ev, const int &i, const int &j, const KK_FLOAT &epair,
-    const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,
-    const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
+KOKKOS_INLINE_FUNCTION
+void PairOxrna2XstkKokkos<DeviceType>::ev_tally_xyz(EV_FLOAT &ev, const int &i, const int &j,
+  const KK_FLOAT &epair, const KK_ACC_FLOAT &fx, const KK_ACC_FLOAT &fy, const KK_ACC_FLOAT &fz,
+  const KK_FLOAT &delx, const KK_FLOAT &dely, const KK_FLOAT &delz) const
 {
   const int EFLAG = eflag;
   const int VFLAG = vflag_either;
@@ -914,28 +923,28 @@ KOKKOS_INLINE_FUNCTION void PairOxrna2XstkKokkos<DeviceType>::ev_tally_xyz(
     if (vflag_atom) {
       if (NEIGHFLAG != FULL) {
         if (NEWTON_PAIR || i < nlocal) {
-          a_vatom(i, 0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
-          a_vatom(i, 1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
-          a_vatom(i, 2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
-          a_vatom(i, 3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
-          a_vatom(i, 4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
-          a_vatom(i, 5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
+          a_vatom(i,0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
+          a_vatom(i,1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
+          a_vatom(i,2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
+          a_vatom(i,3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
+          a_vatom(i,4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
+          a_vatom(i,5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
         }
         if (NEWTON_PAIR || j < nlocal) {
-          a_vatom(j, 0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
-          a_vatom(j, 1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
-          a_vatom(j, 2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
-          a_vatom(j, 3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
-          a_vatom(j, 4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
-          a_vatom(j, 5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
+          a_vatom(j,0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
+          a_vatom(j,1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
+          a_vatom(j,2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
+          a_vatom(j,3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
+          a_vatom(j,4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
+          a_vatom(j,5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
         }
       } else {
-        a_vatom(i, 0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
-        a_vatom(i, 1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
-        a_vatom(i, 2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
-        a_vatom(i, 3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
-        a_vatom(i, 4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
-        a_vatom(i, 5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
+        a_vatom(i,0) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v0);
+        a_vatom(i,1) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v1);
+        a_vatom(i,2) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v2);
+        a_vatom(i,3) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v3);
+        a_vatom(i,4) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v4);
+        a_vatom(i,5) += static_cast<KK_ACC_FLOAT>(static_cast<KK_FLOAT>(0.5) * v5);
       }
     }
   }
