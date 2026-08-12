@@ -258,7 +258,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   int id5p_local = d_prime_neighs_bond(in,3);
   b5ptype = (id5p_local != -1) ? type(id5p_local) : 0;
 
-  rsq_stkstk = delr_stkstk[0]*delr_stkstk[0] + delr_stkstk[1]*delr_stkstk[1] + delr_stkstk[2]*delr_stkstk[2];
+  rsq_stkstk = Kokkos::fma(delr_stkstk[0], delr_stkstk[0], Kokkos::fma(delr_stkstk[1], delr_stkstk[1], delr_stkstk[2]*delr_stkstk[2]));
   r_stkstk = sqrtf(rsq_stkstk);
   rinv_stkstk = 1.0/r_stkstk;
 
@@ -281,7 +281,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   delr_bkbk[1] = x(b,1) + rb_cbk[1] - x(a,1) - ra_cbk[1];
   delr_bkbk[2] = x(b,2) + rb_cbk[2] - x(a,2) - ra_cbk[2];
 
-  rsq_bkbk = delr_bkbk[0]*delr_bkbk[0] + delr_bkbk[1]*delr_bkbk[1] + delr_bkbk[2]*delr_bkbk[2];
+  rsq_bkbk = Kokkos::fma(delr_bkbk[0], delr_bkbk[0], Kokkos::fma(delr_bkbk[1], delr_bkbk[1], delr_bkbk[2]*delr_bkbk[2]));
   r_bkbk = sqrtf(rsq_bkbk);
   rinv_bkbk = 1.0/r_bkbk;
 
