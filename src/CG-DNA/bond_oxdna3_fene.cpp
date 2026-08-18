@@ -30,13 +30,13 @@ using namespace LAMMPS_NS;
 using namespace MathSpecial;
 
 /* ----------------------------------------------------------------------
-   set coeffs - introduces new function to handle KOKKOS compatibility.
-   Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
-   function. The structure here avoids messy inheritance issues in KOKKOS
-   by not calling "BondOxdna3FENE::coeff" directly. We can also avoid
+   set coeffs - introduces function to handle KOKKOS compatibility.
+   Vanilla oxdna3 coeff() just calls the coeff_oxdna3_common() function.
+   The structure here avoids messy inheritance issues in KOKKOS
+   by not calling BondOxdna3FENE::coeff directly. We can also avoid
    code duplication of coeff within KOKKOS using this approach.
 
-   "coeff_oxdna3_common" lives on the BondOxdnaFene base class, which means
+   coeff_oxdna3_common() lives on the BondOxdnaFene base class, which means
    it can be called from both the vanilla and KOKKOS versions without
    duplicating the file parsing logic or requiring KOKKOS to inherit from
    BondOxdna3Fene.
@@ -44,7 +44,7 @@ using namespace MathSpecial;
 void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
 {
   if (narg != 2)
-    error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene, use potential file" + utils::errorurl(21));
+    error->all(FLERR, "Incorrect args for bond coefficients in oxdna3/fene, use potential file" + utils::errorurl(21));
 
   if (!allocated) allocate();
 
@@ -53,7 +53,7 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
 
   int n = atom->ntypes;
   if (n > 4)
-    error->all(FLERR, "oxdna_fene oxdna3/fene does not support more than 4 atom types for A, C, G and T");
+    error->all(FLERR, "bond oxdna3/fene does not support more than 4 atom types for A, C, G and T");
 
   for (int i = 0; i <= n; i++) {
     for (int j = 0; j <= n; j++) {
@@ -111,7 +111,7 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
       }
     }
     if ((iloc != arg[0]) || (potential_name != "fene"))
-      error->one(FLERR, "No corresponding fene potential found in file {} for oxdna_fene type {}", arg[1], arg[0]);
+      error->one(FLERR, "No corresponding fene potential found in file {} for bond type {}", arg[1], arg[0]);
 
     // calculate sequence-averaged parameters for terminal base step j-k
     for (int i = 1; i <= n; i++) {
@@ -138,12 +138,12 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
     }
   }
 
-  // communicate parameters for oxdna_fene type ilo
+  // communicate parameters for bond type ilo
   MPI_Bcast(&k[ilo], 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&Delta[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
   MPI_Bcast(&r0[ilo][0][0][0][0], 625, MPI_DOUBLE, 0, world);
 
-  // set parameters for all other oxdna_fene types
+  // set parameters for all other bond types
   int count = 0;
   for (int ib = ilo; ib <= ihi; ib++) {
     k[ib] = k[ilo];
@@ -162,7 +162,7 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
   }
 
   if (count == 0)
-    error->all(FLERR, "Incorrect args for oxdna_fene coefficients in oxdna3/fene" + utils::errorurl(21));
+    error->all(FLERR, "Incorrect args for bond coefficients in oxdna3/fene" + utils::errorurl(21));
 }
 
 void BondOxdna3Fene::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }
