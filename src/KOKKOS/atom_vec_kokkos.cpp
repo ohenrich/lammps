@@ -1379,8 +1379,7 @@ struct AtomVecKokkos_UnPackReverseSelf {
       _fm(atomKK->k_fm.view<DeviceType>()),
       _fm_long(atomKK->k_fm_long.view<DeviceType>()),
       _torque(atomKK->k_torque.view<DeviceType>()),
-      _list(list.view<DeviceType>()),
-      _nfirst(nfirst),
+      _list(list.view<DeviceType>()),_nfirst(nfirst),
       _datamask(datamask) {};
 
 // NOLINTNEXTLINE

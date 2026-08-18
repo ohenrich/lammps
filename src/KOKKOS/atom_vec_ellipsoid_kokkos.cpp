@@ -644,6 +644,7 @@ struct AtomVecEllipsoidKokkos_PackExchangeBonus {
       _ellipsoid(atomKK->k_ellipsoid.template view<DeviceType>()),
       _bonusw(bonus.template view<DeviceType>()),
       _ellipsoidw(atomKK->k_ellipsoid.template view<DeviceType>()),
+
       _sendlist(sendlist.template view<DeviceType>()),
       _copylist_bonus(copylist_bonus.template view<DeviceType>()),
       _size_exchange(atomKK->avecKK->size_exchange),
@@ -720,6 +721,7 @@ struct AtomVecEllipsoidKokkos_BackfillEllipsoid {
       _ellipsoid(atomKK->k_ellipsoid.template view<DeviceType>()),
       _bonusw(bonus.template view<DeviceType>()),
       _ellipsoidw(atomKK->k_ellipsoid.template view<DeviceType>()),
+
       _sendlist(sendlist.template view<DeviceType>()),
       _copylist(copylist.template view<DeviceType>()),
       _size_exchange(atomKK->avecKK->size_exchange),
@@ -817,6 +819,7 @@ struct AtomVecEllipsoidKokkos_UnpackExchangeBonus {
     const int &offset):
       _bonus(bonus.view<DeviceType>()),
       _ellipsoid(atomKK->k_ellipsoid.view<DeviceType>()),
+
       _indices(indices.template view<DeviceType>()),
       _nlocal_bonus(nlocal_bonus.template view<DeviceType>()),
       _size_exchange(atomKK->avecKK->size_exchange),
