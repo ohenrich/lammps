@@ -4,6 +4,14 @@
 .. index:: pair_style oxdna3/xstk
 .. index:: pair_style oxdna3/coaxstk
 .. index:: pair_style oxdna3/dh
+.. index:: pair_style oxdna3/excv/kk
+.. index:: pair_style oxdna3/stk/kk
+.. index:: pair_style oxdna3/hbond/kk
+.. index:: pair_style oxdna3/xstk/kk
+.. index:: pair_style oxdna3/coaxstk/kk
+.. index:: pair_style oxdna3/dh/kk
+
+Accelerator Variants: *oxdna3/excv/kk*, *oxdna3/stk/kk*, *oxdna3/hbond/kk*, *oxdna3/xstk/kk*, *oxdna3/coaxstk/kk*, *oxdna3/dh/kk*
 
 pair_style oxdna3/excv command
 ==============================
@@ -154,6 +162,10 @@ corresponding folder for real units.
 A simple python setup tool which creates single straight or helical DNA
 strands, DNA duplexes or arrays of DNA duplexes can be found in
 ``examples/PACKAGES/cgdna/util/``.
+
+----------
+
+.. include:: accel_styles.rst
 
 ----------
 

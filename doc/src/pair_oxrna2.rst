@@ -4,6 +4,14 @@
 .. index:: pair_style oxrna2/xstk
 .. index:: pair_style oxrna2/coaxstk
 .. index:: pair_style oxrna2/dh
+.. index:: pair_style oxrna2/excv/kk
+.. index:: pair_style oxrna2/stk/kk
+.. index:: pair_style oxrna2/hbond/kk
+.. index:: pair_style oxrna2/xstk/kk
+.. index:: pair_style oxrna2/coaxstk/kk
+.. index:: pair_style oxrna2/dh/kk
+
+Accelerator Variants: *oxrna2/excv/kk*, *oxrna2/stk/kk*, *oxrna2/hbond/kk*, *oxrna2/xstk/kk*, *oxrna2/coaxstk/kk*, *oxrna2/dh/kk*
 
 pair_style oxrna2/excv command
 ==============================
@@ -182,6 +190,10 @@ model, its implementation and performance as well as the structure of
 the data and input file. The preprint version of the article can be
 found `here <PDF/CG-DNA.pdf>`_.  Please cite also the relevant oxRNA2
 publications :ref:`(Sulc1) <Sulc31>` and :ref:`(Sulc2) <Sulc32>`.
+
+----------
+
+.. include:: accel_styles.rst
 
 ----------
 

@@ -4,6 +4,14 @@
 .. index:: pair_style oxdna2/xstk
 .. index:: pair_style oxdna2/coaxstk
 .. index:: pair_style oxdna2/dh
+.. index:: pair_style oxdna2/excv/kk
+.. index:: pair_style oxdna2/stk/kk
+.. index:: pair_style oxdna2/hbond/kk
+.. index:: pair_style oxdna2/xstk/kk
+.. index:: pair_style oxdna2/coaxstk/kk
+.. index:: pair_style oxdna2/dh/kk
+
+Accelerator Variants: *oxdna2/excv/kk*, *oxdna2/stk/kk*, *oxdna2/hbond/kk*, *oxdna2/xstk/kk*, *oxdna2/coaxstk/kk*, *oxdna2/dh/kk*
 
 pair_style oxdna2/excv command
 ==============================
@@ -186,6 +194,10 @@ the structure of the data and input file can be found `here
 
 Please cite also the relevant oxDNA2 publications
 :ref:`(Snodin) <Snodin2>` and :ref:`(Sulc) <Sulc2>`.
+
+----------
+
+.. include:: accel_styles.rst
 
 ----------
 

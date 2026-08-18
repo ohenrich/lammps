@@ -2,6 +2,12 @@
 .. index:: bond_style oxdna2/fene
 .. index:: bond_style oxdna3/fene
 .. index:: bond_style oxrna2/fene
+.. index:: bond_style oxdna/fene/kk
+.. index:: bond_style oxdna2/fene/kk
+.. index:: bond_style oxdna3/fene/kk
+.. index:: bond_style oxrna2/fene/kk
+
+Accelerator Variants: *oxdna/fene/kk*, *oxdna2/fene/kk*, *oxdna3/fene/kk*, *oxrna2/fene/kk*
 
 bond_style oxdna/fene command
 =============================
@@ -144,6 +150,10 @@ Please cite also the relevant oxDNA/oxRNA publications. These are
 :ref:`(Sulc1) <Sulc01>` for oxRNA2
 and for sequence-specific hydrogen-bonding and stacking interactions
 :ref:`(Sulc2) <Sulc02>`.
+
+----------
+
+.. include:: accel_styles.rst
 
 ----------
 
