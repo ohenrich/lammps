@@ -561,7 +561,7 @@ void PairLubricate::init_style()
   shearing = flagdeform = flagwall = 0;
 
   auto fixes = modify->get_fix_by_style("^deform");
-  if (!fixes.empty()) {
+  if (fixes.size() > 0) {
     shearing = flagdeform = 1;
     auto *myfix = dynamic_cast<FixDeform *>(fixes[0]);
     if (myfix && (myfix->remapflag != Domain::V_REMAP))

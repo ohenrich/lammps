@@ -516,7 +516,7 @@ void FixRigidNHSmall::initial_integrate(int vflag)
   // forward communicate updated info of all bodies
 
   commflag = INITIAL;
-  comm->forward_comm(this, INITIAL_BUFSZ);
+  comm->forward_comm(this,29);
 
   // accumulate translational and rotational kinetic energies
 
@@ -664,7 +664,7 @@ void FixRigidNHSmall::final_integrate()
   // forward communicate updated info of all bodies
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this,10);
 
   // accumulate translational and rotational kinetic energies
 

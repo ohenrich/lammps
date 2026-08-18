@@ -39,7 +39,7 @@ using namespace FixConst;
 
 template<class DeviceType>
 FixEOStableRXKokkos<DeviceType>::FixEOStableRXKokkos(LAMMPS *lmp, int narg, char **arg) :
-  FixEOStableRX(lmp, narg, arg), rx_fixKK(nullptr)
+  FixEOStableRX(lmp, narg, arg)
 {
   kokkosable = 1;
 
@@ -81,8 +81,6 @@ FixEOStableRXKokkos<DeviceType>::FixEOStableRXKokkos(LAMMPS *lmp, int narg, char
   k_moleculeCorrCoeff.modify_host();
   k_moleculeCorrCoeff.sync<DeviceType>();
   d_moleculeCorrCoeff = k_moleculeCorrCoeff.view<DeviceType>();
-
-  rx_fixKK = dynamic_cast<FixRxKokkos<DeviceType> *>(rx_fix);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -116,11 +114,6 @@ void FixEOStableRXKokkos<DeviceType>::setup(int /*vflag*/)
   uCG = atomKK->k_uCG.view<DeviceType>();
   uCGnew = atomKK->k_uCGnew.view<DeviceType>();
   dvector = atomKK->k_dvector.view<DeviceType>();
-
-  if (rx_flag) {
-    species_ind_to_atom_prop_ind =
-      rx_fixKK->get_k_species_ind_to_atom_prop_ind().template view<DeviceType>();
-  }
 
   if (!this->restart_reset) {
     atomKK->sync(execution_space,MASK_MASK | UCHEM_MASK | UCG_MASK | UCGNEW_MASK);
@@ -181,11 +174,6 @@ void FixEOStableRXKokkos<DeviceType>::init()
   dpdTheta= atomKK->k_dpdTheta.view<DeviceType>();
   dvector = atomKK->k_dvector.view<DeviceType>();
 
-  if (rx_flag) {
-    species_ind_to_atom_prop_ind =
-      rx_fixKK->get_k_species_ind_to_atom_prop_ind().template view<DeviceType>();
-  }
-
   if (this->restart_reset) {
     atomKK->sync(execution_space,MASK_MASK | UCOND_MASK | UMECH_MASK | UCHEM_MASK | DPDTHETA_MASK | DVECTOR_MASK);
     Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagFixEOStableRXTemperatureLookup>(0,nlocal),*this);
@@ -235,11 +223,6 @@ void FixEOStableRXKokkos<DeviceType>::post_integrate()
   dpdTheta= atomKK->k_dpdTheta.view<DeviceType>();
   dvector = atomKK->k_dvector.view<DeviceType>();
 
-  if (rx_flag) {
-    species_ind_to_atom_prop_ind =
-      rx_fixKK->get_k_species_ind_to_atom_prop_ind().template view<DeviceType>();
-  }
-
   atomKK->sync(execution_space,MASK_MASK | UCOND_MASK | UMECH_MASK | UCHEM_MASK | DPDTHETA_MASK | DVECTOR_MASK);
   Kokkos::parallel_for(Kokkos::RangePolicy<DeviceType, TagFixEOStableRXTemperatureLookup2>(0,nlocal),*this);
   atomKK->modified(execution_space,DPDTHETA_MASK);
@@ -281,10 +264,6 @@ void FixEOStableRXKokkos<DeviceType>::end_of_step()
   uCGnew = atomKK->k_uCGnew.view<DeviceType>();
   dvector = atomKK->k_dvector.view<DeviceType>();
 
-  if (rx_flag) {
-    species_ind_to_atom_prop_ind =
-      rx_fixKK->get_k_species_ind_to_atom_prop_ind().template view<DeviceType>();
-  }
 
   // Communicate the ghost uCGnew
   atomKK->sync(Host,UCG_MASK | UCGNEW_MASK);
@@ -329,12 +308,10 @@ void FixEOStableRXKokkos<DeviceType>::energy_lookup(int id, KK_FLOAT thetai, KK_
 
   if (rx_flag) {
     for (int ispecies = 0; ispecies < nspecies; ispecies++) {
-      const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-
-      nTotal += dvector(atom_ind,id);
+      nTotal += dvector(ispecies,id);
       if (fabs(d_moleculeCorrCoeff[ispecies]) > tolerance) {
         nPG++;
-        nTotalPG += dvector(atom_ind,id);
+        nTotalPG += dvector(ispecies,id);
       }
     }
   } else {
@@ -361,12 +338,8 @@ void FixEOStableRXKokkos<DeviceType>::energy_lookup(int id, KK_FLOAT thetai, KK_
       uTmp += d_energyCorr[ispecies]; // energy correction
       if (nPG > 0) ui += d_moleculeCorrCoeff[ispecies]*nTotalPG/KK_FLOAT(nPG); // molecule correction
 
-      if (rx_flag) {
-        const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-        nMolecules = dvector(atom_ind,id);
-      }
+      if (rx_flag) nMolecules = dvector(ispecies,id);
       else nMolecules = 1.0;
-
       ui += nMolecules*uTmp;
     }
   }

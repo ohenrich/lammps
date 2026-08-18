@@ -880,7 +880,6 @@ void CreateAtoms::add_random()
         } else {
           if (comm->me == 0) get_xmol(xone);
           MPI_Bcast(&xmol[0][0], onemol->natoms * 3, MPI_DOUBLE, 0, world);
-          MPI_Bcast(onemol->quat_external, 4, MPI_DOUBLE, 0, world);
 
           for (int i = 0; i < nlocal; i++) {
             for (int j = 0; j < onemol->natoms; j++) {
@@ -1493,7 +1492,8 @@ void CreateAtoms::get_xmol(double *center)
   MathExtra::quat_to_mat(quatone, rotmat);
 
   // onemol->quat_external is used by atom->add_moleclue_atom()
-  if (onemol->muflag) memcpy(onemol->quat_external, quatone, 4*sizeof(double));
+
+  onemol->quat_external = quatone;
 
   int natoms = onemol->natoms;
   double xnew[3];

@@ -60,6 +60,7 @@ class FixGraphicsChunk : public Fix {
   int numobjs;
   int *imgobjs;
   double **imgparms;
+
 };
 }    // namespace LAMMPS_NS
 #endif

@@ -55,7 +55,7 @@ FixTTMGrid::FixTTMGrid(LAMMPS *lmp, int narg, char **arg) :
   pergrid_freq = 1;
   restart_file = 1;
 
-  if (!outfile.empty())
+  if (outfile.size() > 0)
     error->all(FLERR, Error::NOPOINTER, "Fix ttm/grid does not support outfile option - "
                "use dump grid command or restart files instead");
 
@@ -66,7 +66,7 @@ FixTTMGrid::FixTTMGrid(LAMMPS *lmp, int narg, char **arg) :
 
 FixTTMGrid::~FixTTMGrid()
 {
-  if (!deallocate_flag) FixTTMGrid::deallocate_grid();
+  FixTTMGrid::deallocate_grid();
   deallocate_flag = 1;
 }
 

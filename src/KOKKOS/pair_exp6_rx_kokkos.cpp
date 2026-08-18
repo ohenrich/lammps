@@ -64,8 +64,6 @@ PairExp6rxKokkos<DeviceType>::PairExp6rxKokkos(LAMMPS *lmp) : PairExp6rx(lmp)
   datamask_modify = EMPTY_MASK;
 
   k_error_flag = DAT::tdual_int_scalar("pair:error_flag");
-
-  rx_fixKK = nullptr;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -134,12 +132,6 @@ void PairExp6rxKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   uCG = atomKK->k_uCG.view<DeviceType>();
   uCGnew = atomKK->k_uCGnew.view<DeviceType>();
   dvector = atomKK->k_dvector.view<DeviceType>();
-
-  species_ind_to_atom_prop_ind =
-    rx_fixKK->get_k_species_ind_to_atom_prop_ind().template view<DeviceType>();
-  species_ind_to_atom_prop_ind_old =
-    rx_fixKK->get_k_species_ind_to_atom_prop_ind_old().template view<DeviceType>();
-
   nlocal = atom->nlocal;
   special_lj[0] = force->special_lj[0];
   special_lj[1] = force->special_lj[1];
@@ -1670,11 +1662,6 @@ void PairExp6rxKokkos<DeviceType>::coeff(int narg, char **arg)
 {
   PairExp6rx::coeff(narg,arg);
 
-  // rx_fix is initialized by PairExp6rx::coeff(), cast to KOKKOS version
-  rx_fixKK = dynamic_cast<FixRxKokkos<DeviceType> *>(rx_fix);
-  if (!rx_fixKK)
-    error->all(FLERR, Error::NOLASTLINE, "Fix rx not defined or not compatible with pair style");
-
   if (scalingFlag == POLYNOMIAL)
     for (int i = 0; i < 6; i++) {
       s_coeffAlpha[i] = coeffAlpha[i];
@@ -1697,7 +1684,7 @@ void PairExp6rxKokkos<DeviceType>::initialize_exp6_params_array() {
 
 template<class DeviceType>
 void PairExp6rxKokkos<DeviceType>::grow_exp6_params_array(int old_size,
-                                                          int new_size) {
+							  int new_size) {
   k_params.modify_host();
   memoryKK->grow_kokkos(k_params, params, new_size, "pair:params");
 }
@@ -1771,19 +1758,16 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
 
   // Compute the total number of molecules in the old and new CG particle as well as the total number of molecules in the fluid portion of the old and new CG particle
   for (int ispecies = 0; ispecies < nspecies; ispecies++) {
-    const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-    const auto atom_ind_old = species_ind_to_atom_prop_ind_old(ispecies);
-
-    nTotal += dvector(atom_ind,id);
-    nTotalold += dvector(atom_ind_old,id);
+    nTotal += dvector(ispecies,id);
+    nTotalold += dvector(ispecies+nspecies,id);
 
     iparam = d_mol2param[ispecies];
 
     if (iparam < 0 || d_params[iparam].potentialType != PotentialType::exp6 ) continue;
     if (isOneFluidApprox(isite1) || isOneFluidApprox(isite2)) {
       if (isite1 == d_params[iparam].ispecies || isite2 == d_params[iparam].ispecies) continue;
-      nMoleculesOFAold += dvector(atom_ind_old,id);
-      nMoleculesOFA += dvector(atom_ind,id);
+      nMoleculesOFAold += dvector(ispecies+nspecies,id);
+      nMoleculesOFA += dvector(ispecies,id);
     }
   }
   if (nTotal < MY_EPSILON || nTotalold < MY_EPSILON)
@@ -1794,9 +1778,6 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
   fractionOFA = nMoleculesOFA / nTotal;
 
   for (int ispecies = 0; ispecies < nspecies; ispecies++) {
-    const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-    const auto atom_ind_old = species_ind_to_atom_prop_ind_old(ispecies);
-
     iparam = d_mol2param[ispecies];
     if (iparam < 0 || d_params[iparam].potentialType != PotentialType::exp6 ) continue;
 
@@ -1810,8 +1791,8 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
       alpha1 = d_params[iparam].alpha;
 
       // Compute the mole fraction of Site1
-      nMoleculesOld1 = dvector(atom_ind_old,id);
-      nMolecules1 = dvector(atom_ind,id);
+      nMoleculesOld1 = dvector(ispecies+nspecies,id);
+      nMolecules1 = dvector(ispecies,id);
       fractionOld1 = nMoleculesOld1/nTotalold;
       fraction1 = nMolecules1/nTotal;
     }
@@ -1826,9 +1807,9 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
       alpha2 = d_params[iparam].alpha;
 
       // Compute the mole fraction of Site2
-      nMoleculesOld2 = dvector(atom_ind_old,id);
-      nMolecules2 = dvector(atom_ind,id);
-      fractionOld2 = dvector(atom_ind_old,id)/nTotalold;
+      nMoleculesOld2 = dvector(ispecies+nspecies,id);
+      nMolecules2 = dvector(ispecies,id);
+      fractionOld2 = dvector(ispecies+nspecies,id)/nTotalold;
       fraction2 = nMolecules2/nTotal;
     }
 
@@ -1839,14 +1820,11 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
       epsiloni = d_params[iparam].epsilon;
       alphai = d_params[iparam].alpha;
       if (nMoleculesOFA<MY_EPSILON) xMolei = 0.0;
-      else xMolei = dvector(atom_ind,id)/nMoleculesOFA;
+      else xMolei = dvector(ispecies,id)/nMoleculesOFA;
       if (nMoleculesOFAold<MY_EPSILON) xMolei_old = 0.0;
-      else xMolei_old = dvector(atom_ind_old,id)/nMoleculesOFAold;
+      else xMolei_old = dvector(ispecies+nspecies,id)/nMoleculesOFAold;
 
       for (int jspecies = 0; jspecies < nspecies; jspecies++) {
-        const auto atom_ind_inner = species_ind_to_atom_prop_ind(jspecies);
-        const auto atom_ind_old_inner = species_ind_to_atom_prop_ind_old(jspecies);
-
         jparam = d_mol2param[jspecies];
         if (jparam < 0 || d_params[jparam].potentialType != PotentialType::exp6 ) continue;
         if (isite1 == d_params[jparam].ispecies || isite2 == d_params[jparam].ispecies) continue;
@@ -1854,9 +1832,9 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeights(int id,KK_FLOAT &epsilon1,KK
         epsilonj = d_params[jparam].epsilon;
         alphaj = d_params[jparam].alpha;
         if (nMoleculesOFA<MY_EPSILON) xMolej = 0.0;
-        else xMolej = dvector(atom_ind_inner,id)/nMoleculesOFA;
+        else xMolej = dvector(jspecies,id)/nMoleculesOFA;
         if (nMoleculesOFAold<MY_EPSILON) xMolej_old = 0.0;
-        else xMolej_old = dvector(atom_ind_old_inner,id)/nMoleculesOFAold;
+        else xMolej_old = dvector(jspecies+nspecies,id)/nMoleculesOFAold;
 
         rmij = (rmi+rmj)/2.0;
         rm3ij = rmij*rmij*rmij;
@@ -2084,16 +2062,13 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
   // Compute the total number of molecules in the old and new CG particle as well as the total number of molecules in the fluid portion of the old and new CG particle
   for (int ispecies = 0; ispecies < nspecies; ispecies++)
   {
-    const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-    const auto atom_ind_old = species_ind_to_atom_prop_ind_old(ispecies);
-
     #ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
     #pragma ivdep
     #endif
     for (int id = idx_begin; id < idx_end; ++id)
     {
-      nTotal[id] += dvector(atom_ind,id);
-      nTotalold[id] += dvector(atom_ind_old,id);
+      nTotal[id] += dvector(ispecies,id);
+      nTotalold[id] += dvector(ispecies+nspecies,id);
     }
 
     const int iparam = d_mol2param[ispecies];
@@ -2107,8 +2082,8 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
       #endif
       for (int id = idx_begin; id < idx_end; ++id)
       {
-        nMoleculesOFAold[id] += dvector(atom_ind_old,id);
-        nMoleculesOFA[id] += dvector(atom_ind,id);
+        nMoleculesOFAold[id] += dvector(ispecies+nspecies,id);
+        nMoleculesOFA[id] += dvector(ispecies,id);
       }
     }
   }
@@ -2128,9 +2103,6 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
   }
 
   for (int ispecies = 0; ispecies < nspecies; ispecies++) {
-    const auto atom_ind = species_ind_to_atom_prop_ind(ispecies);
-    const auto atom_ind_old = species_ind_to_atom_prop_ind_old(ispecies);
-
     const int iparam = d_mol2param[ispecies];
     if (iparam < 0 || d_params[iparam].potentialType != PotentialType::exp6 ) continue;
 
@@ -2150,8 +2122,8 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
         alpha1[id] = d_params[iparam].alpha;
 
         // Compute the mole fraction of Site1
-        nMoleculesOld1[id] = dvector(atom_ind_old,id);
-        nMolecules1[id] = dvector(atom_ind,id);
+        nMoleculesOld1[id] = dvector(ispecies+nspecies,id);
+        nMolecules1[id] = dvector(ispecies,id);
         fractionOld1[id] = nMoleculesOld1[id]/nTotalold[id];
         fraction1[id] = nMolecules1[id]/nTotal[id];
       }
@@ -2173,8 +2145,8 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
         alpha2[id] = d_params[iparam].alpha;
 
         // Compute the mole fraction of Site2
-        nMoleculesOld2[id] = dvector(atom_ind_old,id);
-        nMolecules2[id] = dvector(atom_ind,id);
+        nMoleculesOld2[id] = dvector(ispecies+nspecies,id);
+        nMolecules2[id] = dvector(ispecies,id);
         fractionOld2[id] = nMoleculesOld2[id]/nTotalold[id];
         fraction2[id] = nMolecules2[id]/nTotal[id];
       }
@@ -2194,15 +2166,12 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
       for (int id = idx_begin; id < idx_end; ++id)
       {
         if (nMoleculesOFA[id]<MY_EPSILON) xMolei[id] = 0.0;
-        else xMolei[id] = dvector(atom_ind,id)/nMoleculesOFA[id];
+        else xMolei[id] = dvector(ispecies,id)/nMoleculesOFA[id];
         if (nMoleculesOFAold[id]<MY_EPSILON) xMolei_old[id] = 0.0;
-        else xMolei_old[id] = dvector(atom_ind_old,id)/nMoleculesOFAold[id];
+        else xMolei_old[id] = dvector(ispecies+nspecies,id)/nMoleculesOFAold[id];
       }
 
       for (int jspecies = 0; jspecies < nspecies; jspecies++) {
-        const auto atom_ind_inner = species_ind_to_atom_prop_ind(jspecies);
-        const auto atom_ind_old_inner = species_ind_to_atom_prop_ind_old(jspecies);
-
         const int jparam = d_mol2param[jspecies];
         if (jparam < 0 || d_params[jparam].potentialType != PotentialType::exp6 ) continue;
         if (isite1 == d_params[jparam].ispecies || isite2 == d_params[jparam].ispecies) continue;
@@ -2223,9 +2192,9 @@ void PairExp6rxKokkos<DeviceType>::getMixingWeightsVect(const int np_total, int 
         {
           KK_FLOAT xMolej, xMolej_old;
           if (nMoleculesOFA[id]<MY_EPSILON) xMolej = 0.0;
-          else xMolej = dvector(atom_ind_inner,id)/nMoleculesOFA[id];
+          else xMolej = dvector(jspecies,id)/nMoleculesOFA[id];
           if (nMoleculesOFAold[id]<MY_EPSILON) xMolej_old = 0.0;
-          else xMolej_old = dvector(atom_ind_old_inner,id)/nMoleculesOFAold[id];
+          else xMolej_old = dvector(jspecies+nspecies,id)/nMoleculesOFAold[id];
 
           if (fractionOFAold[id] > 0.0) {
             rm3_old[id] += xMolei_old[id]*xMolej_old*rm3ij;

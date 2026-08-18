@@ -23,28 +23,15 @@
 #define COLVARSCRIPT_ERROR -1
 #define COLVARSCRIPT_OK 0
 
-#define COLVARSCRIPT_MAGIC 0x5349474E
 
 class colvardeps;
 
-class colvarscript {
-
-public:
-  /// This magic number is used to validate colvarscript pointers
-  uint32_t const magic = COLVARSCRIPT_MAGIC;
-
-  /// Validate colvarscript pointer to catch invalid pointers passed by legacy code
-  /// e.g. legacy NAMD Tcl interface
-  static bool is_valid(const colvarscript* script_ptr) {
-    if (!script_ptr) return false;
-    // if address is inaccessible, this will sefgault
-    return script_ptr->magic == COLVARSCRIPT_MAGIC;
-  }
+class colvarscript  {
 
 private:
 
   colvarproxy *proxy_;
-  colvarmodule *cvmodule;
+  colvarmodule *colvars;
 
   inline colvarscript() {} // no-argument construction forbidden
 
@@ -204,7 +191,7 @@ public:
   /// Pointer to the Colvars main object
   inline colvarmodule *module()
   {
-    return this->cvmodule;
+    return this->colvars;
   }
 
   /// Pointer to the colvarproxy object (interface with host engine)
@@ -337,17 +324,12 @@ private: // TODO
 };
 
 
-/// Get a pointer to the colvarscript object pointed to by pobj
-inline static colvarscript *colvarscript_obj(void *pobj)
-{
-  return reinterpret_cast<colvarscript *>(pobj);
-}
-
 /// Get a pointer to the main colvarscript object
 inline static colvarscript *colvarscript_obj()
 {
   return cvm::main()->proxy->script;
 }
+
 
 /// Get a pointer to the colvar object pointed to by pobj
 inline static colvar *colvar_obj(void *pobj)
@@ -465,12 +447,12 @@ int colvarscript::cmd_arg_shift()
 extern "C" {
 
   /// Generic wrapper for string-based scripting
-  // New: requires pointer to colvarscript object - TODO - pass it in ctypes Python example
-  int run_colvarscript_command(colvarscript *script, int objc, unsigned char *const objv[]);
+  int run_colvarscript_command(int objc, unsigned char *const objv[]);
 
   /// Get the string result of a script call
   const char * get_colvarscript_result();
 
 }
+
 
 #endif // #ifndef COLVARSCRIPT_H

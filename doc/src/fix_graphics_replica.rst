@@ -37,9 +37,7 @@ This fix allows to add spheres to images rendered with :doc:`dump image
 replicas of a multi-replica simulation.
 
 The *group-ID* sets the group ID of the atoms selected to be
-represented.  This may be a dynamic group.  Since a dynamic group may
-select different atoms on different replicas, the selection of atoms
-from the first replica is applied to all replicas.
+represented.  This may be a dynamic group.
 
 The *Nevery* keyword determines how often the replica graphics data is
 updated.  This should be the same value as the corresponding *N*

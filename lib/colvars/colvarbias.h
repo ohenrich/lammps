@@ -20,7 +20,7 @@ class colvar_grid_scalar;
 
 /// \brief Collective variable bias, base class
 class colvarbias
-  : public virtual colvardeps {
+  : public virtual colvarparse, public virtual colvardeps {
 public:
 
   /// Name of this bias
@@ -107,7 +107,7 @@ public:
   virtual void analyze() {}
 
   /// \brief Constructor
-  colvarbias(colvarmodule *cvmodule_in, char const *key);
+  colvarbias(char const *key);
 
   /// \brief Parse config string and (re)initialize
   virtual int init(std::string const &conf);
@@ -116,12 +116,12 @@ public:
   virtual int init_mts(std::string const &conf);
 
   /// \brief Initialize dependency tree
-  int init_dependencies() override;
+  virtual int init_dependencies();
 
   /// \brief Set to zero all mutable data
   virtual int reset();
 
-protected:
+private:
 
   /// Default constructor
   colvarbias();
@@ -208,7 +208,7 @@ public:
 private:
 
   /// Generic stream reading function (formatted and not)
-  template <typename IST> IST & read_state_template_(IST &is, colvarmodule *cvmodule_in);
+  template <typename IST> IST & read_state_template_(IST &is);
 
 public:
 
@@ -275,11 +275,11 @@ public:
   static std::vector<feature *> cvb_features;
 
   /// \brief Implementation of the feature list accessor for colvarbias
-  virtual const std::vector<feature *> &features() const override
+  virtual const std::vector<feature *> &features() const
   {
     return cvb_features;
   }
-  virtual std::vector<feature *> &modify_features() override
+  virtual std::vector<feature *> &modify_features()
   {
     return cvb_features;
   }

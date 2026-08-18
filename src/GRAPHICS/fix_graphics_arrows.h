@@ -32,7 +32,6 @@ class FixGraphicsArrows : public Fix {
   ~FixGraphicsArrows() override;
   int setmask() override;
   void init() override;
-  void setup(int) override;
   void end_of_step() override;
 
   double compute_scalar() override;

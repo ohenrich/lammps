@@ -28,7 +28,7 @@ namespace LAMMPS_NS {
 class FixMDIQMMM : public Fix {
  public:
   FixMDIQMMM(class LAMMPS *, int, char **);
-  ~FixMDIQMMM() override;
+  virtual ~FixMDIQMMM();
   int setmask() override;
 
   void init() override;

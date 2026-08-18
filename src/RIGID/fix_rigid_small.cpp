@@ -430,7 +430,7 @@ FixRigidSmall::FixRigidSmall(LAMMPS *lmp, int narg, char **arg) :
 
   // set max comm sizes needed by this fix
 
-  comm_forward = MAX(1 + bodysize, INITIAL_BUFSZ);
+  comm_forward = 1 + bodysize;
   comm_reverse = 6;
 
   // atom style pointers to particles that store extra info
@@ -551,7 +551,7 @@ void FixRigidSmall::init()
   //   and gravity is not applied correctly
 
   if ((inpfile || onemols) && !id_gravity) {
-    if (!modify->get_fix_by_style("^gravity").empty())
+    if (modify->get_fix_by_style("^gravity").size() > 0)
       if (comm->me == 0)
         error->warning(FLERR,"Gravity may not be correctly applied to rigid "
                        "bodies if they consist of overlapped particles");
@@ -667,7 +667,7 @@ void FixRigidSmall::setup(int vflag)
   }
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this,10);
 
   // set velocity/rotation of atoms in rigid bodues
 
@@ -730,7 +730,7 @@ void FixRigidSmall::initial_integrate(int vflag)
   // forward communicate updated info of all bodies
 
   commflag = INITIAL;
-  comm->forward_comm(this, INITIAL_BUFSZ);
+  comm->forward_comm(this,29);
 
   // set coords/orient and velocity/rotation of atoms in rigid bodies
 
@@ -820,7 +820,7 @@ void FixRigidSmall::final_integrate()
   // forward communicate updated info of all bodies
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this,10);
 
   // set velocity/rotation of atoms in rigid bodies
   // virial is already setup from initial_integrate
@@ -1108,7 +1108,7 @@ bigint FixRigidSmall::dof(int tgroup)
     j = atom2body[i];
     counts[j][2]++;
     if (mask[i] & tgroupbit) {
-      if (extended && (eflags[i] & ~(POINT | DIPOLE | TORQUE))) counts[j][1]++;
+      if (extended && (eflags[i] & ~(POINT | DIPOLE))) counts[j][1]++;
       else counts[j][0]++;
     }
   }
@@ -1823,11 +1823,13 @@ void FixRigidSmall::setup_bodies_static()
       eflags[i] = 0;
       if (bodytag[i] == 0) continue;
 
-      // set to POINT or SPHERE or ELLIPSOID or LINE or TRIANGLE
-      // check for bonus data before radius: line and tri particles
-      // also store a bounding-sphere radius for neighboring purposes
+      // set to POINT or SPHERE or ELLIPSOID or LINE
 
-      if (ellipsoid && ellipsoid[i] >= 0) {
+      if (radius && radius[i] > 0.0) {
+        eflags[i] |= SPHERE;
+        eflags[i] |= OMEGA;
+        eflags[i] |= TORQUE;
+      } else if (ellipsoid && ellipsoid[i] >= 0) {
         eflags[i] |= ELLIPSOID;
         eflags[i] |= ANGMOM;
         eflags[i] |= TORQUE;
@@ -1839,20 +1841,12 @@ void FixRigidSmall::setup_bodies_static()
         eflags[i] |= TRIANGLE;
         eflags[i] |= ANGMOM;
         eflags[i] |= TORQUE;
-      } else if (radius && radius[i] > 0.0) {
-        eflags[i] |= SPHERE;
-        eflags[i] |= OMEGA;
-        eflags[i] |= TORQUE;
       } else eflags[i] |= POINT;
 
       // set DIPOLE if atom->mu and mu[3] > 0.0
-      // point dipoles also need TORQUE so the torque
-      // from dipole interactions acts on the body
 
-      if (atom->mu_flag && mu[i][3] > 0.0) {
+      if (atom->mu_flag && mu[i][3] > 0.0)
         eflags[i] |= DIPOLE;
-        if (atom->torque_flag) eflags[i] |= TORQUE;
-      }
     }
   }
 
@@ -2129,18 +2123,6 @@ void FixRigidSmall::setup_bodies_static()
     MathExtra::cross3(ex,ey,cross);
     if (MathExtra::dot3(cross,ez) < 0.0) MathExtra::negate3(ez);
 
-    // for 2d, ensure ez points in the +z direction
-    // negate both ey and ez to keep the eigenbasis right-handed
-    // the theta-based orientation bookkeeping for line particles requires
-    //   the body frame to be a pure rotation around the +z axis
-
-    if (domain->dimension == 2) {
-      if (ez[2] < 0.0) {
-        MathExtra::negate3(ey);
-        MathExtra::negate3(ez);
-      }
-    }
-
     // create initial quaternion
 
     MathExtra::exyz_to_q(ex,ey,ez,body[ibody].quat);
@@ -2160,7 +2142,7 @@ void FixRigidSmall::setup_bodies_static()
   // forward communicate updated info of all bodies
 
   commflag = INITIAL;
-  comm->forward_comm(this, INITIAL_BUFSZ);
+  comm->forward_comm(this,29);
 
   // displace = initial atom coords in basis of principal axes
   // set displace = 0.0 for atoms not in any rigid body
@@ -2758,7 +2740,7 @@ void FixRigidSmall::resample_momenta(int groupbit, int mom_flag, class RanPark *
   // forward communicate vcm and omega to ghost bodies
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this, 10);
 
   // compute angular momenta of rigid bodies
 
@@ -3485,7 +3467,7 @@ void FixRigidSmall::zero_momentum()
   // forward communicate of vcm to all ghost copies
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this,10);
 
   // set velocity of atoms in rigid bodues
 
@@ -3511,7 +3493,7 @@ void FixRigidSmall::zero_rotation()
   // forward communicate of omega to all ghost copies
 
   commflag = FINAL;
-  comm->forward_comm(this, FINAL_BUFSZ);
+  comm->forward_comm(this,10);
 
   // set velocity of atoms in rigid bodues
 

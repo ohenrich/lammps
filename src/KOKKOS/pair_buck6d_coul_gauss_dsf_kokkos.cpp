@@ -17,6 +17,7 @@
 #include "atom_kokkos.h"
 #include "atom_masks.h"
 #include "error.h"
+#include "ewald_const.h"
 #include "force.h"
 #include "kokkos.h"
 #include "math_const.h"
@@ -28,6 +29,7 @@
 #include "update.h"
 
 using namespace LAMMPS_NS;
+using namespace EwaldConst;
 using MathConst::MY_PIS;
 
 /* ---------------------------------------------------------------------- */
@@ -213,16 +215,15 @@ compute_fcoul(const KK_FLOAT& rsq, const int& /*i*/, const int& j,
   const KK_FLOAT r = Kokkos::sqrt(rsq);
   const KK_FLOAT alpha = STACKPARAMS ? m_params[itype][jtype].alpha_ij : params(itype,jtype).alpha_ij;
   const KK_FLOAT f_sh  = STACKPARAMS ? m_params[itype][jtype].f_shift_ij : params(itype,jtype).f_shift_ij;
-  const KK_FLOAT prefactor = qqrd2e * qtmp * q(j);
+  const KK_FLOAT prefactor = factor_coul * qqrd2e * qtmp * q(j);
   const KK_FLOAT arg = alpha * r;
   const KK_FLOAT erfcd = Kokkos::exp(-arg*arg);
-  const KK_FLOAT erfcc = Kokkos::erf(arg);
+  // use polynomial approximation for erfc, then erf = 1 - erfc
+  const KK_FLOAT t = 1.0 / (1.0 + EWALD_P*arg);
+  const KK_FLOAT erfcc = 1.0 - t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * erfcd;
   // force: erf(alpha*r)/r -> d/dr = -erf/r^2 + 2*alpha*erfcd/(sqrt(pi)*r)
   // so fpair = prefactor * (erfcc/r - 2*alpha/MY_PIS*erfcd + r*f_shift) / rsq
-  KK_FLOAT forcecoul = prefactor * (erfcc/r - 2.0*alpha/MY_PIS * erfcd + r*f_sh);
-  // special bonds scaling removes only the undamped 1/r Coulomb part
-  if (factor_coul < 1.0) forcecoul -= (1.0-factor_coul)*prefactor/r;
-  return forcecoul * r2inv;
+  return prefactor * (erfcc/r - 2.0*alpha/MY_PIS * erfcd + r*f_sh) * r2inv;
 }
 
 /* ----------------------------------------------------------------------
@@ -289,13 +290,12 @@ compute_ecoul(const KK_FLOAT& rsq, const int& /*i*/, const int& j,
   const KK_FLOAT alpha = STACKPARAMS ? m_params[itype][jtype].alpha_ij : params(itype,jtype).alpha_ij;
   const KK_FLOAT e_sh  = STACKPARAMS ? m_params[itype][jtype].e_shift_ij : params(itype,jtype).e_shift_ij;
   const KK_FLOAT f_sh  = STACKPARAMS ? m_params[itype][jtype].f_shift_ij : params(itype,jtype).f_shift_ij;
-  const KK_FLOAT prefactor = qqrd2e * qtmp * q(j) / r;
+  const KK_FLOAT prefactor = factor_coul * qqrd2e * qtmp * q(j);
   const KK_FLOAT arg = alpha * r;
-  const KK_FLOAT erfcc = Kokkos::erf(arg);
-  KK_FLOAT ecoul = prefactor * (erfcc - r*e_sh - rsq*f_sh);
-  // special bonds scaling removes only the undamped 1/r Coulomb part
-  if (factor_coul < 1.0) ecoul -= (1.0-factor_coul)*prefactor;
-  return ecoul;
+  const KK_FLOAT erfcd = Kokkos::exp(-arg*arg);
+  const KK_FLOAT t = 1.0 / (1.0 + EWALD_P*arg);
+  const KK_FLOAT erfcc = 1.0 - t * (A1+t*(A2+t*(A3+t*(A4+t*A5)))) * erfcd;
+  return prefactor * (erfcc - r*e_sh - rsq*f_sh) / r;
 }
 
 /* ----------------------------------------------------------------------

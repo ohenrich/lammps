@@ -17,7 +17,8 @@
 class colvarbias_alb : public colvarbias {
 
 public:
-  colvarbias_alb(colvarmodule *cvmodule_in, char const *key);
+
+  colvarbias_alb(char const *key);
   virtual ~colvarbias_alb();
   virtual int init(std::string const &conf);
   virtual int update();

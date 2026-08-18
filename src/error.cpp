@@ -33,18 +33,9 @@ static std::string truncpath(const std::string &path)
 
 /* ---------------------------------------------------------------------- */
 
-void Error::reset_warn()
-{
-  numwarn = allwarn = 0;
-  maxwarn = 100;
-}
-
-/* ---------------------------------------------------------------------- */
-
 Error::Error(LAMMPS *lmp)
-  : Pointers(lmp), showerror(1)
+  : Pointers(lmp), numwarn(0), maxwarn(100), allwarn(0), showerror(1)
 {
-  Error::reset_warn();
   last_error_message.clear();
   last_error_type = ERROR_NONE;
 }
@@ -69,7 +60,7 @@ void Error::universe_all(const std::string &file, int line, const std::string &s
     if (universe->ulogfile) fputs(mesg.c_str(),universe->ulogfile);
   }
 
-  delete output;
+  if (output) delete output;
   if (universe->nworlds > 1) {
     if (screen && screen != stdout) fclose(screen);
     if (logfile) fclose(logfile);
@@ -256,7 +247,7 @@ void Error::done(int status)
   utils::flush_buffers(lmp);
   MPI_Barrier(world);
 
-  delete output;
+  if (output) delete output;
   if (screen && screen != stdout) fclose(screen);
   if (logfile) fclose(logfile);
 

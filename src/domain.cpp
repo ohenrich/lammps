@@ -2101,7 +2101,7 @@ int Domain::ownatom(int /*id*/, double *x, imageint *image, int shrinkexceed)
 
 void Domain::set_lattice(int narg, char **arg)
 {
-  delete lattice;
+  if (lattice) delete lattice;
   lattice = nullptr;
   lattice = new Lattice(lmp,narg,arg);
 }
@@ -2184,7 +2184,7 @@ void Domain::delete_region(const std::string &id)
    return null if no match
 ------------------------------------------------------------------------- */
 
-Region *Domain::get_region_by_id(const std::string &name)
+Region *Domain::get_region_by_id(const std::string &name) const
 {
   for (const auto &reg : regions)
     if (name == reg->id) return reg;
@@ -2196,7 +2196,7 @@ Region *Domain::get_region_by_id(const std::string &name)
    return vector with matching pointers
 ------------------------------------------------------------------------- */
 
-std::vector<Region *> Domain::get_region_by_style(const std::string &name)
+const std::vector<Region *> Domain::get_region_by_style(const std::string &name) const
 {
   std::vector<Region *> matches;
   if (name.empty()) return matches;
@@ -2211,9 +2211,9 @@ std::vector<Region *> Domain::get_region_by_style(const std::string &name)
    return list of regions as vector
 ------------------------------------------------------------------------- */
 
-std::vector<Region *> Domain::get_region_list()
+const std::vector<Region *> Domain::get_region_list()
 {
-  return {regions.begin(), regions.end()};
+  return std::vector<Region *>(regions.begin(), regions.end());
 }
 
 /* ----------------------------------------------------------------------

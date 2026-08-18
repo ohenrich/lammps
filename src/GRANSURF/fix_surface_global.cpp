@@ -1351,7 +1351,7 @@ void FixSurfaceGlobal::post_force(int /*vflag*/)
     }
 
 
-    if (contact_surfs.empty())
+    if (contact_surfs.size() == 0)
       continue;
 
     // Sort contacts by overlap and create a map

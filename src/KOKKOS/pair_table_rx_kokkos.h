@@ -25,7 +25,6 @@ PairStyle(table/rx/kk/host,PairTableRXKokkos<LMPHostType>);
 
 #include "pair_table_kokkos.h"
 #include "kokkos_few.h"
-#include "fix_rx_kokkos.h"
 
 namespace LAMMPS_NS {
 
@@ -104,7 +103,6 @@ class PairTableRXKokkos : public PairTable {
   Kokkos::View<KK_FLOAT*, DeviceType> mixWtSite2;
 
   int nspecies;
-  FixRxKokkos<DeviceType> * rx_fixKK;
   char *site1, *site2;
   int isite1, isite2;
   bool fractionalWeighting;

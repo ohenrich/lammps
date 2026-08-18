@@ -32,7 +32,6 @@ class FixWallReflect : public Fix {
   ~FixWallReflect() override;
   int setmask() override;
   void init() override;
-  void setup(int) override;
   void post_integrate() override;
 
   int image(int *&, double **&) override;

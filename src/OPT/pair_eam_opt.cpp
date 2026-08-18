@@ -43,50 +43,29 @@ void PairEAMOpt::compute(int eflag, int vflag)
 {
   ev_init(eflag, vflag);
 
-  if (he_flag) {
-    if (evflag) {
-      if (eflag) {
-        if (force->newton_pair)
-          return eval<1, 1, 1, 1>();
-        else
-          return eval<1, 1, 0, 1>();
-      } else {
-        if (force->newton_pair)
-          return eval<1, 0, 1, 1>();
-        else
-          return eval<1, 0, 0, 1>();
-      }
+  if (evflag) {
+    if (eflag) {
+      if (force->newton_pair)
+        return eval<1, 1, 1>();
+      else
+        return eval<1, 1, 0>();
     } else {
       if (force->newton_pair)
-        return eval<0, 0, 1, 1>();
+        return eval<1, 0, 1>();
       else
-        return eval<0, 0, 0, 1>();
+        return eval<1, 0, 0>();
     }
   } else {
-    if (evflag) {
-      if (eflag) {
-        if (force->newton_pair)
-          return eval<1, 1, 1, 0>();
-        else
-          return eval<1, 1, 0, 0>();
-      } else {
-        if (force->newton_pair)
-          return eval<1, 0, 1, 0>();
-        else
-          return eval<1, 0, 0, 0>();
-      }
-    } else {
-      if (force->newton_pair)
-        return eval<0, 0, 1, 0>();
-      else
-        return eval<0, 0, 0, 0>();
-    }
+    if (force->newton_pair)
+      return eval<0, 0, 1>();
+    else
+      return eval<0, 0, 0>();
   }
 }
 
 /* ---------------------------------------------------------------------- */
 
-template <int EVFLAG, int EFLAG, int NEWTON_PAIR, int HE> void PairEAMOpt::eval()
+template <int EVFLAG, int EFLAG, int NEWTON_PAIR> void PairEAMOpt::eval()
 {
 // NOLINTBEGIN
   typedef struct {
@@ -262,24 +241,23 @@ template <int EVFLAG, int EFLAG, int NEWTON_PAIR, int HE> void PairEAMOpt::eval(
 
   // fp = derivative of embedding energy at each atom
   // phi = embedding energy at each atom
-  // if rho > rhomax (e.g. due to close approach of two atoms) the table is
-  //   exceeded, so add linear term to conserve energy; for eam/he (HE=1)
-  //   the table starts at rhomin and may be exceeded on either side
+  // if rho > rhomax (e.g. due to close approach of two atoms),
+  //   will exceed table, so add linear term to conserve energy
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
-    double p;
-    int m;
-    embedding_index<HE>(rho[i], m, p);
+    double p = rho[i] * rdrho + 1.0;
+    int m = static_cast<int>(p);
+    m = MAX(1, MIN(m, nrho - 1));
+    p -= m;
+    p = MIN(p, 1.0);
     coeff = frho_spline[type2frho[type[i]]][m];
     fp[i] = (coeff[0] * p + coeff[1]) * p + coeff[2];
     if (EFLAG) {
       double phi = ((coeff[3] * p + coeff[4]) * p + coeff[5]) * p + coeff[6];
-      if (HE && (rho[i] < rhomin)) {
-        phi += fp[i] * (rho[i] - rhomin);
-      } else if (rho[i] > rhomax) {
+      if (rho[i] > rhomax) {
         phi += fp[i] * (rho[i] - rhomax);
-        if (!HE) beyond_rhomax = 1;
+        beyond_rhomax = 1;
       }
       phi *= scale[type[i]][type[i]];
       if (eflag_global) eng_vdwl += phi;

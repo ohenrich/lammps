@@ -140,7 +140,7 @@ FixBondReact::FixBondReact(LAMMPS *lmp, int narg, char **arg) :
   master_group = "bond_react_MASTER_group";
 
   // by using fixed group names, only one instance of fix bond/react is allowed.
-  if (!modify->get_fix_by_style("^bond/react").empty())
+  if (modify->get_fix_by_style("^bond/react").size() != 0)
     error->all(FLERR, Error::NOLASTLINE, "Only one instance of fix bond/react allowed at a time");
 
   // let's find number of reactions specified
@@ -716,7 +716,7 @@ void FixBondReact::post_constructor()
 
   // create master_group if not already existing
   // NOTE: limit_tags and react_tags automaticaly intitialized to zero (unless read from restart)
-  group->find_or_create(master_group);
+  group->find_or_create(master_group.c_str());
   std::string cmd = fmt::format("{} dynamic all property limit_tags",master_group);
   group->assign(cmd);
 
@@ -737,7 +737,7 @@ void FixBondReact::post_constructor()
       std::string exclude_PARENT_group = exclude_group;
       exclude_group = exclude_PARENT_group + "_REACT";
 
-      group->find_or_create(exclude_group);
+      group->find_or_create(exclude_group.c_str());
       if (groupid == -1)
         cmd = fmt::format("{} dynamic all property statted_tags", exclude_group);
       else
@@ -1387,7 +1387,6 @@ void FixBondReact::superimpose_algorithm()
 
   if (!rxnflag) return;
 
-  // NOLINTBEGIN
   // C++11 and later compatible version of Park pRNG
   std::minstd_rand park_rng;
   if (shuffle_seed == 0) {
@@ -1396,7 +1395,6 @@ void FixBondReact::superimpose_algorithm()
   } else {
     park_rng.seed(shuffle_seed);
   }
-  // NOLINTEND
 
   std::vector<int> oversteps(rxns.size(), 0);
   if (comm->me == 0) {

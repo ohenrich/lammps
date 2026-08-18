@@ -388,20 +388,10 @@ void FixGraphicsObjects::init()
       CHECK_VARIABLE(gi.progbar.pvar, gi.progbar.pstr);
     }
   }
-}
-
-#undef CHECK_VARIABLE
-
-/* ---------------------------------------------------------------------- */
-
-void FixGraphicsObjects::setup(int /*vflag*/)
-{
-  // must defer collecting the graphics data to setup(), so that computes
-  // and variables referenced by object properties are available
-
   end_of_step();
 }
 
+#undef CHECK_VARIABLE
 /* ---------------------------------------------------------------------- */
 
 void FixGraphicsObjects::end_of_step()

@@ -163,7 +163,7 @@ FixNVEManifoldRattle::~FixNVEManifoldRattle()
     delete[] tstrs;
   }
 
-  delete[] tvars;
+  if (tvars) delete[] tvars;
   delete[] tstyle;
   delete[] is_var;
 }

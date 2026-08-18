@@ -162,7 +162,7 @@ fails a null pointer is returned.
    possible to provide the address of a pointer variable as final
    argument *ptr*\ .
 
-.. versionremoved:: 18Sep2020
+.. deprecated:: 18Sep2020
 
    The *ptr* argument will be removed in a future release of LAMMPS.
    It should be set to ``NULL`` instead.
@@ -237,7 +237,7 @@ fails a null pointer is returned.
    possible to provide the address of a pointer variable as final
    argument *ptr*\ .
 
-.. versionremoved:: 18Sep2020
+.. deprecated:: 18Sep2020
 
    The *ptr* argument will be removed in a future release of LAMMPS.
    It should be set to ``NULL`` instead.
@@ -835,7 +835,7 @@ void lammps_commands_string(void *handle, const char *str)
           }
         }
         // stop processing when quit command is found
-        if (!words.empty() && (words[0] == "quit")) {
+        if (words.size() && (words[0] == "quit")) {
           if (lmp->comm->me == 0)
             utils::logmesg(lmp, "Encountered a 'quit' command. Stopping ...\n");
           break;
@@ -3264,7 +3264,7 @@ static int set_variable_deprecated_flag = 1;
 /** Set the value of a string-style variable.
 \verbatim embed:rst
 
-.. versionremoved:: 7Feb2024
+.. deprecated:: 7Feb2024
 
 This function assigns a new value from the string str to the
 string-style variable *name*.  This is a way to directly change the
@@ -6830,7 +6830,7 @@ int lammps_config_has_curl_support() {
  *
 \verbatim embed:rst
 
-.. versionremoved:: 21Nov2023
+.. deprecated:: 21Nov2023
 
    LAMMPS has now exceptions always enabled, so this function
    will now always return 1 and can be removed from applications

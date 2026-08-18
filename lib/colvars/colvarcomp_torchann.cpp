@@ -36,15 +36,15 @@ int colvar::torchANN::init(std::string const &conf) {
   try {
     nn = torch::jit::load(model_file);
     nn.to(torch::kCPU);
-    cvmodule->log("torch model loaded.") ;
+    cvm::log("torch model loaded.") ;
   } catch (const std::exception & e) {
-    return cvmodule->error("Error: couldn't load libtorch model (see below).\n" + cvm::to_str(e.what()),
+    return cvm::error("Error: couldn't load libtorch model (see below).\n" + cvm::to_str(e.what()),
                       COLVARS_INPUT_ERROR);
   }
 
   auto const legacy_keyword = get_keyval(conf, "m_output_index", m_output_index, m_output_index);
   if (legacy_keyword) {
-    cvmodule->log("Warning: m_output_index is a deprecated keyword, please use output_component instead.\n");
+    cvm::log("Warning: m_output_index is a deprecated keyword, please use output_component instead.\n");
   }
   get_keyval(conf, "output_component", m_output_index, m_output_index);
 
@@ -61,7 +61,7 @@ int colvar::torchANN::init(std::string const &conf) {
     if (i_cv < cv.size() - 1)
       cvc_indices[i_cv+1] = num_inputs;
   }
-  cvmodule->log("Input dimension of model: " + cvm::to_str(num_inputs));
+  cvm::log("Input dimension of model: " + cvm::to_str(num_inputs));
 
   // initialize the input tensor
   auto options = torch::TensorOptions().dtype(torch::kFloat32).requires_grad(true);
@@ -72,19 +72,19 @@ int colvar::torchANN::init(std::string const &conf) {
       try {
         nn.to(torch::kCUDA);
       } catch(const std::exception & e) {
-        cvmodule->error("Failed to move model to GPU.");
+        cvm::error("Failed to move model to GPU.");
         use_gpu = false;
       }
     } else {
       use_gpu = false;
-      cvmodule->log("GPU not available.");
+      cvm::log("GPU not available.");
     }
   }
 
   if (use_gpu) {
     options = options.device(torch::kCUDA);
     if (use_double_input) {
-      cvmodule->log("Data type reset to Float for GPU computation!");
+      cvm::log("Data type reset to Float for GPU computation!");
       use_double_input = false;
     }
   }
@@ -93,9 +93,9 @@ int colvar::torchANN::init(std::string const &conf) {
   if (use_double_input) {  // set type to double
     options = options.dtype(torch::kFloat64);
     nn.to(torch::kFloat64);
-    cvmodule->log("Model's dtype: kFloat64.");
+    cvm::log("Model's dtype: kFloat64.");
   } else {
-    cvmodule->log("Model's dtype: kFloat32.");
+    cvm::log("Model's dtype: kFloat32.");
   }
 
   input_tensor = torch::zeros({1,(long int) num_inputs}, options);
@@ -103,9 +103,9 @@ int colvar::torchANN::init(std::string const &conf) {
   try { // test the model
     std::vector<torch::jit::IValue> inputs={input_tensor};
     nn_outputs = nn.forward(inputs).toTensor()[0][m_output_index];
-    cvmodule->log("Evaluating model with zero tensor succeeded.");
+    cvm::log("Evaluating model with zero tensor succeeded.");
   } catch (const std::exception & e) {
-    error_code |= cvmodule->error("Error: evaluating model with zero tensor failed (see below).\n" +
+    error_code |= cvm::error("Error: evaluating model with zero tensor failed (see below).\n" +
                                  cvm::to_str(e.what()),
                              COLVARS_INPUT_ERROR);
   }
@@ -222,7 +222,7 @@ colvar::torchANN::~torchANN() {}
 
 int colvar::torchANN::init(std::string const &conf) {
 
-  return cvmodule->error(
+  return cvm::error(
           "torchANN requires the libtorch library, but it is not enabled during compilation.\n"
           "Please refer to the Compilation Notes section of the Colvars manual for more "
           "information.\n",

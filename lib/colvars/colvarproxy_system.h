@@ -10,7 +10,6 @@
 #ifndef COLVARPROXY_SYSTEM_H
 #define COLVARPROXY_SYSTEM_H
 
-#include "colvars_system.h"
 
 /// Methods for accessing the simulation system (PBCs, integrator, etc)
 class colvarproxy_system {
@@ -86,16 +85,15 @@ public:
   /// Pass restraint energy value for current timestep to MD engine
   virtual void add_energy(cvm::real energy);
 
-  /// Account for system boundaries within the Colvars library (as opposed to using the MD engine)
-  inline bool & use_internal_pbc() { return use_internal_pbc_; }
-
-  /// Get the PBC-aware distance vector between two positions (using Colvars internal boundary handling)
+  /// \brief Get the PBC-aware distance vector between two positions
   virtual cvm::rvector position_distance(cvm::atom_pos const &pos1,
                                          cvm::atom_pos const &pos2) const;
-  /// Get the current system boundary conditions
-  inline cvm::system_boundary_conditions const &get_system_boundaries() const {
-    return boundaries_;
-  }
+
+  /// Recompute PBC reciprocal lattice (assumes XYZ periodicity)
+  void update_pbc_lattice();
+
+  /// Set the lattice vectors to zero
+  void reset_pbc_lattice();
 
   /// \brief Tell the proxy whether total forces are needed (they may not
   /// always be available)
@@ -140,7 +138,7 @@ public:
 
   /// Get weight factor from accelMD
   virtual cvm::real get_accelMD_factor() const {
-    cvm::error_static("Error: accessing the reweighting factor of accelerated MD  "
+    cvm::error("Error: accessing the reweighting factor of accelerated MD  "
                "is not yet implemented in the MD engine.\n",
                COLVARS_NOT_IMPLEMENTED);
     return 1.0;
@@ -181,12 +179,26 @@ protected:
   /// Whether the total forces have been requested
   bool total_force_requested;
 
-  /// Use the PBC functions from the Colvars library (as opposed to MD engine)
-  bool use_internal_pbc_ = false;
+  /// \brief Type of boundary conditions
+  ///
+  /// Orthogonal and triclinic cells are made available to objects.
+  /// For any other conditions (mixed periodicity, triclinic cells in LAMMPS)
+  /// minimum-image distances are computed by the host engine regardless.
+  enum Boundaries_type {
+    boundaries_non_periodic,
+    boundaries_pbc_ortho,
+    boundaries_pbc_triclinic,
+    boundaries_unsupported
+  };
 
-  /// Current system boundary conditions
-  cvm::system_boundary_conditions boundaries_;
+  /// Type of boundary conditions
+  Boundaries_type boundaries_type;
+
+  /// Bravais lattice vectors
+  cvm::rvector unit_cell_x, unit_cell_y, unit_cell_z;
+
+  /// Reciprocal lattice vectors
+  cvm::rvector reciprocal_cell_x, reciprocal_cell_y, reciprocal_cell_z;
 };
-
 
 #endif

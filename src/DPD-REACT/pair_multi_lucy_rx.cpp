@@ -35,7 +35,6 @@
 #include "memory.h"
 #include "modify.h"
 #include "neigh_list.h"
-#include "fix_rx.h"
 
 #include <cmath>
 #include <cstring>
@@ -67,19 +66,22 @@ static const char cite_pair_multi_lucy_rx[] =
 
 /* ---------------------------------------------------------------------- */
 
-PairMultiLucyRX::PairMultiLucyRX(LAMMPS *lmp) :
-    Pair(lmp), rx_fix(nullptr), nmax(0),  mixWtSite1old(nullptr), mixWtSite2old(nullptr),
-    mixWtSite1(nullptr), mixWtSite2(nullptr), ntables(0), tables(nullptr), tabindex(nullptr),
-    nspecies(0), site1(nullptr), site2(nullptr), fractionalWeighting(true)
+PairMultiLucyRX::PairMultiLucyRX(LAMMPS *lmp) : Pair(lmp),
+  ntables(0), tables(nullptr), tabindex(nullptr), site1(nullptr), site2(nullptr)
 {
   if (lmp->citeme) lmp->citeme->add(cite_pair_multi_lucy_rx);
 
-  if (atom->rho_flag != 1)
-    error->all(FLERR,
-               "Pair multi/lucy/rx command requires atom_style with density (e.g. dpd, meso)");
+  if (atom->rho_flag != 1) error->all(FLERR,"Pair multi/lucy/rx command requires atom_style with density (e.g. dpd, meso)");
+
+  ntables = 0;
+  tables = nullptr;
+  nmax = 0;
+  mixWtSite1old = mixWtSite2old = mixWtSite1 = mixWtSite2 = nullptr;
 
   comm_forward = 1;
   comm_reverse = 1;
+
+  fractionalWeighting = true;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -195,22 +197,19 @@ void PairMultiLucyRX::compute(int eflag, int vflag)
 
         tb = &tables[tabindex[itype][jtype]];
         if (rho[i]*rho[i] < tb->innersq || rho[j]*rho[j] < tb->innersq) {
-          error->one(FLERR, Error::NOLASTLINE,
-                     "Density < table inner cutoff:\n"
-                     "  Table inner cutoff = {}\n"
-                     "  rho[{}]={}\n"
-                     "  rho[{}]={}\n",
-                     sqrt(tb->innersq),i,rho[i],j,rho[j]);
+          printf("Table inner cutoff = %lf\n",sqrt(tb->innersq));
+          printf("rho[%d]=%lf\n",i,rho[i]);
+          printf("rho[%d]=%lf\n",j,rho[j]);
+          error->one(FLERR,"Density < table inner cutoff");
         }
         if (tabstyle == LOOKUP) {
           itable = static_cast<int> (((rho[i]*rho[i]) - tb->innersq) * tb->invdelta);
           jtable = static_cast<int> (((rho[j]*rho[j]) - tb->innersq) * tb->invdelta);
           if (itable >= tlm1 || jtable >= tlm1) {
-            error->one(FLERR, Error::NOLASTLINE, "Density > table outer cutoff\n"
-                       "  Table outer index = {}\n"
-                       "  itableIndex={} rho[{}]={}\n"
-                       "  jtableIndex={} rho[{}]={}\n",
-                       tlm1,itable,i,rho[i],jtable,j,rho[j]);
+            printf("Table outer index = %d\n",tlm1);
+            printf("itableIndex=%d rho[%d]=%lf\n",itable,i,rho[i]);
+            printf("jtableIndex=%d rho[%d]=%lf\n",jtable,j,rho[j]);
+            error->one(FLERR,"Density > table outer cutoff");
           }
           A_i = tb->f[itable];
           A_j = tb->f[jtable];
@@ -273,14 +272,13 @@ void PairMultiLucyRX::compute(int eflag, int vflag)
     if (tabstyle == LOOKUP) evdwl = tb->e[itable];
     else if (tabstyle == LINEAR) {
       if (itable >= tlm1) {
-        error->one(FLERR, Error::NOLASTLINE, "Density > table outer cutoff "
-                   "itableIndex={} rho[{}]={}\n",itable,i,rho[i]);
+        printf("itableIndex=%d rho[%d]=%lf\n",itable,i,rho[i]);
+        error->one(FLERR,"Density > table outer cutoff");
       }
       if (itable==0) fraction_i=0.0;
       else fraction_i = (((rho[i]*rho[i]) - tb->rsq[itable]) * tb->invdelta);
       evdwl = tb->e[itable] + fraction_i*tb->de[itable];
-    } else error->one(FLERR, Error::NOLASTLINE, "Only LOOKUP and LINEAR table styles have "
-                      "been implemented for pair style multi/lucy/rx");
+    } else error->one(FLERR,"Only LOOKUP and LINEAR table styles have been implemented for pair multi/lucy/rx");
 
     evdwl *=(MY_PI*cutsq[itype][itype]*cutsq[itype][itype])/84.0;
     evdwlOld = mixWtSite1old_i*evdwl;
@@ -364,18 +362,12 @@ void PairMultiLucyRX::settings(int narg, char **arg)
 
 void PairMultiLucyRX::coeff(int narg, char **arg)
 {
-  if (narg != 6 && narg != 7)
-    error->all(FLERR,"Incorrect args for pair coefficients{}", utils::errorurl(21));
+  if (narg != 6 && narg != 7) error->all(FLERR,"Illegal pair_coeff command");
 
-  // get either the KOKKOS or the plain version of the fix
-  auto fixes = modify->get_fix_by_style(kokkosable ? "^rx/kk" : "^rx$");
-  if (fixes.size() == 1) {
-    rx_fix = dynamic_cast<FixRX *>(fixes[0]);
-  } else if (fixes.size() > 1) {
-    error->all(FLERR, Error::NOLASTLINE, "More than one fix rx instance defined");
-  }
-  if (!rx_fix)
-    error->all(FLERR, Error::NOLASTLINE, "Fix rx not defined or not compatible with pair style");
+  bool rx_flag = false;
+  for (int i = 0; i < modify->nfix; i++)
+    if (utils::strmatch(modify->fix[i]->style,"^rx")) rx_flag = true;
+  if (!rx_flag) error->all(FLERR,"PairMultiLucyRX requires a fix rx command.");
 
   if (!allocated) allocate();
 
@@ -392,7 +384,7 @@ void PairMultiLucyRX::coeff(int narg, char **arg)
   if (me == 0) read_table(tb,arg[2],arg[3]);
   bcast_table(tb);
 
-  nspecies = rx_fix->get_nspecies();
+  nspecies = atom->nspecies_dpd;
 
   site1 = utils::strdup(arg[4]);
   site2 = utils::strdup(arg[5]);
@@ -441,23 +433,29 @@ void PairMultiLucyRX::coeff(int narg, char **arg)
   if (strcmp(site1, "1fluid") == 0)
      isite1 = oneFluidParameter;
   else {
-    try {
-      isite1 = rx_fix->get_species_str_to_species_ind().at(site1);
-    }
-    catch (const std::out_of_range &) {
-      error->all(FLERR,"Pair_multi_lucy_rx site1 is invalid.");
-    }
+     isite1 = nspecies;
+     for (int ispecies = 0; ispecies < nspecies; ++ispecies)
+        if (strcmp(site1, atom->dvname[ispecies]) == 0) {
+           isite1 = ispecies;
+           break;
+        }
+
+     if (isite1 == nspecies)
+        error->all(FLERR,"Pair_multi_lucy_rx site1 is invalid.");
   }
 
   if (strcmp(site2, "1fluid") == 0)
      isite2 = oneFluidParameter;
   else {
-    try {
-      isite2 = rx_fix->get_species_str_to_species_ind().at(site2);
-    }
-    catch (const std::out_of_range &) {
-      error->all(FLERR,"Pair_multi_lucy_rx site2 is invalid.");
-    }
+     isite2 = nspecies;
+     for (int ispecies = 0; ispecies < nspecies; ++ispecies)
+        if (strcmp(site2, atom->dvname[ispecies]) == 0) {
+           isite2 = ispecies;
+           break;
+        }
+
+     if (isite2 == nspecies)
+        error->all(FLERR,"Pair_multi_lucy_rx site2 is invalid.");
   }
 
 }
@@ -757,7 +755,7 @@ void PairMultiLucyRX::spline(double *x, double *y, int n,
   y2[n-1] = (un-qn*u[n-2]) / (qn*y2[n-2] + 1.0);
   for (k = n-2; k >= 0; k--) y2[k] = y2[k]*y2[k+1] + u[k];
 
-  delete[] u;
+  delete [] u;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -922,39 +920,24 @@ void PairMultiLucyRX::getMixingWeights(int id, double &mixWtSite1old, double &mi
   double nMoleculesOld2, nMolecules2;
   double nTotal, nTotalOld;
 
-  const auto & species_ind_to_atom_prop_ind =
-    rx_fix->get_species_ind_to_atom_prop_ind();
-
-  const auto & species_ind_to_atom_prop_ind_old =
-    rx_fix->get_species_ind_to_atom_prop_ind_old();
-
   nTotal = 0.0;
   nTotalOld = 0.0;
   for (int ispecies = 0; ispecies < nspecies; ispecies++) {
-    const auto atom_ind = species_ind_to_atom_prop_ind[ispecies];
-    const auto atom_ind_old = species_ind_to_atom_prop_ind_old[ispecies];
-
-    nTotal += atom->dvector[atom_ind][id];
-    nTotalOld += atom->dvector[atom_ind_old][id];
+    nTotal += atom->dvector[ispecies][id];
+    nTotalOld += atom->dvector[ispecies+nspecies][id];
   }
   if (nTotal < MY_EPSILON || nTotalOld < MY_EPSILON)
     error->all(FLERR,"The number of molecules in CG particle is less than 10*DBL_EPSILON.");
 
   if (isOneFluid(isite1) == false) {
-    const auto atom_site1_ind = species_ind_to_atom_prop_ind[isite1];
-    const auto atom_site1_ind_old = species_ind_to_atom_prop_ind_old[isite1];
-
-    nMoleculesOld1 = atom->dvector[atom_site1_ind_old][id];
-    nMolecules1 = atom->dvector[atom_site1_ind][id];
+    nMoleculesOld1 = atom->dvector[isite1+nspecies][id];
+    nMolecules1 = atom->dvector[isite1][id];
     fractionOld1 = nMoleculesOld1/nTotalOld;
     fraction1 = nMolecules1/nTotal;
   }
   if (isOneFluid(isite2) == false) {
-    const auto atom_site2_ind = species_ind_to_atom_prop_ind[isite2];
-    const auto atom_site2_ind_old = species_ind_to_atom_prop_ind_old[isite2];
-
-    nMoleculesOld2 = atom->dvector[atom_site2_ind_old][id];
-    nMolecules2 = atom->dvector[atom_site2_ind][id];
+    nMoleculesOld2 = atom->dvector[isite2+nspecies][id];
+    nMolecules2 = atom->dvector[isite2][id];
     fractionOld2 = nMoleculesOld2/nTotalOld;
     fraction2 = nMolecules2/nTotal;
   }
@@ -967,14 +950,10 @@ void PairMultiLucyRX::getMixingWeights(int id, double &mixWtSite1old, double &mi
 
     for (int ispecies = 0; ispecies < nspecies; ispecies++) {
       if (isite1 == ispecies || isite2 == ispecies) continue;
-
-      const auto atom_ind = species_ind_to_atom_prop_ind[ispecies];
-      const auto atom_ind_old = species_ind_to_atom_prop_ind_old[ispecies];
-
-      nMoleculesOFAold += atom->dvector[atom_ind_old][id];
-      nMoleculesOFA += atom->dvector[atom_ind][id];
-      fractionOFAold += atom->dvector[atom_ind_old][id] / nTotalOld;
-      fractionOFA += atom->dvector[atom_ind][id] / nTotal;
+      nMoleculesOFAold += atom->dvector[ispecies+nspecies][id];
+      nMoleculesOFA += atom->dvector[ispecies][id];
+      fractionOFAold += atom->dvector[ispecies+nspecies][id] / nTotalOld;
+      fractionOFA += atom->dvector[ispecies][id] / nTotal;
     }
     if (isOneFluid(isite1)) {
       nMoleculesOld1 = 1.0-(nTotalOld-nMoleculesOFAold);

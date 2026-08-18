@@ -217,7 +217,7 @@ int FixWallSRD::setmask()
 
 void FixWallSRD::init()
 {
-  if (modify->get_fix_by_style("^srd").empty())
+  if (modify->get_fix_by_style("^srd").size() == 0)
     error->all(FLERR, Error::NOLASTLINE, "Cannot use fix wall/srd without fix srd");
 
   for (int m = 0; m < nwall; m++) {

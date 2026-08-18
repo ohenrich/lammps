@@ -31,11 +31,10 @@
 /// all its children dependencies are dereferenced (free_children_deps)
 /// While the object is inactive, no dependency solving is done on children
 /// it is done when the object is activated back (restore_children_deps)
-class colvardeps : public colvarparse {
+class colvardeps {
 public:
 
-  colvardeps ();
-  colvardeps(colvarmodule *cvmodule_in);
+  colvardeps();
   virtual ~colvardeps();
 
   // Subclasses should initialize the following members:
@@ -395,8 +394,6 @@ public:
     f_cvc_scalable_com,
     /// \brief Build list of atoms involved in CVC calculation
     f_cvc_collect_atom_ids,
-    /// \brief This CVC requires CPU buffers
-    f_cvc_require_cpu_buffers,
     /// Number of CVC features
     f_cvc_ntot
   };
@@ -445,11 +442,14 @@ public:
   /// \brief print all enabled features and those of children, for debugging
   void print_state();
 
-  /// Return the parents
-  std::vector<colvardeps *> get_parents() const {return parents;}
-
-  /// Return the children
-  std::vector<colvardeps *> get_children() const {return children;}
+  /// \brief Check that a feature is enabled, raising COLVARS_BUG_ERROR if not
+  inline void check_enabled(int f, std::string const &reason) const
+  {
+    if (! is_enabled(f)) {
+      cvm::error("Error: "+reason+" requires that the feature \""+
+                 features()[f]->description+"\" is active.\n", COLVARS_BUG_ERROR);
+    }
+  }
 
 };
 

@@ -77,10 +77,12 @@ class MolfileInterface {
 
   MolfileInterface(const char *type, const int mode);
   ~MolfileInterface();
-  // remove disallowed default methods
-  MolfileInterface() = delete;
-  MolfileInterface(const MolfileInterface &) = delete;
-  MolfileInterface &operator=(const MolfileInterface &) = delete;
+
+  // disallowed default methods
+ private:
+  MolfileInterface(){};
+  MolfileInterface(const MolfileInterface &){};
+  MolfileInterface &operator=(const MolfileInterface &) { return *this; };
 
  public:
   // search in the given directory path for a molfile plugin that

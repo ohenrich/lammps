@@ -38,10 +38,6 @@
     static constexpr double EPSILON   = 1.0e-7;
     static constexpr double BIG       = 1.0e20;
 
-    // explicit forward communication buffer sizes
-    static constexpr int INITIAL_BUFSZ = 29;
-    static constexpr int FINAL_BUFSZ = 10;
-
     // moment of inertia prefactor for sphere
     static constexpr double SINERTIA = 0.4;
     // moment of inertia prefactor for ellipsoid

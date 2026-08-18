@@ -43,16 +43,16 @@ class PythonCapabilities(unittest.TestCase):
         self.assertEqual(osinfo.find(system),0)
 
     def test_has_gzip_support(self):
-        self.assertEqual(self.lmp.has_gzip_support, self.cmake_cache.get('WITH_GZIP', False))
+        self.assertEqual(self.lmp.has_gzip_support, self.cmake_cache['WITH_GZIP'])
 
     def test_has_png_support(self):
-        self.assertEqual(self.lmp.has_png_support, self.cmake_cache.get('WITH_PNG', False))
+        self.assertEqual(self.lmp.has_png_support, self.cmake_cache['WITH_PNG'])
 
     def test_has_jpeg_support(self):
-        self.assertEqual(self.lmp.has_jpeg_support, self.cmake_cache.get('WITH_JPEG', False))
+        self.assertEqual(self.lmp.has_jpeg_support, self.cmake_cache['WITH_JPEG'])
 
     def test_has_ffmpeg_support(self):
-        self.assertEqual(self.lmp.has_ffmpeg_support, self.cmake_cache.get('WITH_FFMPEG', False))
+        self.assertEqual(self.lmp.has_ffmpeg_support, self.cmake_cache['WITH_FFMPEG'])
 
     def test_installed_packages(self):
         installed_packages = self.lmp.installed_packages

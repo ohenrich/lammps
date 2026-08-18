@@ -149,12 +149,12 @@ Force::~Force()
 
   delete[] pair_restart;
 
-  delete pair;
-  delete bond;
-  delete angle;
-  delete dihedral;
-  delete improper;
-  delete kspace;
+  if (pair) delete pair;
+  if (bond) delete bond;
+  if (angle) delete angle;
+  if (dihedral) delete dihedral;
+  if (improper) delete improper;
+  if (kspace) delete kspace;
 
   pair = nullptr;
   bond = nullptr;
@@ -228,7 +228,7 @@ void Force::setup()
 void Force::create_pair(const std::string &style, int trysuffix)
 {
   delete[] pair_style;
-  delete pair;
+  if (pair) delete pair;
   delete[] pair_restart;
   pair_style = nullptr;
   pair = nullptr;
@@ -339,7 +339,7 @@ char *Force::pair_match_ptr(Pair *ptr)
 void Force::create_bond(const std::string &style, int trysuffix)
 {
   delete[] bond_style;
-  delete bond;
+  if (bond) delete bond;
   bond_style = nullptr;
   bond = nullptr;
 
@@ -412,7 +412,7 @@ Bond *Force::bond_match(const std::string &style)
 void Force::create_angle(const std::string &style, int trysuffix)
 {
   delete[] angle_style;
-  delete angle;
+  if (angle) delete angle;
   angle_style = nullptr;
   angle = nullptr;
 
@@ -485,7 +485,7 @@ Angle *Force::angle_match(const std::string &style)
 void Force::create_dihedral(const std::string &style, int trysuffix)
 {
   delete[] dihedral_style;
-  delete dihedral;
+  if (dihedral) delete dihedral;
   dihedral_style = nullptr;
   dihedral = nullptr;
 
@@ -558,7 +558,7 @@ Dihedral *Force::dihedral_match(const std::string &style)
 void Force::create_improper(const std::string &style, int trysuffix)
 {
   delete[] improper_style;
-  delete improper;
+  if (improper) delete improper;
   improper_style = nullptr;
   improper = nullptr;
 
@@ -631,7 +631,7 @@ Improper *Force::improper_match(const std::string &style)
 void Force::create_kspace(const std::string &style, int trysuffix)
 {
   delete[] kspace_style;
-  delete kspace;
+  if (kspace) delete kspace;
   kspace_style = nullptr;
   kspace = nullptr;
 

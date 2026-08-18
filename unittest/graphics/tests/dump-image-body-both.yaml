@@ -8,7 +8,6 @@ nprocs: 1
 prerequisites: |
   atom body
   pair zero
-  pair body/rounded/polyhedron
 setup_commands: |
   units lj
   atom_style body rounded/polyhedron 1 10

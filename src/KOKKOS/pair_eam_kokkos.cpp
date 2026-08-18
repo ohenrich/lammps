@@ -134,7 +134,6 @@ void PairEAMKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   }
 
   rhomax_kk = static_cast<KK_FLOAT>(rhomax);
-  rhomin_kk = static_cast<KK_FLOAT>(rhomin);
   copymode = 1;
 
   // zero out density
@@ -629,23 +628,23 @@ void PairEAMKokkos<DeviceType>::operator()(TagPairEAMKernelB<EFLAG>, const int &
 
   // fp = derivative of embedding energy at each atom
   // phi = embedding energy at each atom
-  // if rho > rhomax (e.g. due to close approach of two atoms) the table is
-  //   exceeded, so add linear term to conserve energy; for eam/he the table
-  //   starts at rhomin and may be exceeded on either side
+  // if rho > rhomax (e.g. due to close approach of two atoms),
+  //   will exceed table, so add linear term to conserve energy
 
   const int i = d_ilist[ii];
   const int itype = type(i);
 
-  KK_FLOAT p;
-  int m;
-  embedding_index_kk(d_rho[i],m,p);
+  KK_FLOAT p = d_rho[i]*rdrho_kk + static_cast<KK_FLOAT>(1.0);
+  int m = static_cast<int> (p);
+  m = MAX(1,MIN(m,nrho-1));
+  p -= static_cast<KK_FLOAT>(m);
+  p = MIN(p,static_cast<KK_FLOAT>(1.0));
   const int d_type2frho_i = d_type2frho[itype];
   d_fp[i] = (d_frho_spline(d_type2frho_i,m,0)*p + d_frho_spline(d_type2frho_i,m,1))*p + d_frho_spline(d_type2frho_i,m,2);
   if (EFLAG) {
     KK_FLOAT phi = ((d_frho_spline(d_type2frho_i,m,3)*p + d_frho_spline(d_type2frho_i,m,4))*p +
                     d_frho_spline(d_type2frho_i,m,5))*p + d_frho_spline(d_type2frho_i,m,6);
-    if (he_flag && (d_rho[i] < rhomin_kk)) phi += d_fp[i] * (d_rho[i]-rhomin_kk);
-    else if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
+    if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
     if (eflag_global) ev.evdwl += static_cast<KK_ACC_FLOAT>(phi);
     if (eflag_atom) d_eatom[i] += static_cast<KK_ACC_FLOAT>(phi);
   }
@@ -708,20 +707,20 @@ void PairEAMKokkos<DeviceType>::operator()(TagPairEAMKernelAB<EFLAG>, const int 
 
   // fp = derivative of embedding energy at each atom
   // phi = embedding energy at each atom
-  // if rho > rhomax (e.g. due to close approach of two atoms) the table is
-  //   exceeded, so add linear term to conserve energy; for eam/he the table
-  //   starts at rhomin and may be exceeded on either side
+  // if rho > rhomax (e.g. due to close approach of two atoms),
+  //   will exceed table, so add linear term to conserve energy
 
-  KK_FLOAT p;
-  int m;
-  embedding_index_kk(d_rho[i],m,p);
+  KK_FLOAT p = d_rho[i]*rdrho_kk + static_cast<KK_FLOAT>(1.0);
+  int m = static_cast<int> (p);
+  m = MAX(1,MIN(m,nrho-1));
+  p -= static_cast<KK_FLOAT>(m);
+  p = MIN(p,static_cast<KK_FLOAT>(1.0));
   const int d_type2frho_i = d_type2frho[itype];
   d_fp[i] = (d_frho_spline(d_type2frho_i,m,0)*p + d_frho_spline(d_type2frho_i,m,1))*p + d_frho_spline(d_type2frho_i,m,2);
   if (EFLAG) {
     KK_FLOAT phi = ((d_frho_spline(d_type2frho_i,m,3)*p + d_frho_spline(d_type2frho_i,m,4))*p +
                     d_frho_spline(d_type2frho_i,m,5))*p + d_frho_spline(d_type2frho_i,m,6);
-    if (he_flag && (d_rho[i] < rhomin_kk)) phi += d_fp[i] * (d_rho[i]-rhomin_kk);
-    else if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
+    if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
     if (eflag_global) ev.evdwl += static_cast<KK_ACC_FLOAT>(phi);
     if (eflag_atom) d_eatom[i] += static_cast<KK_ACC_FLOAT>(phi);
   }
@@ -917,20 +916,20 @@ void PairEAMKokkos<DeviceType>::operator()(TagPairEAMKernelAB<EFLAG>,
 
     // fp = derivative of embedding energy at each atom
     // phi = embedding energy at each atom
-    // if rho > rhomax (e.g. due to close approach of two atoms) the table is
-    //   exceeded, so add linear term to conserve energy; for eam/he the table
-    //   starts at rhomin and may be exceeded on either side
+    // if rho > rhomax (e.g. due to close approach of two atoms),
+    //   will exceed table, so add linear term to conserve energy
 
-    KK_FLOAT p;
-    int m;
-    embedding_index_kk(d_rho[i],m,p);
+    KK_FLOAT p = d_rho[i]*rdrho_kk + static_cast<KK_FLOAT>(1.0);
+    int m = static_cast<int> (p);
+    m = MAX(1,MIN(m,nrho-1));
+    p -= static_cast<KK_FLOAT>(m);
+    p = MIN(p,static_cast<KK_FLOAT>(1.0));
     const int d_type2frho_i = d_type2frho[itype];
     d_fp[i] = (d_frho_spline(d_type2frho_i,m,0)*p + d_frho_spline(d_type2frho_i,m,1))*p + d_frho_spline(d_type2frho_i,m,2);
     if (EFLAG) {
       KK_FLOAT phi = ((d_frho_spline(d_type2frho_i,m,3)*p + d_frho_spline(d_type2frho_i,m,4))*p +
                       d_frho_spline(d_type2frho_i,m,5))*p + d_frho_spline(d_type2frho_i,m,6);
-      if (he_flag && (d_rho[i] < rhomin_kk)) phi += d_fp[i] * (d_rho[i]-rhomin_kk);
-      else if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
+      if (d_rho[i] > rhomax_kk) phi += d_fp[i] * (d_rho[i]-rhomax_kk);
       if (eflag_global) ev.evdwl += static_cast<KK_ACC_FLOAT>(phi);
       if (eflag_atom) d_eatom[i] += static_cast<KK_ACC_FLOAT>(phi);
     }

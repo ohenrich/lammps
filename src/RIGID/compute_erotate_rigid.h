@@ -32,7 +32,7 @@ class ComputeERotateRigid : public Compute {
   double compute_scalar() override;
 
  private:
-  class Fix *irfix;
+  int irfix;
   char *rfix;
 };
 

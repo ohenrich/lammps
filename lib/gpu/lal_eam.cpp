@@ -47,8 +47,7 @@ int EAMT::init(const int ntypes, double host_cutforcesq, int **host_type2rhor,
                int **host_type2z2r, int *host_type2frho,
                double ***host_rhor_spline, double ***host_z2r_spline,
                double ***host_frho_spline, double** host_cutsq, double rdr, double rdrho,
-               double rhomax, double rhomin, const int he_flag,
-               int nrhor, int nrho, int nz2r, int nfrho, int nr,
+               double rhomax, int nrhor, int nrho, int nz2r, int nfrho, int nr,
                const int nlocal, const int nall, const int max_nbors,
                const int maxspecial, const double cell_size,
                const double gpu_split, FILE *_screen)
@@ -120,8 +119,6 @@ int EAMT::init(const int ntypes, double host_cutforcesq, int **host_type2rhor,
   _rdr=rdr;
   _rdrho = rdrho;
   _rhomax=rhomax;
-  _rhomin=rhomin;
-  _he_flag=he_flag;
   _nrhor=nrhor;
   _nrho=nrho;
   _nz2r=nz2r;
@@ -514,16 +511,15 @@ int EAMT::loop(const int eflag, const int vflag) {
                       &this->nbor->dev_nbor,  &this->_nbor_data->begin(),
                       &_fp, &this->ans->engv, &eflag, &ainum,
                       &nbor_pitch, &_ntypes, &_cutforcesq, &_rdr, &_rdrho,
-                      &_rhomax, &_rhomin, &_he_flag, &_nrho, &_nr,
-                      &this->_threads_per_atom);
+                      &_rhomax, &_nrho, &_nr, &this->_threads_per_atom);
   } else {
     this->k_energy.set_size(GX,BX);
     this->k_energy.run(&this->atom->x, &type2rhor_z2r, &type2frho,
                        &rhor_spline2, &frho_spline1, &frho_spline2, &cutsq,
                        &this->nbor->dev_nbor, &this->_nbor_data->begin(), &_fp,
                        &this->ans->engv,&eflag, &ainum, &nbor_pitch,
-                       &_ntypes, &_cutforcesq, &_rdr, &_rdrho, &_rhomax, &_rhomin,
-                       &_he_flag, &_nrho, &_nr, &this->_threads_per_atom);
+                       &_ntypes, &_cutforcesq, &_rdr, &_rdrho, &_rhomax, &_nrho,
+                       &_nr, &this->_threads_per_atom);
   }
 
   this->time_pair.stop();

@@ -16,10 +16,6 @@
 #include "colvarcomp.h"
 #include "colvar_rotation_derivative.h"
 
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-#include "cuda/colvarcomp_distance_kernel.h"
-#endif // defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-
 
 colvar::distance::distance()
 {
@@ -51,7 +47,12 @@ int colvar::distance::init(std::string const &conf)
 
 void colvar::distance::calc_value()
 {
-  dist_v = boundary_conditions.position_distance(group1->center_of_mass(), group2->center_of_mass());
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    dist_v = group2->center_of_mass() - group1->center_of_mass();
+  } else {
+    dist_v = cvm::position_distance(group1->center_of_mass(),
+                                    group2->center_of_mass());
+  }
   x.real_value = dist_v.norm();
 }
 
@@ -93,8 +94,12 @@ colvar::distance_vec::distance_vec()
 
 void colvar::distance_vec::calc_value()
 {
-  x.rvector_value =
-      boundary_conditions.position_distance(group1->center_of_mass(), group2->center_of_mass());
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    x.rvector_value = group2->center_of_mass() - group1->center_of_mass();
+  } else {
+    x.rvector_value = cvm::position_distance(group1->center_of_mass(),
+                                             group2->center_of_mass());
+  }
 }
 
 
@@ -117,13 +122,19 @@ void colvar::distance_vec::apply_force(colvarvalue const &force)
 
 cvm::real colvar::distance_vec::dist2(colvarvalue const &x1, colvarvalue const &x2) const
 {
-  return (boundary_conditions.position_distance(x1.rvector_value, x2.rvector_value)).norm2();
+  if (is_enabled(f_cvc_pbc_minimum_image)) {
+    return (cvm::position_distance(x1.rvector_value, x2.rvector_value)).norm2();
+  }
+  return (x2.rvector_value - x1.rvector_value).norm2();
 }
 
 
 colvarvalue colvar::distance_vec::dist2_lgrad(colvarvalue const &x1, colvarvalue const &x2) const
 {
-  return 2.0 * boundary_conditions.position_distance(x2.rvector_value, x1.rvector_value);
+  if (is_enabled(f_cvc_pbc_minimum_image)) {
+    return 2.0 * cvm::position_distance(x2.rvector_value, x1.rvector_value);
+  }
+  return 2.0 * (x2.rvector_value - x1.rvector_value);
 }
 
 
@@ -157,18 +168,18 @@ int colvar::distance_z::init(std::string const &conf)
   ref2 = parse_group(conf, "ref2", true);
 
   if ( ref2 ) {
-    cvmodule->log("Using axis joining the centers of mass of groups \"ref\" and \"ref2\"\n");
+    cvm::log("Using axis joining the centers of mass of groups \"ref\" and \"ref2\"\n");
     fixed_axis = false;
     if (key_lookup(conf, "axis"))
-      cvmodule->log("Warning: explicit axis definition will be ignored!\n");
+      cvm::log("Warning: explicit axis definition will be ignored!\n");
   } else {
     if (get_keyval(conf, "axis", axis, cvm::rvector(0.0, 0.0, 1.0))) {
       if (axis.norm2() == 0.0) {
-        error_code |= cvmodule->error("Axis vector is zero!", COLVARS_INPUT_ERROR);
+        error_code |= cvm::error("Axis vector is zero!", COLVARS_INPUT_ERROR);
       }
       if (axis.norm2() != 1.0) {
         axis = axis.unit();
-        cvmodule->log("The normalized axis is: "+cvm::to_str(axis)+".\n");
+        cvm::log("The normalized axis is: "+cvm::to_str(axis)+".\n");
       }
     }
     fixed_axis = true;
@@ -185,12 +196,21 @@ void colvar::distance_z::calc_value()
   cvm::rvector const M = main->center_of_mass();
   cvm::rvector const R1 = ref1->center_of_mass();
   if (fixed_axis) {
-    dist_v = boundary_conditions.position_distance(R1, M);
+    if (!is_enabled(f_cvc_pbc_minimum_image)) {
+      dist_v = M - R1;
+    } else {
+      dist_v = cvm::position_distance(R1, M);
+    }
   } else {
     cvm::rvector const R2 = ref2->center_of_mass();
     cvm::rvector const C = 0.5 * (R1 + R2);
-    dist_v = boundary_conditions.position_distance(C, M);
-    axis = boundary_conditions.position_distance(R1, R2);
+    if (!is_enabled(f_cvc_pbc_minimum_image)) {
+      dist_v = M - C;
+      axis = R2 - R1;
+    } else {
+      dist_v = cvm::position_distance(C, M);
+      axis = cvm::position_distance(R1, R2);
+    }
     axis_norm = axis.norm();
     axis = axis.unit();
   }
@@ -248,9 +268,19 @@ colvar::distance_xy::distance_xy()
 
 void colvar::distance_xy::calc_value()
 {
-  dist_v = boundary_conditions.position_distance(ref1->center_of_mass(), main->center_of_mass());
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    dist_v = main->center_of_mass() - ref1->center_of_mass();
+  } else {
+    dist_v = cvm::position_distance(ref1->center_of_mass(),
+                                    main->center_of_mass());
+  }
   if (!fixed_axis) {
-    v12 = boundary_conditions.position_distance(ref1->center_of_mass(), ref2->center_of_mass());
+    if (!is_enabled(f_cvc_pbc_minimum_image)) {
+      v12 = ref2->center_of_mass() - ref1->center_of_mass();
+    } else {
+      v12 = cvm::position_distance(ref1->center_of_mass(),
+                                   ref2->center_of_mass());
+    }
     axis_norm = v12.norm();
     axis = v12.unit();
   }
@@ -274,7 +304,12 @@ void colvar::distance_xy::calc_gradients()
     ref1->set_weighted_gradient(-1.0 * x_inv * dist_v_ortho);
     main->set_weighted_gradient(       x_inv * dist_v_ortho);
   } else {
-    v13 = boundary_conditions.position_distance(ref1->center_of_mass(), main->center_of_mass());
+    if (!is_enabled(f_cvc_pbc_minimum_image)) {
+      v13 = main->center_of_mass() - ref1->center_of_mass();
+    } else {
+      v13 = cvm::position_distance(ref1->center_of_mass(),
+                                   main->center_of_mass());
+    }
     A = (dist_v * axis) / axis_norm;
 
     ref1->set_weighted_gradient( (A - 1.0) * x_inv * dist_v_ortho);
@@ -315,8 +350,12 @@ colvar::distance_dir::distance_dir()
 
 void colvar::distance_dir::calc_value()
 {
-  dist_v =
-      boundary_conditions.position_distance(group1->center_of_mass(), group2->center_of_mass());
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    dist_v = group2->center_of_mass() - group1->center_of_mass();
+  } else {
+    dist_v = cvm::position_distance(group1->center_of_mass(),
+                                    group2->center_of_mass());
+  }
   x.rvector_value = dist_v.unit();
 }
 
@@ -385,20 +424,20 @@ int colvar::distance_inv::init(std::string const &conf)
   get_keyval(conf, "exponent", exponent, exponent);
   if (exponent % 2) {
     error_code |=
-        cvmodule->error("Error: odd exponent provided, can only use even ones.\n", COLVARS_INPUT_ERROR);
+        cvm::error("Error: odd exponent provided, can only use even ones.\n", COLVARS_INPUT_ERROR);
   }
   if (exponent <= 0) {
-    error_code |= cvmodule->error("Error: negative or zero exponent provided.\n", COLVARS_INPUT_ERROR);
+    error_code |= cvm::error("Error: negative or zero exponent provided.\n", COLVARS_INPUT_ERROR);
   }
 
   if (cvm::atom_group::overlap(*group1, *group2) != 0) {
-    error_code |= cvmodule->error("Error: group1 and group2 have some atoms in common: this is not "
+    error_code |= cvm::error("Error: group1 and group2 have some atoms in common: this is not "
                             "allowed for distanceInv.\n",
                             COLVARS_INPUT_ERROR);
   }
 
   if (is_enabled(f_cvc_debug_gradient)) {
-    cvmodule->log("Warning: debugGradients will not give correct results "
+    cvm::log("Warning: debugGradients will not give correct results "
              "for distanceInv, because its value and gradients are computed "
              "simultaneously.\n");
   }
@@ -409,7 +448,7 @@ int colvar::distance_inv::init(std::string const &conf)
 
 void colvar::distance_inv::calc_value()
 {
-#define CALL_KERNEL() do {                             \
+#define CALL_KERNEL(USE_PBC_MINIMUM_IMAGE) do {        \
   const int factor = -1*(exponent/2);                  \
   for (size_t i = 0; i < group1->size(); ++i) {        \
     const cvm::atom_pos pos1(group1->pos_x(i),         \
@@ -421,7 +460,11 @@ void colvar::distance_inv::calc_value()
                                group2->pos_y(j),       \
                                group2->pos_z(j));      \
       cvm::rvector dv;                                 \
-      dv = boundary_conditions.position_distance(pos1, pos2); \
+      if (USE_PBC_MINIMUM_IMAGE) {                     \
+        dv = cvm::position_distance(pos1, pos2);       \
+      } else {                                         \
+        dv = pos2 - pos1;                              \
+      }                                                \
       cvm::real const d2 = dv.norm2();                                      \
       cvm::real const dinv = cvm::integer_power(d2, factor);                \
       x.real_value += dinv;                                                 \
@@ -437,7 +480,11 @@ void colvar::distance_inv::calc_value()
   }                            \
 } while (0);
   x.real_value = 0.0;
-  CALL_KERNEL();
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    CALL_KERNEL(false);
+  } else {
+    CALL_KERNEL(true);
+  }
 
   x.real_value *= 1.0 / cvm::real(group1->size() * group2->size());
   x.real_value = cvm::pow(x.real_value, -1.0/cvm::real(exponent));
@@ -486,7 +533,7 @@ int colvar::distance_pairs::init(std::string const &conf)
 void colvar::distance_pairs::calc_value()
 {
   x.vector1d_value.resize(group1->size() * group2->size());
-#define CALL_KERNEL() do {                                         \
+#define CALL_KERNEL(USE_PBC_MINIMUM_IMAGE) do {                    \
   for (size_t i1 = 0; i1 < group1->size(); ++i1) {                 \
     const cvm::atom_pos pos1(group1->pos_x(i1),                    \
                              group1->pos_y(i1),                    \
@@ -496,7 +543,9 @@ void colvar::distance_pairs::calc_value()
       const cvm::atom_pos pos2(group2->pos_x(i2),                  \
                                group2->pos_y(i2),                  \
                                group2->pos_z(i2));                 \
-      const cvm::rvector dv = boundary_conditions.position_distance(pos1, pos2); \
+      const cvm::rvector dv = USE_PBC_MINIMUM_IMAGE ?              \
+                              cvm::position_distance(pos1, pos2) : \
+                              pos2 - pos1;                         \
       cvm::real const d = dv.norm();                               \
       x.vector1d_value[i1*group2->size() + i2] = d;                \
       const cvm::rvector g2 = dv.unit();                           \
@@ -510,7 +559,11 @@ void colvar::distance_pairs::calc_value()
     group1->grad_z(i1) += g1.z;*/                                    \
   }                                                                \
 } while (0);
-  CALL_KERNEL();
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    CALL_KERNEL(false);
+  } else {
+    CALL_KERNEL(true);
+  }
 #undef CALL_KERNEL
 }
 
@@ -523,7 +576,7 @@ void colvar::distance_pairs::calc_gradients()
 
 void colvar::distance_pairs::apply_force(colvarvalue const &force)
 {
-#define CALL_KERNEL() do {                                              \
+#define CALL_KERNEL(USE_PBC_MINIMUM_IMAGE) do {                         \
   auto group1_force_obj = group1->get_group_force_object();             \
   auto group2_force_obj = group2->get_group_force_object();             \
   for (size_t i1 = 0; i1 < group1->size(); i1++) {                      \
@@ -535,7 +588,9 @@ void colvar::distance_pairs::apply_force(colvarvalue const &force)
       const cvm::atom_pos pos2(group2->pos_x(i2),                       \
                                group2->pos_y(i2),                       \
                                group2->pos_z(i2));                      \
-      const cvm::rvector dv = boundary_conditions.position_distance(pos1, pos2); \
+      const cvm::rvector dv = USE_PBC_MINIMUM_IMAGE ?                   \
+                              cvm::position_distance(pos1, pos2) :      \
+                              pos2 - pos1;                              \
       cvm::real const d = dv.norm();                                    \
       x.vector1d_value[i1*group2->size() + i2] = d;                     \
       const cvm::rvector f2 = force[i1*group2->size() + i2] * dv.unit();\
@@ -545,7 +600,11 @@ void colvar::distance_pairs::apply_force(colvarvalue const &force)
     group1_force_obj.add_atom_force(i1, f1);                            \
   }                                                                     \
 } while (0);
-  CALL_KERNEL();
+  if (!is_enabled(f_cvc_pbc_minimum_image)) {
+    CALL_KERNEL(false);
+  } else {
+    CALL_KERNEL(true);
+  }
 #undef CALL_KERNEL
 }
 
@@ -627,7 +686,7 @@ int colvar::gyration::init(std::string const &conf)
   atoms = parse_group(conf, "atoms");
 
   if (atoms->b_user_defined_fit) {
-    cvmodule->log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
+    cvm::log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
   } else {
     atoms->enable(f_ag_center);
     std::vector<cvm::atom_pos> ref_pos_aos{cvm::atom_pos(0, 0, 0)};
@@ -718,11 +777,11 @@ int colvar::inertia_z::init(std::string const &conf)
   int error_code = inertia::init(conf);
   if (get_keyval(conf, "axis", axis, cvm::rvector(0.0, 0.0, 1.0))) {
     if (axis.norm2() == 0.0) {
-      error_code |= cvmodule->error("Axis vector is zero!", COLVARS_INPUT_ERROR);
+      error_code |= cvm::error("Axis vector is zero!", COLVARS_INPUT_ERROR);
     }
     if (axis.norm2() != 1.0) {
       axis = axis.unit();
-      cvmodule->log("The normalized axis is: "+cvm::to_str(axis)+".\n");
+      cvm::log("The normalized axis is: "+cvm::to_str(axis)+".\n");
     }
   }
   return error_code;
@@ -763,51 +822,6 @@ colvar::rmsd::rmsd()
   set_function_type("rmsd");
   init_as_distance();
   provide(f_cvc_inv_gradient);
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-  d_ref_pos_soa = nullptr;
-  d_permutation_msds = nullptr;
-  d_tbcounts = nullptr;
-  h_rmsd = nullptr;
-  h_best_perm_index = nullptr;
-  d_ft = nullptr;
-  h_ft = nullptr;
-  d_jd = nullptr;
-  h_jd = nullptr;
-  d_tbcount_ft = nullptr;
-  d_tbcount_jd = nullptr;
-#endif // defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-}
-
-colvar::rmsd::~rmsd() {
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-  colvarproxy* p = cvmodule->proxy;
-  if (colvar::rmsd::has_gpu_implementation()) {
-    p->deallocate_device(&d_ref_pos_soa);
-    p->deallocate_device(&d_permutation_msds);
-    p->deallocate_device(&d_tbcounts);
-    p->deallocate_host(&h_rmsd);
-    p->deallocate_host(&h_best_perm_index);
-    p->deallocate_device(&d_ft);
-    p->deallocate_device(&d_jd);
-    p->deallocate_host(&h_ft);
-    p->deallocate_host(&h_jd);
-    p->deallocate_device(&d_tbcount_ft);
-    p->deallocate_device(&d_tbcount_jd);
-  }
-#endif // defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-}
-
-bool colvar::rmsd::has_gpu_implementation() const {
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-  const colvarproxy* p = cvmodule->proxy;
-  if (p->get_smp_mode() == colvarproxy_smp::smp_mode_t::gpu){
-    return true;
-  } else {
-    return false;
-  }
-#else
-  return false;
-#endif // defined (COLVARS_CUDA) || defined (COLVARS_HIP)
 }
 
 
@@ -823,20 +837,19 @@ int colvar::rmsd::init(std::string const &conf)
 
   bool b_Jacobian_derivative = true;
   if (atoms->fitting_group != NULL && b_Jacobian_derivative) {
-    cvmodule->log("The option \"fittingGroup\" (alternative group for fitting) was enabled: "
+    cvm::log("The option \"fittingGroup\" (alternative group for fitting) was enabled: "
               "Jacobian derivatives of the RMSD will not be calculated.\n");
     b_Jacobian_derivative = false;
   }
   if (b_Jacobian_derivative) provide(f_cvc_Jacobian);
 
-  std::vector<cvm::atom_pos> ref_pos;
   // the following is a simplified version of the corresponding atom group options;
   // we need this because the reference coordinates defined inside the atom group
   // may be used only for fitting, and even more so if fitting_group is used
   if (get_keyval(conf, "refPositions", ref_pos, ref_pos)) {
-    cvmodule->log("Using reference positions from configuration file to calculate the variable.\n");
+    cvm::log("Using reference positions from configuration file to calculate the variable.\n");
     if (ref_pos.size() != atoms->size()) {
-      error_code |= cvmodule->error("Error: the number of reference positions provided (" +
+      error_code |= cvm::error("Error: the number of reference positions provided (" +
                                    cvm::to_str(ref_pos.size()) +
                                    ") does not match the number of atoms of group \"atoms\" (" +
                                    cvm::to_str(atoms->size()) + ").\n",
@@ -847,7 +860,7 @@ int colvar::rmsd::init(std::string const &conf)
     if (get_keyval(conf, "refPositionsFile", ref_pos_file, std::string(""))) {
 
       if (ref_pos.size()) {
-        error_code |= cvmodule->error("Error: cannot specify \"refPositionsFile\" and "
+        error_code |= cvm::error("Error: cannot specify \"refPositionsFile\" and "
                                  "\"refPositions\" at the same time.\n",
                                  COLVARS_INPUT_ERROR);
       }
@@ -859,7 +872,7 @@ int colvar::rmsd::init(std::string const &conf)
         // if provided, use PDB column to select coordinates
         bool found = get_keyval(conf, "refPositionsColValue", ref_pos_col_value, 0.0);
         if (found && ref_pos_col_value==0.0) {
-          error_code |= cvmodule->error("Error: refPositionsColValue, "
+          error_code |= cvm::error("Error: refPositionsColValue, "
                                    "if provided, must be non-zero.\n",
                                    COLVARS_INPUT_ERROR);
         }
@@ -867,10 +880,10 @@ int colvar::rmsd::init(std::string const &conf)
 
       ref_pos.resize(atoms->size());
 
-      cvmodule->load_coords(ref_pos_file.c_str(), &ref_pos, atoms,
+      cvm::load_coords(ref_pos_file.c_str(), &ref_pos, atoms,
                        ref_pos_col, ref_pos_col_value);
     } else {
-      error_code |= cvmodule->error(
+      error_code |= cvm::error(
           "Error: no reference positions for RMSD; use either refPositions of refPositionsFile.",
           COLVARS_INPUT_ERROR);
     }
@@ -878,16 +891,16 @@ int colvar::rmsd::init(std::string const &conf)
 
   if (ref_pos.size() != atoms->size()) {
     error_code |=
-        cvmodule->error("Error: found " + cvm::to_str(ref_pos.size()) +
+        cvm::error("Error: found " + cvm::to_str(ref_pos.size()) +
                        " reference positions for RMSD; expected " + cvm::to_str(atoms->size()),
                    COLVARS_INPUT_ERROR);
   }
 
   if (atoms->b_user_defined_fit) {
-    cvmodule->log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
+    cvm::log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
   } else {
     // Default: fit everything
-    cvmodule->log("Enabling \"centerToReference\" and \"rotateToReference\", to minimize RMSD before calculating it as a variable: "
+    cvm::log("Enabling \"centerToReference\" and \"rotateToReference\", to minimize RMSD before calculating it as a variable: "
               "if this is not the desired behavior, disable them explicitly within the \"atoms\" block.\n");
     atoms->enable(f_ag_center);
     atoms->enable(f_ag_rotate);
@@ -896,45 +909,19 @@ int colvar::rmsd::init(std::string const &conf)
     atoms->set_ref_pos_from_aos(ref_pos);
     atoms->center_ref_pos();
 
-    cvmodule->log("This is a standard minimum RMSD, derivatives of the optimal rotation "
+    cvm::log("This is a standard minimum RMSD, derivatives of the optimal rotation "
               "will not be computed as they cancel out in the gradients.");
     atoms->disable(f_ag_fit_gradients);
   }
   atoms->setup_rotation_derivative();
 
-  error_code |= init_permutation(ref_pos, conf);
+  error_code |= init_permutation(conf);
 
-  num_ref_pos = ref_pos.size();
-  ref_pos_soa = cvm::atom_group::pos_aos_to_soa(ref_pos);
-  if (has_gpu_implementation()) {
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-    colvarproxy* p = cvmodule->proxy;
-    error_code |= p->reallocate_device(&d_ref_pos_soa, 3 * num_ref_pos);
-    error_code |= p->copy_HtoD(ref_pos_soa.data(), d_ref_pos_soa, 3 * num_ref_pos);
-    error_code |= p->reallocate_device(&d_permutation_msds, n_permutations);
-    error_code |= p->reallocate_device(&d_tbcounts, n_permutations);
-    error_code |= p->reallocate_host(&h_rmsd, 1);
-    error_code |= p->reallocate_host(&h_best_perm_index, 1);
-    error_code |= p->clear_device_array(d_permutation_msds, n_permutations);
-    error_code |= p->clear_device_array(d_tbcounts, n_permutations);
-    error_code |= p->reallocate_device(&d_ft, 1);
-    error_code |= p->clear_device_array(d_ft, 1);
-    error_code |= p->reallocate_device(&d_jd, 1);
-    error_code |= p->clear_device_array(d_jd, 1);
-    error_code |= p->reallocate_host(&h_ft, 1);
-    error_code |= p->reallocate_host(&h_jd, 1);
-    error_code |= p->allocate_device(&d_tbcount_ft, 1);
-    error_code |= p->allocate_device(&d_tbcount_jd, 1);
-    error_code |= p->clear_device_array(d_tbcount_ft, 1);
-    error_code |= p->clear_device_array(d_tbcount_jd, 1);
-    disable(f_cvc_require_cpu_buffers);
-#endif // (COLVARS_CUDA) || defined (COLVARS_GPU)
-  }
   return error_code;
 }
 
 
-int colvar::rmsd::init_permutation(std::vector<cvm::atom_pos>& ref_pos, std::string const &conf)
+int colvar::rmsd::init_permutation(std::string const &conf)
 {
   int error_code = COLVARS_OK;
   std::string perm_conf;
@@ -942,7 +929,7 @@ int colvar::rmsd::init_permutation(std::vector<cvm::atom_pos>& ref_pos, std::str
   n_permutations = 1;
 
   while (key_lookup(conf, "atomPermutation", &perm_conf, &pos)) {
-    cvmodule->cite_feature("Symmetry-adapted RMSD");
+    cvm::main()->cite_feature("Symmetry-adapted RMSD");
     std::vector<size_t> perm;
     if (perm_conf.size()) {
       std::istringstream is(perm_conf);
@@ -951,24 +938,24 @@ int colvar::rmsd::init_permutation(std::vector<cvm::atom_pos>& ref_pos, std::str
         std::vector<int> const &ids = atoms->ids();
         size_t const ia = std::find(ids.begin(), ids.end(), index-1) - ids.begin();
         if (ia == atoms->size()) {
-          error_code |= cvmodule->error("Error: atom id " + cvm::to_str(index) +
+          error_code |= cvm::error("Error: atom id " + cvm::to_str(index) +
                                        " is not a member of group \"atoms\".",
                                    COLVARS_INPUT_ERROR);
         }
         if (std::find(perm.begin(), perm.end(), ia) != perm.end()) {
-          error_code |= cvmodule->error("Error: atom id " + cvm::to_str(index) +
+          error_code |= cvm::error("Error: atom id " + cvm::to_str(index) +
                                        " is mentioned more than once in atomPermutation list.",
                                    COLVARS_INPUT_ERROR);
         }
         perm.push_back(ia);
       }
       if (perm.size() != atoms->size()) {
-        error_code |= cvmodule->error(
+        error_code |= cvm::error(
             "Error: symmetry permutation in input contains " + cvm::to_str(perm.size()) +
                 " indices, but group \"atoms\" contains " + cvm::to_str(atoms->size()) + " atoms.",
             COLVARS_INPUT_ERROR);
       }
-      cvmodule->log("atomPermutation = " + cvm::to_str(perm));
+      cvm::log("atomPermutation = " + cvm::to_str(perm));
       n_permutations++;
       // Record a copy of reference positions in new order
       for (size_t ia = 0; ia < atoms->size(); ia++) {
@@ -977,8 +964,6 @@ int colvar::rmsd::init_permutation(std::vector<cvm::atom_pos>& ref_pos, std::str
     }
   }
 
-  permutation_msds.assign(n_permutations, 0);
-
   return error_code;
 }
 
@@ -986,24 +971,29 @@ int colvar::rmsd::init_permutation(std::vector<cvm::atom_pos>& ref_pos, std::str
 void colvar::rmsd::calc_value()
 {
   // rotational-translational fit is handled by the atom group
-  permutation_msds.assign(n_permutations, 0);
-  // x.real_value = 0.0;
-  for (size_t ip = 0; ip < n_permutations; ip++) {
-    const auto ref_pos_x = ref_pos_soa.begin() + ip * atoms->size();
-    const auto ref_pos_y = ref_pos_x + num_ref_pos;
-    const auto ref_pos_z = ref_pos_y + num_ref_pos;
+
+  x.real_value = 0.0;
+  for (size_t ia = 0; ia < atoms->size(); ia++) {
+    const cvm::atom_pos pos_ia(
+      atoms->pos_x(ia), atoms->pos_y(ia), atoms->pos_z(ia));
+    x.real_value += (pos_ia - ref_pos[ia]).norm2();
+  }
+  best_perm_index = 0;
+
+  // Compute sum of squares for each symmetry permutation of atoms, keep the smallest
+  size_t ref_pos_index = atoms->size();
+  for (size_t ip = 1; ip < n_permutations; ip++) {
+    cvm::real value = 0.0;
     for (size_t ia = 0; ia < atoms->size(); ia++) {
-      const cvm::real diff_x = atoms->pos_x(ia) - ref_pos_x[ia];
-      const cvm::real diff_y = atoms->pos_y(ia) - ref_pos_y[ia];
-      const cvm::real diff_z = atoms->pos_z(ia) - ref_pos_z[ia];
-      permutation_msds[ip] += diff_x * diff_x + diff_y * diff_y + diff_z * diff_z;
+      const cvm::atom_pos pos_ia(
+        atoms->pos_x(ia), atoms->pos_y(ia), atoms->pos_z(ia));
+      value += (pos_ia - ref_pos[ref_pos_index++]).norm2();
+    }
+    if (value < x.real_value) {
+      x.real_value = value;
+      best_perm_index = ip;
     }
   }
-
-  best_perm_index = std::min_element(
-    permutation_msds.begin(), permutation_msds.end()) - permutation_msds.begin();
-
-  x.real_value = permutation_msds[best_perm_index];
   x.real_value /= cvm::real(atoms->size()); // MSD
   x.real_value = cvm::sqrt(x.real_value);
 }
@@ -1016,16 +1006,11 @@ void colvar::rmsd::calc_gradients()
     0.0;
 
   // Use the appropriate symmetry permutation of reference positions to calculate gradients
-  // size_t const start = atoms->size() * best_perm_index;
-  const auto ref_pos_x = ref_pos_soa.begin() + best_perm_index * atoms->size();
-  const auto ref_pos_y = ref_pos_x + num_ref_pos;
-  const auto ref_pos_z = ref_pos_y + num_ref_pos;
+  size_t const start = atoms->size() * best_perm_index;
   for (size_t ia = 0; ia < atoms->size(); ia++) {
     const cvm::atom_pos pos_ia(
       atoms->pos_x(ia), atoms->pos_y(ia), atoms->pos_z(ia));
-    const cvm::atom_pos ref_pos_ia(
-      ref_pos_x[ia], ref_pos_y[ia], ref_pos_z[ia]);
-    const cvm::rvector grad = (drmsddx2 * 2.0 * (pos_ia - ref_pos_ia));
+    const cvm::rvector grad = (drmsddx2 * 2.0 * (pos_ia - ref_pos[start + ia]));
     atoms->grad_x(ia) = grad.x;
     atoms->grad_y(ia) = grad.y;
     atoms->grad_z(ia) = grad.z;
@@ -1059,11 +1044,8 @@ void colvar::rmsd::calc_Jacobian_derivative()
     cvm::matrix2d<cvm::rvector> grad_rot_mat(3, 3);
     // gradients of products of 2 quaternion components
     cvm::rvector g11, g22, g33, g01, g02, g03, g12, g13, g23;
-    std::array<cvm::rvector, 4> dq;
+    cvm::vector1d<cvm::rvector> dq;
     atoms->rot_deriv->prepare_derivative(rotation_derivative_dldq::use_dq);
-    const auto ref_pos_x = ref_pos_soa.begin() + best_perm_index * atoms->size();
-    const auto ref_pos_y = ref_pos_x + num_ref_pos;
-    const auto ref_pos_z = ref_pos_y + num_ref_pos;
     for (size_t ia = 0; ia < atoms->size(); ia++) {
 
       // Gradient of optimal quaternion wrt current Cartesian position
@@ -1090,7 +1072,7 @@ void colvar::rmsd::calc_Jacobian_derivative()
       grad_rot_mat[1][2] =  2.0 * (g23 - g01);
       grad_rot_mat[2][2] = -2.0 * (g11 + g22);
 
-      const cvm::atom_pos y(ref_pos_x[ia], ref_pos_y[ia], ref_pos_z[ia]);
+      cvm::atom_pos &y = ref_pos[ia];
 
       for (size_t alpha = 0; alpha < 3; alpha++) {
         for (size_t beta = 0; beta < 3; beta++) {
@@ -1111,115 +1093,6 @@ void colvar::rmsd::calc_Jacobian_derivative()
     0.0;
 }
 
-#if defined (COLVARS_CUDA) || defined (COLVARS_HIP)
-int colvar::rmsd::add_calc_value_node(
-  cudaGraph_t& graph,
-  std::unordered_map<std::string, cudaGraphNode_t>& nodes_map) {
-  int error_code = COLVARS_OK;
-  std::vector<cudaGraphNode_t> calc_value_rmsd(n_permutations, nullptr);
-  auto& gpu_buffers = atoms->get_gpu_atom_group()->get_gpu_buffers();
-  error_code |= colvars_gpu::calc_value_rmsd(
-    d_ref_pos_soa, gpu_buffers.d_atoms_pos,
-    d_permutation_msds, permutation_msds.data(),
-    atoms->size(), n_permutations, num_ref_pos,
-    d_tbcounts, calc_value_rmsd, graph, {});
-  for (int i = 0; i < n_permutations; ++i) {
-    const std::string node_name = name + "_calc_value_permute_" + cvm::to_str(i);
-    nodes_map[node_name] = calc_value_rmsd[i];
-  }
-  return error_code;
-}
-
-int colvar::rmsd::calc_value_after_gpu() {
-  best_perm_index = std::min_element(
-    permutation_msds.begin(), permutation_msds.end()) - permutation_msds.begin();
-  x.real_value = permutation_msds[best_perm_index];
-  x.real_value /= cvm::real(atoms->size()); // MSD
-  x.real_value = cvm::sqrt(x.real_value);
-  // Save the results to host-pinned memory for further gradients calculation
-  *h_best_perm_index = best_perm_index;
-  *h_rmsd = x.real_value;
-  return COLVARS_OK;
-}
-
-int colvar::rmsd::add_calc_gradients_node(
-  cudaGraph_t& graph,
-  std::unordered_map<std::string, cudaGraphNode_t>& nodes_map) {
-  int error_code = COLVARS_OK;
-  auto& gpu_buffers = atoms->get_gpu_atom_group()->get_gpu_buffers();
-  cudaGraphNode_t calc_gradients_rmsd;
-  error_code |= colvars_gpu::calc_gradients_rmsd(
-    h_rmsd, h_best_perm_index, d_ref_pos_soa,
-    gpu_buffers.d_atoms_pos, gpu_buffers.d_atoms_grad,
-    atoms->size(), num_ref_pos, calc_gradients_rmsd, graph, {});
-  const std::string node_name = name + "_calc_gradients";
-  nodes_map[node_name] = calc_gradients_rmsd;
-  return error_code;
-}
-
-int colvar::rmsd::add_calc_force_invgrads_node(
-  cudaGraph_t& graph,
-  std::unordered_map<std::string, cudaGraphNode_t>& nodes_map) {
-  int error_code = COLVARS_OK;
-  auto& gpu_buffers = atoms->get_gpu_atom_group()->get_gpu_buffers();
-  // If I explicitly read the total force to gpu_buffer.d_atoms_total_force
-  // there would be a race condition if the underlyding atom group is used
-  // by multiple other CVCs, so I have to fuse the reading of total force
-  // with the Jacobian derivative calculation, and left
-  // gpu_buffer.d_atoms_total_force unchanged.
-  cudaGraphNode_t calc_force_invgrads;
-  colvarproxy *p = cvmodule->proxy;
-  const auto& rot = atoms->get_gpu_atom_group()->get_rot_gpu();
-  error_code |= colvars_gpu::calc_force_invgrads_rmsd(
-    atoms->is_enabled(f_ag_rotate),
-    gpu_buffers.d_atoms_index,
-    p->proxy_atoms_total_forces_gpu(),
-    rot.get_q(), gpu_buffers.d_atoms_grad, d_ft, h_ft,
-    atoms->size(), p->get_atom_ids()->size(), d_tbcount_ft,
-    calc_force_invgrads, graph, {});
-  const std::string node_name = name + "_calc_force_invgrads";
-  nodes_map[node_name] = calc_force_invgrads;
-  return error_code;
-}
-
-int colvar::rmsd::calc_force_invgrads_after_gpu() {
-  ft.real_value = *h_ft;
-  return COLVARS_OK;
-}
-
-int colvar::rmsd::add_calc_Jacobian_derivative_node(
-  cudaGraph_t& graph,
-  std::unordered_map<std::string, cudaGraphNode_t>& nodes_map) {
-  int error_code = COLVARS_OK;
-  const auto& rot = atoms->get_gpu_atom_group()->get_rot_gpu();
-  auto* rot_deriv = atoms->get_gpu_atom_group()->get_rot_deriv_gpu();
-  if (atoms->is_enabled(f_ag_rotate)) {
-    if (rot_deriv == nullptr) {
-      return cvmodule->error("BUG: rot_deriv is null.\n");
-    }
-    error_code |= rot_deriv->add_prepare_derivative_nodes(
-      rotation_derivative_dldq::use_dq, graph, nodes_map);
-  }
-  cudaGraphNode_t calc_Jacobian_derivative;
-  std::vector<cudaGraphNode_t> dependencies;
-  if (atoms->is_enabled(f_ag_rotate)) {
-    error_code |= colvars_gpu::prepare_dependencies(
-      {{"prepare_rotation_derivative", true}}, dependencies, nodes_map);
-  }
-  error_code |= colvars_gpu::calc_Jacobian_derivative_rmsd(
-    atoms->is_enabled(f_ag_center), atoms->is_enabled(f_ag_rotate),
-    h_best_perm_index, d_ref_pos_soa, rot.get_q(),
-    rot_deriv, h_rmsd, d_jd, h_jd, atoms->size(),
-    num_ref_pos, d_tbcount_jd, calc_Jacobian_derivative,
-    graph, dependencies);
-  return error_code;
-}
-
-int colvar::rmsd::calc_Jacobian_derivative_after_gpu() {
-  jd.real_value = *h_jd;
-  return COLVARS_OK;
-}
-#endif // defined (COLVARS_CUDA) || defined (COLVARS_HIP)
 
 
 colvar::eigenvector::eigenvector()
@@ -1244,9 +1117,9 @@ int colvar::eigenvector::init(std::string const &conf)
     bool const b_inline = get_keyval(conf, "refPositions", ref_pos, ref_pos);
 
     if (b_inline) {
-      cvmodule->log("Using reference positions from input file.\n");
+      cvm::log("Using reference positions from input file.\n");
       if (ref_pos.size() != atoms->size()) {
-        error_code |= cvmodule->error("Error: reference positions do not "
+        error_code |= cvm::error("Error: reference positions do not "
                                  "match the number of requested atoms.\n",
                                  COLVARS_INPUT_ERROR);
       }
@@ -1256,7 +1129,7 @@ int colvar::eigenvector::init(std::string const &conf)
     if (get_keyval(conf, "refPositionsFile", file_name)) {
 
       if (b_inline) {
-        error_code |= cvmodule->error(
+        error_code |= cvm::error(
             "Error: refPositions and refPositionsFile cannot be specified at the same time.\n",
             COLVARS_INPUT_ERROR);
       }
@@ -1266,24 +1139,24 @@ int colvar::eigenvector::init(std::string const &conf)
         // use PDB flags if column is provided
         bool found = get_keyval(conf, "refPositionsColValue", file_col_value, 0.0);
         if (found && file_col_value == 0.0) {
-          error_code |= cvmodule->error("Error: refPositionsColValue, if provided, must be non-zero.\n",
+          error_code |= cvm::error("Error: refPositionsColValue, if provided, must be non-zero.\n",
                                    COLVARS_INPUT_ERROR);
         }
       }
 
       ref_pos.resize(atoms->size());
-      cvmodule->load_coords(file_name.c_str(), &ref_pos, atoms,
+      cvm::load_coords(file_name.c_str(), &ref_pos, atoms,
                        file_col, file_col_value);
     }
   }
 
   if (ref_pos.size() == 0) {
     error_code |=
-        cvmodule->error("Error: reference positions were not provided.\n", COLVARS_INPUT_ERROR);
+        cvm::error("Error: reference positions were not provided.\n", COLVARS_INPUT_ERROR);
   }
 
   if (ref_pos.size() != atoms->size()) {
-    error_code |= cvmodule->error("Error: reference positions do not "
+    error_code |= cvm::error("Error: reference positions do not "
                              "match the number of requested atoms.\n",
                              COLVARS_INPUT_ERROR);
   }
@@ -1296,10 +1169,10 @@ int colvar::eigenvector::init(std::string const &conf)
   ref_pos_center *= 1.0 / atoms->size();
 
   if (atoms->b_user_defined_fit) {
-    cvmodule->log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
+    cvm::log("WARNING: explicit fitting parameters were provided for atom group \"atoms\".\n");
   } else {
     // default: fit everything
-    cvmodule->log("Enabling \"centerToReference\" and \"rotateToReference\", to minimize RMSD before calculating the vector projection: "
+    cvm::log("Enabling \"centerToReference\" and \"rotateToReference\", to minimize RMSD before calculating the vector projection: "
               "if this is not the desired behavior, disable them explicitly within the \"atoms\" block.\n");
     atoms->enable(f_ag_center);
     atoms->enable(f_ag_rotate);
@@ -1313,9 +1186,9 @@ int colvar::eigenvector::init(std::string const &conf)
     bool const b_inline = get_keyval(conf, "vector", eigenvec, eigenvec);
     // now load the eigenvector
     if (b_inline) {
-      cvmodule->log("Using vector components from input file.\n");
+      cvm::log("Using vector components from input file.\n");
       if (eigenvec.size() != atoms->size()) {
-        error_code |= cvmodule->error("Error: vector components do not "
+        error_code |= cvm::error("Error: vector components do not "
                                  "match the number of requested atoms->\n", COLVARS_INPUT_ERROR);
       }
     }
@@ -1325,7 +1198,7 @@ int colvar::eigenvector::init(std::string const &conf)
 
       if (b_inline) {
         error_code |=
-            cvmodule->error("Error: vector and vectorFile cannot be specified at the same time.\n",
+            cvm::error("Error: vector and vectorFile cannot be specified at the same time.\n",
                        COLVARS_INPUT_ERROR);
       }
 
@@ -1335,19 +1208,19 @@ int colvar::eigenvector::init(std::string const &conf)
         // use PDB flags if column is provided
         bool found = get_keyval(conf, "vectorColValue", file_col_value, 0.0);
         if (found && file_col_value==0.0) {
-          error_code |= cvmodule->error("Error: vectorColValue, if provided, must be non-zero.\n",
+          error_code |= cvm::error("Error: vectorColValue, if provided, must be non-zero.\n",
                                    COLVARS_INPUT_ERROR);
         }
       }
 
       eigenvec.resize(atoms->size());
-      cvmodule->load_coords(file_name.c_str(), &eigenvec, atoms,
+      cvm::load_coords(file_name.c_str(), &eigenvec, atoms,
                        file_col, file_col_value);
     }
   }
 
   if (!ref_pos.size() || !eigenvec.size()) {
-    error_code |= cvmodule->error("Error: both reference coordinates and eigenvector must be defined.\n",
+    error_code |= cvm::error("Error: both reference coordinates and eigenvector must be defined.\n",
                              COLVARS_INPUT_ERROR);
   }
 
@@ -1356,7 +1229,7 @@ int colvar::eigenvector::init(std::string const &conf)
     eig_center += eigenvec[eil];
   }
   eig_center *= 1.0 / atoms->size();
-  cvmodule->log("Geometric center of the provided vector: "+cvm::to_str(eig_center)+"\n");
+  cvm::log("Geometric center of the provided vector: "+cvm::to_str(eig_center)+"\n");
 
   bool b_difference_vector = false;
   get_keyval(conf, "differenceVector", b_difference_vector, false);
@@ -1377,7 +1250,7 @@ int colvar::eigenvector::init(std::string const &conf)
         eigenvec[i] = rot_mat * eigenvec[i];
       }
     }
-    cvmodule->log("\"differenceVector\" is on: subtracting the reference positions from the provided vector: v = x_vec - x_ref.\n");
+    cvm::log("\"differenceVector\" is on: subtracting the reference positions from the provided vector: v = x_vec - x_ref.\n");
     for (size_t i = 0; i < atoms->size(); i++) {
       eigenvec[i] -= ref_pos[i];
     }
@@ -1389,7 +1262,7 @@ int colvar::eigenvector::init(std::string const &conf)
     }
 
   } else {
-    cvmodule->log("Centering the provided vector to zero.\n");
+    cvm::log("Centering the provided vector to zero.\n");
     for (size_t i = 0; i < atoms->size(); i++) {
       eigenvec[i] -= eig_center;
     }
@@ -1407,19 +1280,19 @@ int colvar::eigenvector::init(std::string const &conf)
   get_keyval(conf, "normalizeVector", normalize, normalize);
 
   if (normalize) {
-    cvmodule->log("Normalizing the vector so that |v| = 1.\n");
+    cvm::log("Normalizing the vector so that |v| = 1.\n");
     for (size_t i = 0; i < atoms->size(); i++) {
       eigenvec[i] *= cvm::sqrt(eigenvec_invnorm2);
     }
     eigenvec_invnorm2 = 1.0;
   } else if (b_difference_vector) {
-    cvmodule->log("Normalizing the vector so that the norm of the projection |v ⋅ (x_vec - x_ref)| = 1.\n");
+    cvm::log("Normalizing the vector so that the norm of the projection |v ⋅ (x_vec - x_ref)| = 1.\n");
     for (size_t i = 0; i < atoms->size(); i++) {
       eigenvec[i] *= eigenvec_invnorm2;
     }
     eigenvec_invnorm2 = 1.0/eigenvec_invnorm2;
   } else {
-    cvmodule->log("The norm of the vector is |v| = "+
+    cvm::log("The norm of the vector is |v| = "+
              cvm::to_str(1.0/cvm::sqrt(eigenvec_invnorm2))+".\n");
   }
 
@@ -1471,7 +1344,7 @@ void colvar::eigenvector::calc_Jacobian_derivative()
 
   cvm::real sum = 0.0;
 
-  std::array<cvm::rvector, 4> dq_1;
+  cvm::vector1d<cvm::rvector> dq_1;
   atoms->rot_deriv->prepare_derivative(rotation_derivative_dldq::use_dq);
   for (size_t ia = 0; ia < atoms->size(); ia++) {
 
@@ -1540,7 +1413,7 @@ int colvar::cartesian::init(std::string const &conf)
 
   if (axes.size() == 0) {
     error_code |=
-        cvmodule->error("Error: a \"cartesian\" component was defined with all three axes disabled.\n",
+        cvm::error("Error: a \"cartesian\" component was defined with all three axes disabled.\n",
                    COLVARS_INPUT_ERROR);
   }
 

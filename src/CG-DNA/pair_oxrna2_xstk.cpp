@@ -807,7 +807,7 @@ void PairOxrna2Xstk::init_style()
 {
   fix_lrf = nullptr;
   auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
-  if (fixes.empty()) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
+  if (fixes.size() == 0) error->all(FLERR, "Fix OXDNA/LRF not found. Ensure pair oxdna/excv is present");
   else fix_lrf = dynamic_cast<FixOxdnaLRF *>(fixes[0]);
 
   neighbor->add_request(this, NeighConst::REQ_DEFAULT);
