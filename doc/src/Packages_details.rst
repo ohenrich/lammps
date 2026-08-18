@@ -103,6 +103,7 @@ gives those details.
    * :ref:`PYTHON <PKG-PYTHON>`
    * :ref:`QEQ <PKG-QEQ>`
    * :ref:`QMMM <PKG-QMMM>`
+   * :ref:`QMMM-XTB <PKG-QMMM-XTB>`
    * :ref:`QTB <PKG-QTB>`
    * :ref:`RHEO <PKG-RHEO>`
    * :ref:`REACTION <PKG-REACTION>`
@@ -118,7 +119,6 @@ gives those details.
    * :ref:`TALLY <PKG-TALLY>`
    * :ref:`UEF <PKG-UEF>`
    * :ref:`VORONOI <PKG-VORONOI>`
-   * :ref:`VTK <PKG-VTK>`
    * :ref:`YAFF <PKG-YAFF>`
 
 ----------
@@ -980,12 +980,29 @@ EXTRA-DUMP package
 
 **Contents:**
 
-Additional dump styles that are less commonly used.
+Additional dump styles that are less commonly used.  This includes the
+:doc:`dump vtk <dump_vtk>` command, which outputs snapshot info in the
+`VTK format <vtk_>`_ for visualization by `ParaView <paraview_>`_ or
+other tools that read it.
+
+.. versionchanged:: TBD
+
+The *vtk* dump style used to be a package of its own and required the
+VTK library to be installed.  It now writes the files itself and does
+not depend on any external library.
+
+.. _vtk: https://vtk.org
+
+.. _paraview: https://www.paraview.org
+
+**Authors:** the *vtk* dump style was written by Richard Berger (JKU)
+and Daniel Queteschiner (DCS Computing).
 
 **Supporting info:**
 
 * ``src/EXTRA-DUMP``: filenames -> commands
 * :doc:`dump <dump>`
+* :doc:`dump vtk <dump_vtk>`
 
 ----------
 
@@ -1781,7 +1798,7 @@ server when the package is installed for the first time.
 Maxim V. Shugaev (University of Virginia), Alexey N. Volkov (University
 of Alabama), Leonid V. Zhigilei (University of Virginia)
 
-.. deprecated:: 8Feb2023
+.. versionremoved:: 8Feb2023
 
 **Author of the C++ styles:**
 Philipp Kloza (U Cambridge)
@@ -2620,6 +2637,37 @@ on the :doc:`Build extras <Build_extras>` page.
 
 ----------
 
+.. _PKG-QMMM-XTB:
+
+QMMM-XTB package
+----------------
+
+**Contents:**
+
+The :doc:`fix qmmm/xtb <fix_qmmm_xtb>` command implements
+electrostatically embedded GFN1-xTB and GFN2-xTB QM/MM.  The package's
+:doc:`pppm/xtb and pppm/tip4p/xtb <kspace_style>` styles provide the periodic
+MM potential and converged periodic forces, while a small direct-Ewald
+response updates the QM-image potential during each xTB SCC iteration.  Both
+ordinary point-charge PPPM and implicit TIP4P virtual charge sites are
+supported.
+
+**Install:**
+
+This package requires libxtb 6.7 or newer, its installed Fortran module files,
+mctc-lib, and BLAS.  It supports only the CMake build.  See
+:ref:`QMMM-XTB build instructions <qmmm-xtb>` for details.
+
+**Supporting info:**
+
+* ``src/QMMM-XTB``: filenames -> commands
+* ``src/QMMM-XTB/README``
+* :doc:`fix qmmm/xtb <fix_qmmm_xtb>`
+* :doc:`kspace styles pppm/xtb and pppm/tip4p/xtb <kspace_style>`
+* ``examples/PACKAGES/qmmm-xtb``
+
+----------
+
 .. _PKG-QTB:
 
 QTB package
@@ -3072,39 +3120,6 @@ This package has :ref:`specific installation instructions <voronoi>` on the :doc
 * ``lib/voronoi/README``
 * :doc:`compute voronoi/atom <compute_voronoi_atom>`
 * ``examples/voronoi``
-
-----------
-
-.. _PKG-VTK:
-
-VTK package
-----------------
-
-**Contents:**
-
-A :doc:`dump vtk <dump_vtk>` command which outputs snapshot info in the
-`VTK format <vtk_>`_, enabling visualization by `Paraview <paraview_>`_ or
-other visualization packages.
-
-.. _vtk: https://vtk.org
-
-.. _paraview: https://www.paraview.org
-
-To use this package you must have VTK library available on your
-system.
-
-**Authors:** Richard Berger (JKU) and Daniel Queteschiner (DCS Computing).
-
-**Install:**
-
-This package has :ref:`specific installation instructions <vtk>` on the :doc:`Build extras <Build_extras>` page.
-
-**Supporting info:**
-
-* ``src/VTK``: filenames -> commands
-* ``src/VTK/README``
-* ``lib/vtk/README``
-* :doc:`dump vtk <dump_vtk>`
 
 ----------
 
