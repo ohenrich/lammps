@@ -199,9 +199,9 @@ whether an extra library is needed to build and use the package:
      - n/a
      - no
    * - :ref:`EXTRA-DUMP <PKG-EXTRA-DUMP>`
-     - additional dump styles
+     - additional dump styles, including VTK output
      - :doc:`dump <dump>`
-     - n/a
+     - ``PACKAGES/vtk``
      - no
    * - :ref:`EXTRA-FIX <PKG-EXTRA-FIX>`
      - additional fix styles
@@ -448,6 +448,11 @@ whether an extra library is needed to build and use the package:
      - :doc:`fix qmmm <fix_qmmm>`
      - ``PACKAGES/qmmm``
      - ext
+   * - :ref:`QMMM-XTB <PKG-QMMM-XTB>`
+     - GFN1/GFN2-xTB QM/MM coupling with PPPM
+     - :doc:`fix qmmm/xtb <fix_qmmm_xtb>`
+     - ``PACKAGES/qmmm-xtb``
+     - ext
    * - :ref:`QTB <PKG-QTB>`
      - quantum nuclear effects
      - :doc:`fix qtb <fix_qtb>` :doc:`fix qbmsst <fix_qbmsst>`
@@ -521,11 +526,6 @@ whether an extra library is needed to build and use the package:
    * - :ref:`VORONOI <PKG-VORONOI>`
      - Voronoi tesselation
      - :doc:`compute voronoi/atom <compute_voronoi_atom>`
-     - n/a
-     - ext
-   * - :ref:`VTK <PKG-VTK>`
-     - dump output via VTK
-     - :doc:`compute vtk <dump_vtk>`
      - n/a
      - ext
    * - :ref:`YAFF <PKG-YAFF>`
