@@ -43,6 +43,8 @@ class PairOxdnaExcv : public Pair {
   void *extract(const char *, int &) override;
 
  protected:
+  // Shared oxDNA3 coeff parser, defined in pair_oxdna3_excv.cpp
+  void coeff_oxdna3_common(int, char **);
   // s=sugar-phosphate backbone site, b=base site, st=stacking site
 
   // excluded volume interaction

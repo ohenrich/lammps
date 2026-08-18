@@ -13,24 +13,25 @@
 
 #ifdef PAIR_CLASS
 // clang-format off
-PairStyle(oxdna/stk,PairOxdnaStk);
-PairStyle(oxdna2/stk,PairOxdnaStk);
+PairStyle(oxdrh2/excv,PairOxdrh2Excv);
 // clang-format on
 #else
 
-#ifndef LMP_PAIR_OXDNA_STK_H
-#define LMP_PAIR_OXDNA_STK_H
+#ifndef LMP_PAIR_OXDRH2_EXCV_H
+#define LMP_PAIR_OXDRH2_EXCV_H
 
 #include "pair.h"
+#include "pair_oxdna2_excv.h"
+#include "pair_oxrna2_excv.h"
 
 namespace LAMMPS_NS {
 
-class PairOxdnaStk : public Pair {
+class PairOxdrh2Excv : public PairOxdnaExcv {
  public:
-  PairOxdnaStk(class LAMMPS *);
-  ~PairOxdnaStk() override;
+  PairOxdrh2Excv(class LAMMPS *);
+  ~PairOxdrh2Excv() override;
   virtual void compute_backbone_site(double *, double *, double *, double *) const;
-  virtual void compute_stacking_site(double *, double *, double *, double *) const;
+  virtual void compute_base_site(int, double *, double *, double *, double *) const;
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;
@@ -44,29 +45,25 @@ class PairOxdnaStk : public Pair {
   void *extract(const char *, int &) override;
 
  protected:
-  // Shared oxDNA3 setup and coeff parser (and used by KOKKOS), defined in pair_oxdna3_stk.cpp
-  void init_eta_st_oxdna3();
-  void coeff_oxdna3_common(int, char **);
-  // stacking interaction
-  double eta_st[4][4];
-  double stacking_strength(double, double, double);
-  double **epsilon_st, **a_st;
-  double ****cut_st_0, ****cut_st_c, ****cut_st_lo, ****cut_st_hi;
-  double ****cut_st_lc, ****cut_st_hc, **b_st_lo, **b_st_hi, ****shift_st;
-  double ****cutsq_st_hc;
-  double ****a_st4, **theta_st4_0, ****dtheta_st4_ast;
-  double ****b_st4, ****dtheta_st4_c;
-  double **a_st5, **theta_st5_0, **dtheta_st5_ast;
-  double **b_st5, **dtheta_st5_c;
-  double **a_st6, **theta_st6_0, **dtheta_st6_ast;
-  double **b_st6, **dtheta_st6_c;
-  double **a_st1, **cosphi_st1_ast, **b_st1, **cosphi_st1_c;
-  double **a_st2, **cosphi_st2_ast, **b_st2, **cosphi_st2_c;
-  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
-  int seqdepflag;
+  // s=sugar-phosphate backbone site, b=base site, st=stacking site
 
+  // excluded volume interaction
+  // base step-dependent coefficients
+  double **epsilon_bkbk, **sigma_bkbk, **cut_bkbk_ast, **cutsq_bkbk_ast;
+  double **lj1_bkbk, **lj2_bkbk, **b_bkbk, **cut_bkbk_c, **cutsq_bkbk_c;
+  double **epsilon_bkbs, **sigma_bkbs, **cut_bkbs_ast, **cutsq_bkbs_ast;
+  double **lj1_bkbs, **lj2_bkbs, **b_bkbs, **cut_bkbs_c, **cutsq_bkbs_c;
+  double **epsilon_bsbs, **sigma_bsbs, **cut_bsbs_ast, **cutsq_bsbs_ast;
+  double **lj1_bsbs, **lj2_bsbs, **b_bsbs, **cut_bsbs_c, **cutsq_bsbs_c;
+  // tetramer-dependent coefficients
+  double ****sigma4_bsbs, ****cut4_bsbs_ast, ****cut4sq_bsbs_ast;
+  double ****lj14_bsbs, ****lj24_bsbs, ****b4_bsbs, ****cut4_bsbs_c, ****cut4sq_bsbs_c;
+
+  double **nxyz_xtrct;    // per-atom arrays for local unit vectors
   virtual void allocate();
-  void ev_tally_xyz(int, int, int, int, double, double, double, double, double, double, double);
+
+  PairOxdna2Excv *dna;
+  PairOxrna2Excv *rna;
 
   class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };

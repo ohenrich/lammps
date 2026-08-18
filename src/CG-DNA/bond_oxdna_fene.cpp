@@ -41,7 +41,7 @@ using namespace LAMMPS_NS;
 
 BondOxdnaFene::~BondOxdnaFene()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
     memory->destroy(setflag);
     memory->destroy(k);
     memory->destroy(Delta);

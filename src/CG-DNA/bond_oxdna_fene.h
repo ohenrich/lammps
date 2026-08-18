@@ -41,10 +41,13 @@ class BondOxdnaFene : public Bond {
   double single(int, double, int, int, double &) override;
 
  protected:
+  // Shared oxDNA3 coeff parser (called by KOKKOS too), defined in bond_oxdna3_fene.cpp
+  void coeff_oxdna3_common(int, char **);
+
   double *k, *****Delta, *****r0;    // FENE
   double **nxyz_xtrct;               // per-atom arrays for local unit vectors
 
-  void allocate();
+  virtual void allocate();
   class FixOxdnaLRF *fix_lrf;    // ptr to oxdna/lrf fix
 };
 

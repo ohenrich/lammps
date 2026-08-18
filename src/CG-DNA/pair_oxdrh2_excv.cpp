@@ -15,7 +15,9 @@
    Contributing author: Oliver Henrich (University of Strathclyde, Glasgow)
 ------------------------------------------------------------------------- */
 
-#include "pair_oxdna_excv.h"
+#include "pair_oxdrh2_excv.h"
+#include "pair_oxdna2_excv.h"
+#include "pair_oxrna2_excv.h"
 #include "constants_oxdna.h"
 #include "nucleotide_oxdna.h"
 
@@ -43,8 +45,8 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
-PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) :
-    Pair(lmp), epsilon_bkbk(nullptr), sigma_bkbk(nullptr), cut_bkbk_ast(nullptr),
+PairOxdrh2Excv::PairOxdrh2Excv(LAMMPS *lmp) :
+    PairOxdnaExcv(lmp), epsilon_bkbk(nullptr), sigma_bkbk(nullptr), cut_bkbk_ast(nullptr),
     cutsq_bkbk_ast(nullptr), lj1_bkbk(nullptr), lj2_bkbk(nullptr), b_bkbk(nullptr),
     cut_bkbk_c(nullptr), cutsq_bkbk_c(nullptr), epsilon_bkbs(nullptr), sigma_bkbs(nullptr),
     cut_bkbs_ast(nullptr), cutsq_bkbs_ast(nullptr), lj1_bkbs(nullptr), lj2_bkbs(nullptr),
@@ -53,7 +55,7 @@ PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) :
     lj2_bsbs(nullptr), b_bsbs(nullptr), cut_bsbs_c(nullptr), cutsq_bsbs_c(nullptr),
     sigma4_bsbs(nullptr), cut4_bsbs_ast(nullptr), cut4sq_bsbs_ast(nullptr), lj14_bsbs(nullptr),
     lj24_bsbs(nullptr), b4_bsbs(nullptr), cut4_bsbs_c(nullptr), cut4sq_bsbs_c(nullptr),
-    nxyz_xtrct(nullptr), fix_lrf(nullptr)
+    nxyz_xtrct(nullptr), dna(nullptr), rna(nullptr), fix_lrf(nullptr)
 {
   single_enable = 0;
   writedata = 0;
@@ -63,12 +65,12 @@ PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) :
 
 /* ---------------------------------------------------------------------- */
 
-PairOxdnaExcv::~PairOxdnaExcv()
+PairOxdrh2Excv::~PairOxdrh2Excv()
 {
 
-  if (fix_lrf) modify->delete_fix(fix_lrf->id);
+//  if (fix_lrf) modify->delete_fix(fix_lrf->id);
 
-  if (allocated && !copymode) {
+  if (allocated) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -111,13 +113,17 @@ PairOxdnaExcv::~PairOxdnaExcv()
     memory->destroy(lj24_bsbs);
     memory->destroy(cut4sq_bsbs_ast);
     memory->destroy(cut4sq_bsbs_c);
+
+    memory->destroy(dna);
+    memory->destroy(rna);
+
   }
 }
 
 /* ----------------------------------------------------------------------
     compute vector COM-sugar-phosphate backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
-inline void PairOxdnaExcv::compute_backbone_site(double e1[3], double /*e2*/[3],
+inline void PairOxdrh2Excv::compute_backbone_site(double e1[3], double /*e2*/[3],
     double /*e3*/[3], double rbk[3]) const
 {
   NucleotideOxdna1 oxdna1;
@@ -128,7 +134,7 @@ inline void PairOxdnaExcv::compute_backbone_site(double e1[3], double /*e2*/[3],
     compute vector COM-base site in oxDNA/oxDNA2
     identical templates for A=1, C=2, G=3, T=0
 ------------------------------------------------------------------------ */
-inline void PairOxdnaExcv::compute_base_site(int /*type*/, double e1[3],
+inline void PairOxdrh2Excv::compute_base_site(int /*type*/, double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rbs[3]) const
 {
   NucleotideOxdna1 oxdna1;
@@ -140,7 +146,7 @@ inline void PairOxdnaExcv::compute_base_site(int /*type*/, double e1[3],
    s=sugar-phosphate backbone site, b=base site, st=stacking site
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::compute(int eflag, int vflag)
+void PairOxdrh2Excv::compute(int eflag, int vflag)
 {
   double delf[3],delta[3],deltb[3]; // force, torque increment;
   double evdwl,fpair,factor_lj;
@@ -492,7 +498,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::allocate()
+void PairOxdrh2Excv::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -548,7 +554,7 @@ void PairOxdnaExcv::allocate()
    global settings
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::settings(int narg, char **/*arg*/)
+void PairOxdrh2Excv::settings(int narg, char **/*arg*/)
 {
   if (narg != 0) error->all(FLERR,"Illegal pair_style command");
 
@@ -558,13 +564,26 @@ void PairOxdnaExcv::settings(int narg, char **/*arg*/)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::coeff(int narg, char **arg)
+void PairOxdrh2Excv::coeff(int narg, char **arg)
 {
   int count;
+  char ** tmparg;
 
-  if (narg != 3 && narg != 5 && narg != 11) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv" + utils::errorurl(21));
+  if (narg != 5) error->all(FLERR,"Incorrect args for pair coefficients in oxdrh2/excv" + utils::errorurl(21));
   if (!allocated) allocate();
 
+  if (!dna) dna = new PairOxdna2Excv(lmp);
+  if (!rna) rna = new PairOxrna2Excv(lmp);
+
+  // Initialize oxdna2 coefficients
+  dna->coeff(narg, arg);
+
+  // Initialize oxrna2 coefficients
+  tmparg = arg;
+  tmparg[2] = arg[3];
+  rna->coeff(narg, tmparg);
+
+  // Initialize oxdrh2 coefficients
   int ilo,ihi,jlo,jhi,nlo,nhi;
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
@@ -582,75 +601,56 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
   double epsilon_bsbs_one, sigma_bsbs_one;
   double cut_bsbs_ast_one, cut_bsbs_c_one, b_bsbs_one;
 
-  if (narg == 11) {
-    // Excluded volume interaction
-    // LJ parameters
-    epsilon_bkbk_one = utils::numeric(FLERR,arg[2],false,lmp);
-    sigma_bkbk_one = utils::numeric(FLERR,arg[3],false,lmp);
-    cut_bkbk_ast_one = utils::numeric(FLERR,arg[4],false,lmp);
+  if (comm->me == 0) {
+    PotentialFileReader reader(lmp, arg[4], "oxdna potential", " (excv)");
+    char * line;
+    std::string iloc, jloc, potential_name;
 
-    // LJ parameters
-    epsilon_bkbs_one = utils::numeric(FLERR,arg[5],false,lmp);
-    sigma_bkbs_one = utils::numeric(FLERR,arg[6],false,lmp);
-    cut_bkbs_ast_one = utils::numeric(FLERR,arg[7],false,lmp);
+    while ((line = reader.next_line())) {
+      try {
+        ValueTokenizer values(line);
+        iloc = values.next_string();
+        jloc = values.next_string();
+        potential_name = values.next_string();
+        if (iloc == arg[0] && jloc == arg[1] && potential_name == "excv") {
+          // Excluded volume interaction
+          // LJ backbone-backbone parameters
+          epsilon_bkbk_one = values.next_double();
+          sigma_bkbk_one = values.next_double();
+          cut_bkbk_ast_one = values.next_double();
 
-    // LJ parameters
-    epsilon_bsbs_one = utils::numeric(FLERR,arg[8],false,lmp);
-    sigma_bsbs_one = utils::numeric(FLERR,arg[9],false,lmp);
-    cut_bsbs_ast_one = utils::numeric(FLERR,arg[10],false,lmp);
-  }
-  else {
-    if (comm->me == 0) {
-      PotentialFileReader reader(lmp, arg[2], "oxdna potential", " (excv)");
-      char * line;
-      std::string iloc, jloc, potential_name;
+          // LJ backbone-base parameters
+          epsilon_bkbs_one = values.next_double();
+          sigma_bkbs_one = values.next_double();
+          cut_bkbs_ast_one = values.next_double();
 
-      while ((line = reader.next_line())) {
-        try {
-          ValueTokenizer values(line);
-          iloc = values.next_string();
-          jloc = values.next_string();
-          potential_name = values.next_string();
-          if (iloc == arg[0] && jloc == arg[1] && potential_name == "excv") {
-            // Excluded volume interaction
-            // LJ backbone-backbone parameters
-            epsilon_bkbk_one = values.next_double();
-            sigma_bkbk_one = values.next_double();
-            cut_bkbk_ast_one = values.next_double();
+          // LJ base-base parameters
+          epsilon_bsbs_one = values.next_double();
+          sigma_bsbs_one = values.next_double();
+          cut_bsbs_ast_one = values.next_double();
 
-            // LJ backbone-base parameters
-            epsilon_bkbs_one = values.next_double();
-            sigma_bkbs_one = values.next_double();
-            cut_bkbs_ast_one = values.next_double();
-
-            // LJ base-base parameters
-            epsilon_bsbs_one = values.next_double();
-            sigma_bsbs_one = values.next_double();
-            cut_bsbs_ast_one = values.next_double();
-
-            break;
-          } else continue;
-        } catch (std::exception &e) {
-          error->one(FLERR, "Problem parsing oxdna potential file: {}", e.what());
-        }
+          break;
+        } else continue;
+      } catch (std::exception &e) {
+        error->one(FLERR, "Problem parsing oxdna potential file: {}", e.what());
       }
-      if ((iloc != arg[0]) || (jloc != arg[1]) || (potential_name != "excv"))
-        error->one(FLERR, "No corresponding excv potential found in file {} for pair type {} {}",
-                   arg[2], arg[0], arg[1]);
     }
-
-    MPI_Bcast(&epsilon_bkbk_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&sigma_bkbk_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&cut_bkbk_ast_one, 1, MPI_DOUBLE, 0, world);
-
-    MPI_Bcast(&epsilon_bkbs_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&sigma_bkbs_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&cut_bkbs_ast_one, 1, MPI_DOUBLE, 0, world);
-
-    MPI_Bcast(&epsilon_bsbs_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&sigma_bsbs_one, 1, MPI_DOUBLE, 0, world);
-    MPI_Bcast(&cut_bsbs_ast_one, 1, MPI_DOUBLE, 0, world);
+    if ((iloc != arg[0]) || (jloc != arg[1]) || (potential_name != "excv"))
+      error->one(FLERR, "No corresponding excv potential found in file {} for pair type {} {}",
+                 arg[2], arg[0], arg[1]);
   }
+
+  MPI_Bcast(&epsilon_bkbk_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&sigma_bkbk_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&cut_bkbk_ast_one, 1, MPI_DOUBLE, 0, world);
+
+  MPI_Bcast(&epsilon_bkbs_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&sigma_bkbs_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&cut_bkbs_ast_one, 1, MPI_DOUBLE, 0, world);
+
+  MPI_Bcast(&epsilon_bsbs_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&sigma_bsbs_one, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&cut_bsbs_ast_one, 1, MPI_DOUBLE, 0, world);
 
   // backbone-backbone
   count = 0;
@@ -747,7 +747,6 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
 
   // base-base parameters depending on tetramer
-  // dummy in oxdna, oxdna2 and oxrna2, but required in oxdna3
   count = 0;
 
   for (int i = 0; i <= nhi; i++) { // type 0 for terminal j
@@ -775,7 +774,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
 /* ----------------------------------------------------------------------
    init specific to this pair style
 ------------------------------------------------------------------------- */
-void PairOxdnaExcv::init_style()
+void PairOxdrh2Excv::init_style()
 {
   // ensure fix oxdna/lrf is added for backward-compatability
   if (!fix_lrf)
@@ -788,7 +787,7 @@ void PairOxdnaExcv::init_style()
    neighbor callback to inform pair style of neighbor list to use regular
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::init_list(int id, NeighList *ptr)
+void PairOxdrh2Excv::init_list(int id, NeighList *ptr)
 {
   if (id == 0) list = ptr;
   if (id  > 0) error->all(FLERR,"Respa not supported");
@@ -800,7 +799,7 @@ void PairOxdnaExcv::init_list(int id, NeighList *ptr)
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairOxdnaExcv::init_one(int i, int j)
+double PairOxdrh2Excv::init_one(int i, int j)
 {
 
   if (setflag[i][j] == 0) {
@@ -819,7 +818,7 @@ double PairOxdnaExcv::init_one(int i, int j)
    proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::write_restart(FILE *fp)
+void PairOxdrh2Excv::write_restart(FILE *fp)
 {
   write_restart_settings(fp);
 
@@ -853,7 +852,7 @@ void PairOxdnaExcv::write_restart(FILE *fp)
    proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::read_restart(FILE *fp)
+void PairOxdrh2Excv::read_restart(FILE *fp)
 {
   read_restart_settings(fp);
   allocate();
@@ -909,7 +908,7 @@ void PairOxdnaExcv::read_restart(FILE *fp)
    proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::write_restart_settings(FILE *fp)
+void PairOxdrh2Excv::write_restart_settings(FILE *fp)
 {
   fwrite(&offset_flag,sizeof(int),1,fp);
   fwrite(&mix_flag,sizeof(int),1,fp);
@@ -920,7 +919,7 @@ void PairOxdnaExcv::write_restart_settings(FILE *fp)
    proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::read_restart_settings(FILE *fp)
+void PairOxdrh2Excv::read_restart_settings(FILE *fp)
 {
   int me = comm->me;
   if (me == 0) {
@@ -935,7 +934,7 @@ void PairOxdnaExcv::read_restart_settings(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-void *PairOxdnaExcv::extract(const char *str, int &dim)
+void *PairOxdrh2Excv::extract(const char *str, int &dim)
 {
   dim = 2;
 

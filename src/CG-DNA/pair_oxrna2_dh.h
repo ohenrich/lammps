@@ -20,6 +20,7 @@ PairStyle(oxrna2/dh,PairOxrna2Dh);
 #ifndef LMP_PAIR_OXRNA2_DH_H
 #define LMP_PAIR_OXRNA2_DH_H
 
+#include "nucleotide_oxdna.h"
 #include "pair_oxdna2_dh.h"
 
 namespace LAMMPS_NS {
@@ -27,7 +28,14 @@ namespace LAMMPS_NS {
 class PairOxrna2Dh : public PairOxdna2Dh {
  public:
   PairOxrna2Dh(class LAMMPS *lmp) : PairOxdna2Dh(lmp) {}
-  void compute_backbone_site(double *, double *, double *, double *) const override;
+  // inline below has to be here in the header file, otherwise KOKKOS
+  // compilation fails due to undefined vtable symbols.
+  void compute_backbone_site(double e1[3], double /*e2*/[3], double e3[3],
+                             double rbk[3]) const override
+  {
+    NucleotideOxrna2 oxrna2;
+    oxrna2.backbone_site(e1, nullptr, e3, rbk);
+  };
 };
 
 }    // namespace LAMMPS_NS

@@ -88,7 +88,7 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) :
 
 PairOxdnaHbond::~PairOxdnaHbond()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
@@ -260,7 +260,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       f1 = F1(r_bsbs, epsilon_hb[atype][btype], a_hb[atype][btype], cut_hb_0[atype][btype],
             cut_hb_lc[atype][btype], cut_hb_hc[atype][btype], cut_hb_lo[atype][btype], cut_hb_hi[atype][btype],
-            b_hb_lo[atype][btype], b_hb_hi[atype][btype], shift_hb[atype][btype]);
+            b_hb_lo[atype][btype], b_hb_hi[atype][btype], shift_hb[atype][btype], df1);
 
       // early rejection criterium
       if (f1 != 0.0) {
@@ -271,7 +271,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta1 = acos(cost1);
 
       f4t1 = F4(theta1, a_hb1[atype][btype], theta_hb1_0[atype][btype], dtheta_hb1_ast[atype][btype],
-            b_hb1[atype][btype], dtheta_hb1_c[atype][btype]);
+            b_hb1[atype][btype], dtheta_hb1_c[atype][btype], df4t1);
 
       // early rejection criterium
       if (f4t1 != 0.0) {
@@ -282,7 +282,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta2 = acos(cost2);
 
       f4t2 = F4(theta2, a_hb2[atype][btype], theta_hb2_0[atype][btype], dtheta_hb2_ast[atype][btype],
-            b_hb2[atype][btype], dtheta_hb2_c[atype][btype]);
+            b_hb2[atype][btype], dtheta_hb2_c[atype][btype], df4t2);
 
       // early rejection criterium
       if (f4t2 != 0.0) {
@@ -293,7 +293,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta3 = acos(cost3);
 
       f4t3 = F4(theta3, a_hb3[atype][btype], theta_hb3_0[atype][btype], dtheta_hb3_ast[atype][btype],
-            b_hb3[atype][btype], dtheta_hb3_c[atype][btype]);
+            b_hb3[atype][btype], dtheta_hb3_c[atype][btype], df4t3);
 
       // early rejection criterium
       if (f4t3 != 0.0) {
@@ -311,7 +311,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta4 = acos(cost4);
 
       f4t4 = F4(theta4, a_hb4[atype][btype], theta_hb4_0[atype][btype], dtheta_hb4_ast[atype][btype],
-            b_hb4[atype][btype], dtheta_hb4_c[atype][btype]);
+            b_hb4[atype][btype], dtheta_hb4_c[atype][btype], df4t4);
 
       // early rejection criterium
       if (f4t4 != 0.0) {
@@ -322,7 +322,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta7 = acos(cost7);
 
       f4t7 = F4(theta7, a_hb7[atype][btype], theta_hb7_0[atype][btype], dtheta_hb7_ast[atype][btype],
-            b_hb7[atype][btype], dtheta_hb7_c[atype][btype]);
+            b_hb7[atype][btype], dtheta_hb7_c[atype][btype], df4t7);
 
       // early rejection criterium
       if (f4t7 != 0.0) {
@@ -333,34 +333,19 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
       theta8 = acos(cost8);
 
       f4t8 = F4(theta8, a_hb8[atype][btype], theta_hb8_0[atype][btype], dtheta_hb8_ast[atype][btype],
-            b_hb8[atype][btype], dtheta_hb8_c[atype][btype]);
+            b_hb8[atype][btype], dtheta_hb8_c[atype][btype], df4t8);
 
       evdwl = f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
 
       // early rejection criterium
       if (evdwl != 0.0) {
 
-      df1 = DF1(r_bsbs, epsilon_hb[atype][btype], a_hb[atype][btype], cut_hb_0[atype][btype],
-            cut_hb_lc[atype][btype], cut_hb_hc[atype][btype], cut_hb_lo[atype][btype], cut_hb_hi[atype][btype],
-            b_hb_lo[atype][btype], b_hb_hi[atype][btype]);
-
-      df4t1 = DF4(theta1, a_hb1[atype][btype], theta_hb1_0[atype][btype], dtheta_hb1_ast[atype][btype],
-            b_hb1[atype][btype], dtheta_hb1_c[atype][btype])/sin(theta1);
-
-      df4t2 = DF4(theta2, a_hb2[atype][btype], theta_hb2_0[atype][btype], dtheta_hb2_ast[atype][btype],
-            b_hb2[atype][btype], dtheta_hb2_c[atype][btype])/sin(theta2);
-
-      df4t3 = DF4(theta3, a_hb3[atype][btype], theta_hb3_0[atype][btype], dtheta_hb3_ast[atype][btype],
-            b_hb3[atype][btype], dtheta_hb3_c[atype][btype])/sin(theta3);
-
-      df4t4 = DF4(theta4, a_hb4[atype][btype], theta_hb4_0[atype][btype], dtheta_hb4_ast[atype][btype],
-            b_hb4[atype][btype], dtheta_hb4_c[atype][btype])/sin(theta4);
-
-      df4t7 = DF4(theta7, a_hb7[atype][btype], theta_hb7_0[atype][btype], dtheta_hb7_ast[atype][btype],
-            b_hb7[atype][btype], dtheta_hb7_c[atype][btype])/sin(theta7);
-
-      df4t8 = DF4(theta8, a_hb8[atype][btype], theta_hb8_0[atype][btype], dtheta_hb8_ast[atype][btype],
-            b_hb8[atype][btype], dtheta_hb8_c[atype][btype])/sin(theta8);
+      df4t1 /= sin(theta1);
+      df4t2 /= sin(theta2);
+      df4t3 /= sin(theta3);
+      df4t4 /= sin(theta4);
+      df4t7 /= sin(theta7);
+      df4t8 /= sin(theta8);
 
       // force, torque and virial contribution for forces between h-bonding sites
 

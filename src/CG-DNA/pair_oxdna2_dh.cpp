@@ -54,7 +54,7 @@ PairOxdna2Dh::PairOxdna2Dh(LAMMPS *lmp) :
 
 PairOxdna2Dh::~PairOxdna2Dh()
 {
-  if (allocated) {
+  if (allocated && !copymode) {
 
     memory->destroy(setflag);
     memory->destroy(cutsq);
