@@ -23,6 +23,8 @@
 #include "memory_kokkos.h"
 #include "modify.h"
 
+#include <cstring>
+
 using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
@@ -39,6 +41,9 @@ AtomVecKokkos(lmp), AtomVecOxdna(lmp)
 void AtomVecOxdnaKokkos::init()
 {
   AtomVecOxdna::init();
+
+  if (strcmp(update->unit_style, "lj") != 0)
+    error->all(FLERR, "Atom style oxdna/kk requires lj units");
 
   set_atom_masks();
 }
