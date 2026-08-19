@@ -61,7 +61,7 @@ PairOxdnaXstkKokkos<DeviceType>::PairOxdnaXstkKokkos(LAMMPS *lmp) : PairOxdnaXst
   atomKK = (AtomKokkos *) atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
@@ -308,7 +308,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
   ra_chb[0] = d_chb*a_nx0;
   ra_chb[1] = d_chb*a_nx1;
   ra_chb[2] = d_chb*a_nx2;
-  
+
   const int bnum = d_numneigh(a);
 
   for (int ib = 0; ib < bnum; ib++) {
@@ -546,7 +546,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
 
     // theta7 force
     if (theta7 != static_cast<KK_FLOAT>(0.0)) {
-      
+
       finc  = -f2 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * rinv_hb * factor_lj;
 
       delf[0] += (delr_hb_norm[0]*cost7 + a_nz0) * finc;
@@ -565,7 +565,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
       delf[2] += (delr_hb_norm[2]*cost8 - b_nz2) * finc;
 
     }
-    
+
     // increment forces and torques
 
     a_f(a,0) += delf[0];
@@ -690,7 +690,7 @@ void PairOxdnaXstkKokkos<DeviceType>::operator()(TagPairOxdnaXstkCompute<NEIGHFL
       deltb[1] += t8dir[1] * tpair;
       deltb[2] += t8dir[2] * tpair;
     }
-    
+
     // increment torques
 
     a_torque(a,0) += delta[0];
@@ -1376,7 +1376,7 @@ void PairOxdnaXstkKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaXstkKokkos<DeviceType>::init_style() 
+void PairOxdnaXstkKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   neighflag = lmp->kokkos->neighflag;

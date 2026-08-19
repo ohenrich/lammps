@@ -39,12 +39,12 @@ template<class DeviceType>
 BondOxdnaFENEKokkos<DeviceType>::BondOxdnaFENEKokkos(LAMMPS *lmp) : BondOxdnaFene(lmp)
 {
   kokkosable = 1;
-  
+
   atomKK = (AtomKokkos *) atom;
   neighborKK = (NeighborKokkos *) neighbor;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
@@ -141,7 +141,7 @@ void BondOxdnaFENEKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
   // loop over neighbors of my atoms
 
   EV_FLOAT ev;
-  
+
   if (evflag) {
     if (newton_bond) {
       if (oxdnaflag == OXDNA) {
@@ -179,7 +179,7 @@ void BondOxdnaFENEKokkos<DeviceType>::compute(int eflag_in, int vflag_in)
       }
     }
   }
-  
+
   // The "FENE bond too long" flag is a benign diagnostic: the bond force is
   // capped every step inside the kernel regardless. Copying the device flag
   // back to the host every step forces a sync point that costs more than the
@@ -314,18 +314,18 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
       rr0 = d_Delta(type, a3ptype, atype, btype, b5ptype)*sqrtf(1.0 - rlogarg);
       // energy
       if (eflag) {
-        ebond = -0.5 * d_k(type) * log(rlogarg) + d_k(type) * 
+        ebond = -0.5 * d_k(type) * log(rlogarg) + d_k(type) *
                 sqrtf(1.0-rlogarg) / rlogarg / d_Delta(type, a3ptype, atype, btype, b5ptype) *
                 (r_bkbk - d_r0(type, a3ptype, atype, btype, b5ptype) -
                 d_Delta(type, a3ptype, atype, btype, b5ptype) * sqrtf(1.0-rlogarg));
       }
-    } 
+    }
     // if overcompressed F(r)=F(r_min)=F_max, E(r)=E(r_min)+F_max*(r_min-r)
     else if (r_bkbk < d_r0(type, a3ptype, atype, btype, b5ptype)) {
       rr0 = -d_Delta(type, a3ptype, atype, btype, b5ptype)*sqrtf(1.0 - rlogarg);
       // energy
       if (eflag) {
-        ebond = -0.5 * d_k(type) * log(rlogarg) + d_k(type) * 
+        ebond = -0.5 * d_k(type) * log(rlogarg) + d_k(type) *
                 sqrtf(1.0-rlogarg) / rlogarg / d_Delta(type, a3ptype, atype, btype, b5ptype) *
                 (r_bkbk - d_r0(type, a3ptype, atype, btype, b5ptype) +
                 d_Delta(type, a3ptype, atype, btype, b5ptype) * sqrtf(1.0-rlogarg));
@@ -366,7 +366,7 @@ void BondOxdnaFENEKokkos<DeviceType>::operator()(TagBondOxdnaFENECompute<OXDNAFL
 
   if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, ebond, delf[0], delf[1], delf[2], \
     x(a,0)-x(b,0), x(a,1)-x(b,1), x(a,2)-x(b,2)); }
-  
+
 }
 
 template<class DeviceType>

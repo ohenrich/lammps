@@ -33,9 +33,9 @@ using OxdnaRangePolicy = Kokkos::RangePolicy<DeviceType, Tag>;
    f1 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT F1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0, 
-                     KK_FLOAT cut_lc, KK_FLOAT cut_hc, KK_FLOAT cut_lo, 
-                     KK_FLOAT cut_hi, KK_FLOAT b_lo, 
+static KK_FLOAT F1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
+                     KK_FLOAT cut_lc, KK_FLOAT cut_hc, KK_FLOAT cut_lo,
+                     KK_FLOAT cut_hi, KK_FLOAT b_lo,
                      KK_FLOAT b_hi, KK_FLOAT shift)
 {
   if (r > cut_hc) {
@@ -82,8 +82,8 @@ static KK_FLOAT F1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
    derivative of f1 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT DF1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0, 
-                      KK_FLOAT cut_lc, KK_FLOAT cut_hc, KK_FLOAT cut_lo, 
+static KK_FLOAT DF1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
+                      KK_FLOAT cut_lc, KK_FLOAT cut_hc, KK_FLOAT cut_lo,
                       KK_FLOAT cut_hi, KK_FLOAT b_lo, KK_FLOAT b_hi)
 {
   if (r > cut_hc) {
@@ -105,7 +105,7 @@ static KK_FLOAT DF1_KK(KK_FLOAT r, KK_FLOAT eps, KK_FLOAT a, KK_FLOAT cut_0,
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
 static KK_FLOAT F2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
-                     KK_FLOAT cut_hc, KK_FLOAT cut_lo, KK_FLOAT cut_hi, 
+                     KK_FLOAT cut_hc, KK_FLOAT cut_lo, KK_FLOAT cut_hi,
                      KK_FLOAT b_lo, KK_FLOAT b_hi, KK_FLOAT cut_c)
 {
   if (r < cut_lc || r > cut_hc) {
@@ -143,7 +143,7 @@ static KK_FLOAT F2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
    derivative of f2 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT DF2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc, 
+static KK_FLOAT DF2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
                       KK_FLOAT cut_hc, KK_FLOAT cut_lo, KK_FLOAT cut_hi,
                       KK_FLOAT b_lo, KK_FLOAT b_hi)
 {
@@ -162,8 +162,8 @@ static KK_FLOAT DF2_KK(KK_FLOAT r, KK_FLOAT k, KK_FLOAT cut_0, KK_FLOAT cut_lc,
    f3 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT F3_KK(KK_FLOAT rsq, KK_FLOAT cutsq_ast, KK_FLOAT cut_c, 
-                     KK_FLOAT lj1, KK_FLOAT lj2, KK_FLOAT eps, KK_FLOAT b, 
+static KK_FLOAT F3_KK(KK_FLOAT rsq, KK_FLOAT cutsq_ast, KK_FLOAT cut_c,
+                     KK_FLOAT lj1, KK_FLOAT lj2, KK_FLOAT eps, KK_FLOAT b,
                      KK_ACC_FLOAT &fpair)
 {
   KK_FLOAT evdwl = 0.0;
@@ -186,7 +186,7 @@ static KK_FLOAT F3_KK(KK_FLOAT rsq, KK_FLOAT cutsq_ast, KK_FLOAT cut_c,
    f4 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT F4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0, 
+static KK_FLOAT F4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
                      KK_FLOAT dtheta_ast, KK_FLOAT b, KK_FLOAT dtheta_c)
 {
   KK_FLOAT dtheta = theta - theta_0;
@@ -232,7 +232,7 @@ static KK_FLOAT F4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
    function call. It is also more efficient to store sin(theta).
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT DF4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0, 
+static KK_FLOAT DF4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
                       KK_FLOAT dtheta_ast, KK_FLOAT b, KK_FLOAT dtheta_c)
 {
   KK_FLOAT dtheta = theta - theta_0;
@@ -252,7 +252,7 @@ static KK_FLOAT DF4_KK(KK_FLOAT theta, KK_FLOAT a, KK_FLOAT theta_0,
    f5 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT F5_KK(KK_FLOAT x, KK_FLOAT a, KK_FLOAT x_ast, 
+static KK_FLOAT F5_KK(KK_FLOAT x, KK_FLOAT a, KK_FLOAT x_ast,
                      KK_FLOAT b, KK_FLOAT x_c)
 {
   if (x >= 0) {
@@ -270,7 +270,7 @@ static KK_FLOAT F5_KK(KK_FLOAT x, KK_FLOAT a, KK_FLOAT x_ast,
    derivative of f5 modulation factor
    ---------------------------------------------------------------------- */
 KOKKOS_INLINE_FUNCTION
-static KK_FLOAT DF5_KK(KK_FLOAT x, KK_FLOAT a, KK_FLOAT x_ast, 
+static KK_FLOAT DF5_KK(KK_FLOAT x, KK_FLOAT a, KK_FLOAT x_ast,
                       KK_FLOAT b, KK_FLOAT x_c)
 {
   if (x >= 0) {

@@ -42,7 +42,7 @@ PairOxdna2DhKokkos<DeviceType>::PairOxdna2DhKokkos(LAMMPS *lmp) : PairOxdna2Dh(l
   atomKK = (AtomKokkos *) atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
@@ -316,7 +316,7 @@ void PairOxdna2DhKokkos<DeviceType>::operator()(TagPairOxdna2DhCompute<OXDNAFLAG
   KK_ACC_FLOAT ttmp_a2 = 0.0;
 
   const KK_FLOAT qeff_a = qeff(a);
-  
+
   const int bnum = d_numneigh(a);
 
   for (int ib = 0; ib < bnum; ib++) {
@@ -480,7 +480,7 @@ void PairOxdna2DhKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdna2DhKokkos<DeviceType>::init_style() 
+void PairOxdna2DhKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   neighflag = lmp->kokkos->neighflag;

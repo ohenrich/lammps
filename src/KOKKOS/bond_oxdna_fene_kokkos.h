@@ -69,10 +69,10 @@ class BondOxdnaFENEKokkos : public BondOxdnaFene {
   DAT::ttransform_kkacc_1d_6 k_vatom;
 
  protected:
-  
+
   int oxdnaflag;
   enum EnabledOXDNAFlag{OXDNA=1,OXDNA2=2,OXRNA2=4};
-  
+
   class NeighborKokkos *neighborKK;
 
   typename AT::t_kkfloat_1d_3_lr_randomread x;
