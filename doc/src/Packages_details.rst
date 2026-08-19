@@ -434,29 +434,27 @@ rigid-body integrators with improved stability.
 The CG-DNA package supports acceleration with the :ref:`KOKKOS <PKG-KOKKOS>`
 package.
 
-**Authors:** Oliver Henrich (University of Strathclyde, Glasgow),
-Lewis M Russell (University of Strathclyde, Glasgow) (KOKKOS implementation)
+**Authors:**
+
+Oliver Henrich (University of Strathclyde, Glasgow),
+Lewis M. Russell (University of Strathclyde, Glasgow)
 
 **Install:**
 
 The CG-DNA package requires that also the :ref:`MOLECULE <PKG-MOLECULE>`
 and :ref:`ASPHERE <PKG-ASPHERE>` packages are installed.
+For KOKKOS acceleration also the :ref:`KOKKOS <PKG-KOKKOS>` has to be installed.
 
-For KOKKOS acceleration, users can follow the existing documentation for the CG-DNA
-and KOKKOS packages which should be sufficient. This is designed to be seamless and straightforward to use
-via the command-line switches detailed in the :doc:`Speed_kokkos <Speed_kokkos>` page.
+.. Note::
 
-.. note::
+   For performance reasons we strongly advise to always run with *half* neighbor lists and
+   setting the Newton flag to *on* when using the CG-DNA package in combination with KOKKOS.
+   This can be achieved through the :doc:`package <package>` command or appropriate command-line flag.
+   The skin size can also significantly affect the performance. Using a small skin size
+   of 0.2 (in LJ units) set via :doc:`neighbor <neighbor>` is recommended as a starting point.
 
-   When using CG-DNA with KOKKOS, we strongly advise to always run with *half* neighbor lists and
-   setting the Newton flag to *on*. This is typically faster on modern GPUs, and *newton on*
-   is required to preserve 3'-to-5' polarity anyway if :doc:`write_data <write_data>` is
-   present (See :doc:`bond_style oxdna/* <bond_oxdna>`).
-
-   Skin size can significantly affect performance on GPUs here too - the smaller the better. Using
-   :doc:`neighbor <neighbor>` with a skin size of 0.2 (lj units) is recommended as a starting point.
-
-
+Further details can be found on the :doc:`Speed_kokkos <Speed_kokkos>` page.
+ 
 **Supporting info:**
 
 * ``src/CG-DNA``: filenames -> commands

@@ -194,7 +194,9 @@ Restrictions
 """"""""""""
 
 This bond style can only be used if LAMMPS was built with the
-CG-DNA package and the MOLECULE and ASPHERE package.  See the
+:ref:`CG-DNA <PKG-CG-DNA>` package and the :ref:`MOLECULE <PKG-MOLECULE>` 
+and :ref:`ASPHERE <PKG-ASPHERE>` package. For KOKKOS acceleration also 
+the :ref:`KOKKOS <PKG-KOKKOS>` package has to be included. See the
 :doc:`Build package <Build_package>` page for more info.
 
 Related commands
