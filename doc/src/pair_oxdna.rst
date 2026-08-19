@@ -298,8 +298,8 @@ Restrictions
 """"""""""""
 
 These pair styles can only be used if LAMMPS was built with the
-:ref:`CG-DNA <PKG-CG-DNA>` package and the :ref:`MOLECULE <PKG-MOLECULE>` 
-and :ref:`ASPHERE <PKG-ASPHERE>` package. For KOKKOS acceleration also 
+:ref:`CG-DNA <PKG-CG-DNA>` package and the :ref:`MOLECULE <PKG-MOLECULE>`
+and :ref:`ASPHERE <PKG-ASPHERE>` package. For KOKKOS acceleration also
 the :ref:`KOKKOS <PKG-KOKKOS>` package has to be included. See the
 :doc:`Build package <Build_package>` page for more info.
 
