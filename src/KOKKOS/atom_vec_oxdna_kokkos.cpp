@@ -22,6 +22,7 @@
 #include "fix.h"
 #include "memory_kokkos.h"
 #include "modify.h"
+#include "update.h"
 
 #include <cstring>
 
