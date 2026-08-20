@@ -20,7 +20,6 @@
 
 #include "atom.h"
 #include "comm.h"
-#include "constants_oxdna.h"
 #include "error.h"
 #include "fix_oxdna_lrf.h"
 #include "force.h"

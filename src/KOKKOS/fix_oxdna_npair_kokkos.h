@@ -24,9 +24,6 @@ FixStyle(OXDNA/NPAIR/kk/host,FixOxdnaNpairKokkos<LMPHostType>);
 
 #include "fix.h"
 #include "kokkos_type.h"
-#include "neigh_list.h"
-#include "neigh_list_kokkos.h"
-#include "kokkos_base.h"
 
 namespace LAMMPS_NS {
 

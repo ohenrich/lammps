@@ -13,10 +13,8 @@
 
 #include "fix_oxdna_npair_kokkos.h"
 
-#include "atom.h"
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "error.h"
 #include "kokkos.h"
 #include "memory_kokkos.h"
 #include "neighbor.h"

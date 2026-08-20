@@ -13,16 +13,13 @@
 
 #include "fix_oxdna_prime_neighs_kokkos.h"
 
-#include "atom.h"
 #include "atom_kokkos.h"
 #include "atom_masks.h"
 #include "error.h"
 #include "fix_oxdna_npair_kokkos.h"
-#include "kokkos.h"
 #include "memory_kokkos.h"
 #include "modify.h"
 #include "neigh_list_kokkos.h"
-#include "neighbor.h"
 #include "neighbor_kokkos.h"
 
 using namespace LAMMPS_NS;

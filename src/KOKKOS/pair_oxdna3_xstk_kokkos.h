@@ -26,10 +26,6 @@ PairStyle(oxdna3/xstk/kk/host,PairOxdna3XstkKokkos<LMPHostType>);
 #include "kokkos_base.h"
 #include "pair_kokkos.h"
 #include "pair_oxdna3_xstk.h"
-#include "neigh_list_kokkos.h"
-
-#include "fix_oxdna_prime_neighs_kokkos.h"
-#include "mf_oxdna_kokkos.h"
 
 namespace LAMMPS_NS {
 

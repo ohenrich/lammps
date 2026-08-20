@@ -18,16 +18,13 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
-#include "math_const.h"
 #include "memory_kokkos.h"
 #include "modify.h"
 #include "neighbor_kokkos.h"
 #include "update.h"
 
-#include "pair.h"
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_prime_neighs_kokkos.h"
 

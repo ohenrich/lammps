@@ -16,7 +16,6 @@
 ------------------------------------------------------------------------- */
 
 #include "pair_oxdna3_coaxstk.h"
-#include "nucleotide_oxdna.h"
 
 using namespace LAMMPS_NS;
 

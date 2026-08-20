@@ -19,20 +19,13 @@
 
 #include "atom.h"
 #include "comm.h"
-#include "constants_oxdna.h"
 #include "error.h"
-#include "force.h"
-#include "math_extra.h"
-#include "memory.h"
 #include "mf_oxdna.h"
-#include "neighbor.h"
-#include "neigh_list.h"
 #include "potential_file_reader.h"
 #include "math_special.h"
 
-#include <cmath>
-#include <cstring>
 #include <cassert>
+#include <cmath>
 
 using namespace LAMMPS_NS;
 using namespace MathSpecial;

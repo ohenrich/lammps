@@ -29,7 +29,6 @@ PairStyle(oxdna3/dh/kk/host,PairOxdna2DhKokkos<LMPHostType>);
 #include "kokkos_base.h"
 #include "pair_kokkos.h"
 #include "pair_oxdna2_dh.h"
-#include "neigh_list_kokkos.h"
 
 namespace LAMMPS_NS {
 

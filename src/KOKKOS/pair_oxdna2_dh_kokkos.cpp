@@ -15,16 +15,15 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "kokkos.h"
 #include "math_const.h"
 #include "memory_kokkos.h"
 #include "modify.h"
+#include "neigh_list_kokkos.h"
 #include "neigh_request.h"
 #include "neighbor.h"
-#include "update.h"
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "mf_oxdna_kokkos.h"

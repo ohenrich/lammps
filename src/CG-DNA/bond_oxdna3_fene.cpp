@@ -15,16 +15,12 @@
 ------------------------------------------------------------------------- */
 
 #include "bond_oxdna3_fene.h"
-#include "constants_oxdna.h"
-#include "nucleotide_oxdna.h"
 
 #include "atom.h"
 #include "comm.h"
 #include "error.h"
 #include "math_special.h"
 #include "potential_file_reader.h"
-
-#include <cmath>
 
 using namespace LAMMPS_NS;
 using namespace MathSpecial;

@@ -16,7 +16,6 @@
 ------------------------------------------------------------------------- */
 
 #include "pair_oxdna3_xstk.h"
-#include "constants_oxdna.h"
 #include "mf_oxdna.h"
 #include "nucleotide_oxdna.h"
 
