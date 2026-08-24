@@ -454,7 +454,7 @@ For KOKKOS acceleration also the :ref:`KOKKOS <PKG-KOKKOS>` has to be installed.
    of 0.2 (in LJ units) set via :doc:`neighbor <neighbor>` is recommended as a starting point.
 
 Further details can be found on the :doc:`Speed_kokkos <Speed_kokkos>` page.
- 
+
 **Supporting info:**
 
 * ``src/CG-DNA``: filenames -> commands

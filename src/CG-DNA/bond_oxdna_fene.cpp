@@ -15,7 +15,6 @@
 ------------------------------------------------------------------------- */
 
 #include "bond_oxdna_fene.h"
-#include "constants_oxdna.h"
 #include "nucleotide_oxdna.h"
 
 #include "atom.h"
@@ -30,7 +29,6 @@
 #include "update.h"
 
 #include "math_extra.h"
-#include "pair.h"
 
 #include <cmath>
 #include <exception>

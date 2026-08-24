@@ -15,15 +15,14 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "kokkos.h"
 #include "memory_kokkos.h"
 #include "modify.h"
+#include "neigh_list_kokkos.h"
 #include "neigh_request.h"
 #include "neighbor.h"
-#include "update.h"
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_npair_kokkos.h"
@@ -42,7 +41,7 @@ PairOxdnaExcvKokkos<DeviceType>::PairOxdnaExcvKokkos(LAMMPS *lmp) : PairOxdnaExc
   atomKK = (AtomKokkos *) atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
@@ -349,7 +348,7 @@ void PairOxdnaExcvKokkos<DeviceType>::operator()(TagPairOxdnaExcvCompute<OXDNAFL
   rtmp_bs[0] = x(a,0)+ra_cbs[0];
   rtmp_bs[1] = x(a,1)+ra_cbs[1];
   rtmp_bs[2] = x(a,2)+ra_cbs[2];
-  
+
   const int bnum = d_numneigh(a);
 
   ftmp[0] = 0.0;
@@ -816,7 +815,7 @@ void PairOxdnaExcvKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaExcvKokkos<DeviceType>::init_style() 
+void PairOxdnaExcvKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   neighflag = lmp->kokkos->neighflag;
@@ -852,7 +851,7 @@ template<class DeviceType>
 double PairOxdnaExcvKokkos<DeviceType>::init_one(int i, int j)
 {
   double cutone = PairOxdnaExcv::init_one(i,j);
-  
+
   // All non-tetramer Kokkos views are set here within ::init_one, and
   // the tetramer Kokkos views are set within ::coeff
 

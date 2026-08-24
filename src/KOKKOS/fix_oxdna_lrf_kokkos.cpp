@@ -13,7 +13,6 @@
 
 #include "fix_oxdna_lrf_kokkos.h"
 
-#include "atom.h"
 #include "atom_kokkos.h"
 #include "atom_masks.h"
 #include "error.h"

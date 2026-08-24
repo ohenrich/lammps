@@ -15,15 +15,12 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "kokkos.h"
 #include "memory_kokkos.h"
 #include "modify.h"
 #include "neigh_request.h"
-#include "neighbor.h"
-#include "update.h"
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_prime_neighs_kokkos.h"
@@ -42,7 +39,7 @@ PairOxdnaStkKokkos<DeviceType>::PairOxdnaStkKokkos(LAMMPS *lmp) : PairOxdnaStk(l
   neighborKK = (NeighborKokkos *) neighbor;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 
@@ -208,7 +205,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   KK_FLOAT ra_cbk[3], rb_cbk[3];             // vectors COM-backbone sites in lab frame
 
   KK_ACC_FLOAT delf[3], delta[3], deltb[3];    // force, torque increment
-  KK_ACC_FLOAT evdwl,finc,tpair;               
+  KK_ACC_FLOAT evdwl,finc,tpair;
   KK_FLOAT delr_bkbk[3],delr_bkbk_norm[3],rsq_bkbk,r_bkbk,rinv_bkbk;
   KK_FLOAT delr_stkstk[3],delr_stkstk_norm[3],rsq_stkstk,r_stkstk,rinv_stkstk;
   KK_FLOAT theta4,t4dir[3],cost4;
@@ -220,7 +217,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   KK_FLOAT df1,df4t4,df4t5,df4t6,df5c1,df5c2;
 
   // vector COM [a/b] - stacking site [a/b]
-  if constexpr (OXDNAFLAG==OXDNA) { 
+  if constexpr (OXDNAFLAG==OXDNA) {
     // Used for oxDNA[1] and oxDNA2, but not oxDNA3
     constexpr KK_FLOAT dx_cstk_oxdna1 = +0.34;
     ra_cstk[0] = dx_cstk_oxdna1 * d_nx_xtrct(a,0);
@@ -301,14 +298,14 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   if (f1 == 0.0) return;
 
   // theta4 angle and correction
-  cost4 = d_nz_xtrct(b,0) * d_nz_xtrct(a,0) + 
-          d_nz_xtrct(b,1) * d_nz_xtrct(a,1) + 
+  cost4 = d_nz_xtrct(b,0) * d_nz_xtrct(a,0) +
+          d_nz_xtrct(b,1) * d_nz_xtrct(a,1) +
           d_nz_xtrct(b,2) * d_nz_xtrct(a,2);
   if (cost4 > 1.0) cost4 = 1.0;
   if (cost4 < -1.0) cost4 = -1.0;
   theta4 = acos(cost4);
   // f4t4 = f4 modulation factor
-  f4t4 = F4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype), 
+  f4t4 = F4_KK(theta4, d_a_st4(a3ptype,atype,btype,b5ptype), d_theta_st4_0(atype, btype),
                d_dtheta_st4_ast(a3ptype,atype,btype,b5ptype), d_b_st4(a3ptype,atype,btype,b5ptype),
                d_dtheta_st4_c(a3ptype,atype,btype,b5ptype));
 
@@ -316,29 +313,29 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   if (f4t4 == 0.0) return;
 
   // theta5 angle and correction
-  cost5p = d_nz_xtrct(b,0) * delr_stkstk_norm[0] + 
-           d_nz_xtrct(b,1) * delr_stkstk_norm[1] + 
+  cost5p = d_nz_xtrct(b,0) * delr_stkstk_norm[0] +
+           d_nz_xtrct(b,1) * delr_stkstk_norm[1] +
            d_nz_xtrct(b,2) * delr_stkstk_norm[2];
   if (cost5p > 1.0) cost5p = 1.0;
   if (cost5p < -1.0) cost5p = -1.0;
   theta5p = acos(cost5p);
   // f4t5 = f4 modulation factor
-  f4t5 = F4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype), 
+  f4t5 = F4_KK(theta5p, d_a_st5(atype, btype), d_theta_st5_0(atype, btype),
                d_dtheta_st5_ast(atype, btype), d_b_st5(atype, btype), d_dtheta_st5_c(atype, btype));
 
   // early rejection criterium
   if (f4t5 == 0.0) return;
 
   // theta6 angle and correction
-  cost6p = delr_stkstk_norm[0] * d_nz_xtrct(a,0) + 
-           delr_stkstk_norm[1] * d_nz_xtrct(a,1) + 
+  cost6p = delr_stkstk_norm[0] * d_nz_xtrct(a,0) +
+           delr_stkstk_norm[1] * d_nz_xtrct(a,1) +
            delr_stkstk_norm[2] * d_nz_xtrct(a,2);
   if (cost6p > 1.0) cost6p = 1.0;
   if (cost6p < -1.0) cost6p = -1.0;
   theta6p = acos(cost6p);
   // cosphi1 and cosphi2 angles
-  cosphi1 = delr_bkbk_norm[0] * d_ny_xtrct(b,0) + 
-            delr_bkbk_norm[1] * d_ny_xtrct(b,1) + 
+  cosphi1 = delr_bkbk_norm[0] * d_ny_xtrct(b,0) +
+            delr_bkbk_norm[1] * d_ny_xtrct(b,1) +
             delr_bkbk_norm[2] * d_ny_xtrct(b,2);
   cosphi2 = delr_bkbk_norm[0] * d_ny_xtrct(a,0) +
             delr_bkbk_norm[1] * d_ny_xtrct(a,1) +
@@ -348,17 +345,17 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   if (cosphi2 > 1.0) cosphi2 = 1.0;
   if (cosphi2 < -1.0) cosphi2 = -1.0;
   // f4t6 = f4 modulation factor
-  f4t6 = F4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), 
+  f4t6 = F4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype),
                d_dtheta_st6_ast(atype, btype), d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype));
   // f5c1 = f5 modulation factor
-  f5c1 = F5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
+  f5c1 = F5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype),
                d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
   // f5c2 = f5 modulation factor
-  f5c2 = F5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
+  f5c2 = F5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype),
                d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
 
   evdwl = f1 * f4t4 * f4t5 * f4t6 * f5c1 * f5c2;
-  
+
   // early rejection criterium
   if (evdwl == 0.0) return;
 
@@ -379,10 +376,10 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
   df4t6 = DF4_KK(theta6p, d_a_st6(atype, btype), d_theta_st6_0(atype, btype), d_dtheta_st6_ast(atype, btype),
       d_b_st6(atype, btype), d_dtheta_st6_c(atype, btype))/sin(theta6p);
   // df5c1 = derivative of f5 modulation factor
-  df5c1 = DF5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype), 
+  df5c1 = DF5_KK(-cosphi1, d_a_st1(atype, btype), -d_cosphi_st1_ast(atype, btype),
       d_b_st1(atype, btype), -d_cosphi_st1_c(atype, btype));
   // df5c2 = derivative of f5 modulation factor
-  df5c2 = DF5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype), 
+  df5c2 = DF5_KK(-cosphi2, d_a_st2(atype, btype), -d_cosphi_st2_ast(atype, btype),
       d_b_st2(atype, btype), -d_cosphi_st2_c(atype, btype));
 
   // force, torque and virial contribution for forces between stacking sites
@@ -500,7 +497,7 @@ void PairOxdnaStkKokkos<DeviceType>::operator()(TagPairOxdnaStkCompute<OXDNAFLAG
     a_torque(b,1) += deltb[1];
     a_torque(b,2) += deltb[2];
   }
-  
+
   // increment viral only
   if (EVFLAG) { ev_tally_xyz(ev, a, b, nlocal, NEWTON_BOND, 0.0, delf[0], delf[1], delf[2], \
     x(b,0)-x(a,0), x(b,1)-x(a,1), x(b,2)-x(a,2)); }
@@ -697,7 +694,7 @@ void PairOxdnaStkKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaStkKokkos<DeviceType>::init_style() 
+void PairOxdnaStkKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   auto request = neighbor->find_request(this);

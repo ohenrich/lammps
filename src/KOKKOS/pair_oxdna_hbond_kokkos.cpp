@@ -15,15 +15,14 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "kokkos.h"
 #include "memory_kokkos.h"
 #include "modify.h"
+#include "neigh_list_kokkos.h"
 #include "neigh_request.h"
 #include "neighbor.h"
-#include "update.h"
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "fix_oxdna_npair_kokkos.h"
@@ -46,10 +45,10 @@ PairOxdnaHbondKokkos<DeviceType>::PairOxdnaHbondKokkos(LAMMPS *lmp) : PairOxdnaH
   atomKK = (AtomKokkos *) atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK | TAG_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
-  
+
   oxdnaflag = EnabledOXDNAFlag::OXDNA;
   screened_pair_count = 0;
   unique_basepair_enabled = 0;
@@ -382,9 +381,9 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
     // beginning of modulation factors
 
     // f1 = f1 modulation factor
-    f1 = F1_KK(r_hb, d_epsilon_hb(atype,btype), d_a_hb(atype,btype), d_cut_hb_0(atype,btype), 
-            d_cut_hb_lc(atype,btype), d_cut_hb_hc(atype,btype), d_cut_hb_lo(atype,btype), 
-            d_cut_hb_hi(atype,btype), d_b_hb_lo(atype,btype), 
+    f1 = F1_KK(r_hb, d_epsilon_hb(atype,btype), d_a_hb(atype,btype), d_cut_hb_0(atype,btype),
+            d_cut_hb_lc(atype,btype), d_cut_hb_hc(atype,btype), d_cut_hb_lo(atype,btype),
+            d_cut_hb_hi(atype,btype), d_b_hb_lo(atype,btype),
             d_b_hb_hi(atype,btype), d_shift_hb(atype,btype));
 
     // start early rejection criterium
@@ -395,9 +394,9 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost1 < -1.0) cost1 = -1.0;
       theta1 = acos(cost1);
       // f4t1 = f4 modulation factor
-      f4t1 = F4_KK(theta1, d_a_hb1(atype,btype), d_theta_hb1_0(atype, btype), d_dtheta_hb1_ast(atype, btype), 
+      f4t1 = F4_KK(theta1, d_a_hb1(atype,btype), d_theta_hb1_0(atype, btype), d_dtheta_hb1_ast(atype, btype),
               d_b_hb1(atype, btype), d_dtheta_hb1_c(atype, btype));
-    // end of f1 
+    // end of f1
 
     // f4t1 early rejection criterium
     if (f4t1) {
@@ -407,7 +406,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost2 < -1.0) cost2 = -1.0;
       theta2 = acos(cost2);
       // f4t2 = f4 modulation factor
-      f4t2 = F4_KK(theta2, d_a_hb2(atype,btype), d_theta_hb2_0(atype, btype), d_dtheta_hb2_ast(atype, btype), 
+      f4t2 = F4_KK(theta2, d_a_hb2(atype,btype), d_theta_hb2_0(atype, btype), d_dtheta_hb2_ast(atype, btype),
               d_b_hb2(atype, btype), d_dtheta_hb2_c(atype, btype));
     // end of f4t1
 
@@ -419,7 +418,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost3 < -1.0) cost3 = -1.0;
       theta3 = acos(cost3);
       // f4t3 = f4 modulation factor
-      f4t3 = F4_KK(theta3, d_a_hb3(atype,btype), d_theta_hb3_0(atype, btype), d_dtheta_hb3_ast(atype, btype), 
+      f4t3 = F4_KK(theta3, d_a_hb3(atype,btype), d_theta_hb3_0(atype, btype), d_dtheta_hb3_ast(atype, btype),
               d_b_hb3(atype, btype), d_dtheta_hb3_c(atype, btype));
     // end of f4t2
 
@@ -431,7 +430,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost4 < -1.0) cost4 = -1.0;
       theta4 = acos(cost4);
       // f4t4 = f4 modulation factor
-      f4t4 = F4_KK(theta4, d_a_hb4(atype,btype), d_theta_hb4_0(atype, btype), d_dtheta_hb4_ast(atype, btype), 
+      f4t4 = F4_KK(theta4, d_a_hb4(atype,btype), d_theta_hb4_0(atype, btype), d_dtheta_hb4_ast(atype, btype),
               d_b_hb4(atype, btype), d_dtheta_hb4_c(atype, btype));
     // end of f4t3
 
@@ -442,7 +441,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost7 < -1.0) cost7 = -1.0;
       theta7 = acos(cost7);
       // f4t7 = f4 modulation factor
-      f4t7 = F4_KK(theta7, d_a_hb7(atype,btype), d_theta_hb7_0(atype, btype), d_dtheta_hb7_ast(atype, btype), 
+      f4t7 = F4_KK(theta7, d_a_hb7(atype,btype), d_theta_hb7_0(atype, btype), d_dtheta_hb7_ast(atype, btype),
               d_b_hb7(atype, btype), d_dtheta_hb7_c(atype, btype));
     // end of f4t4
 
@@ -453,7 +452,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
       if (cost8 < -1.0) cost8 = -1.0;
       theta8 = acos(cost8);
       // f4t8 = f4 modulation factor
-      f4t8 = F4_KK(theta8, d_a_hb8(atype,btype), d_theta_hb8_0(atype, btype), d_dtheta_hb8_ast(atype, btype), 
+      f4t8 = F4_KK(theta8, d_a_hb8(atype,btype), d_theta_hb8_0(atype, btype), d_dtheta_hb8_ast(atype, btype),
               d_b_hb8(atype, btype), d_dtheta_hb8_c(atype, btype));
 
       evdwl = f1 * f4t1 * f4t2 * f4t3 * f4t4 * f4t7 * f4t8 * factor_lj;
@@ -462,27 +461,27 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
     // evdwl early rejection criterium
     if (evdwl) {
       // df1 = DF1 modulation factor
-      df1 = DF1_KK(r_hb, d_epsilon_hb(atype,btype), d_a_hb(atype,btype), d_cut_hb_0(atype,btype), 
-            d_cut_hb_lc(atype,btype), d_cut_hb_hc(atype,btype), d_cut_hb_lo(atype,btype), 
-            d_cut_hb_hi(atype,btype), d_b_hb_lo(atype,btype), 
+      df1 = DF1_KK(r_hb, d_epsilon_hb(atype,btype), d_a_hb(atype,btype), d_cut_hb_0(atype,btype),
+            d_cut_hb_lc(atype,btype), d_cut_hb_hc(atype,btype), d_cut_hb_lo(atype,btype),
+            d_cut_hb_hi(atype,btype), d_b_hb_lo(atype,btype),
             d_b_hb_hi(atype,btype));
       // df4t1 = DF4 modulation factor
-      df4t1 = DF4_KK(theta1, d_a_hb1(atype,btype), d_theta_hb1_0(atype, btype), d_dtheta_hb1_ast(atype, btype), 
+      df4t1 = DF4_KK(theta1, d_a_hb1(atype,btype), d_theta_hb1_0(atype, btype), d_dtheta_hb1_ast(atype, btype),
               d_b_hb1(atype, btype), d_dtheta_hb1_c(atype, btype))/sin(theta1);
       // df4t2 = DF4 modulation factor
-      df4t2 = DF4_KK(theta2, d_a_hb2(atype,btype), d_theta_hb2_0(atype, btype), d_dtheta_hb2_ast(atype, btype), 
+      df4t2 = DF4_KK(theta2, d_a_hb2(atype,btype), d_theta_hb2_0(atype, btype), d_dtheta_hb2_ast(atype, btype),
               d_b_hb2(atype, btype), d_dtheta_hb2_c(atype, btype))/sin(theta2);
       // df4t3 = DF4 modulation factor
-      df4t3 = DF4_KK(theta3, d_a_hb3(atype,btype), d_theta_hb3_0(atype, btype), d_dtheta_hb3_ast(atype, btype), 
+      df4t3 = DF4_KK(theta3, d_a_hb3(atype,btype), d_theta_hb3_0(atype, btype), d_dtheta_hb3_ast(atype, btype),
               d_b_hb3(atype, btype), d_dtheta_hb3_c(atype, btype))/sin(theta3);
       // df4t4 = DF4 modulation factor
-      df4t4 = DF4_KK(theta4, d_a_hb4(atype,btype), d_theta_hb4_0(atype, btype), d_dtheta_hb4_ast(atype, btype), 
+      df4t4 = DF4_KK(theta4, d_a_hb4(atype,btype), d_theta_hb4_0(atype, btype), d_dtheta_hb4_ast(atype, btype),
               d_b_hb4(atype, btype), d_dtheta_hb4_c(atype, btype))/sin(theta4);
       // df4t7 = DF4 modulation factor
-      df4t7 = DF4_KK(theta7, d_a_hb7(atype,btype), d_theta_hb7_0(atype, btype), d_dtheta_hb7_ast(atype, btype), 
+      df4t7 = DF4_KK(theta7, d_a_hb7(atype,btype), d_theta_hb7_0(atype, btype), d_dtheta_hb7_ast(atype, btype),
               d_b_hb7(atype, btype), d_dtheta_hb7_c(atype, btype))/sin(theta7);
       // df4t8 = DF4 modulation factor
-      df4t8 = DF4_KK(theta8, d_a_hb8(atype,btype), d_theta_hb8_0(atype, btype), d_dtheta_hb8_ast(atype, btype), 
+      df4t8 = DF4_KK(theta8, d_a_hb8(atype,btype), d_theta_hb8_0(atype, btype), d_dtheta_hb8_ast(atype, btype),
               d_b_hb8(atype, btype), d_dtheta_hb8_c(atype, btype))/sin(theta8);
 
       // force, torque, and viral contributions for forces between h-bonding sites
@@ -528,7 +527,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
 
       // theta7 force
       if (theta7 != static_cast<KK_FLOAT>(0.0)) {
-        
+
         finc  = -f1 * f4t1 * f4t2 * f4t3 * f4t4 * df4t7 * f4t8 * rinv_hb * factor_lj;
 
         delf[0] += (delr_hb_norm[0]*cost7 + d_nz_xtrct(a,0)) * finc;
@@ -547,7 +546,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         delf[2] += (delr_hb_norm[2]*cost8 - d_nz_xtrct(b,2)) * finc;
 
       }
-      
+
       // increment forces and torques
 
       a_f(a,0) += delf[0];
@@ -672,7 +671,7 @@ void PairOxdnaHbondKokkos<DeviceType>::operator()(TagPairOxdnaHbondCompute<OXDNA
         deltb[1] += t8dir[1] * tpair;
         deltb[2] += t8dir[2] * tpair;
       }
-      
+
       // increment torques
 
       a_torque(a,0) += delta[0];
@@ -1382,7 +1381,7 @@ void PairOxdnaHbondKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaHbondKokkos<DeviceType>::init_style() 
+void PairOxdnaHbondKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   neighflag = lmp->kokkos->neighflag;

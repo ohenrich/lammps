@@ -29,7 +29,6 @@ PairStyle(oxdna3/dh/kk/host,PairOxdna2DhKokkos<LMPHostType>);
 #include "kokkos_base.h"
 #include "pair_kokkos.h"
 #include "pair_oxdna2_dh.h"
-#include "neigh_list_kokkos.h"
 
 namespace LAMMPS_NS {
 
@@ -136,7 +135,7 @@ class PairOxdna2DhKokkos : public PairOxdna2Dh, public KokkosBase {
   NonDupScatterView<KK_ACC_FLOAT*[6], typename DAT::t_kkacc_1d_6::array_layout> ndup_vatom;
 
   void allocate() override;
- 
+
   friend void pair_virial_fdotr_compute<PairOxdna2DhKokkos>(PairOxdna2DhKokkos*);
 
   FixOxdnaLRFKokkos<DeviceType> *fix_oxdna_lrfKK;    // ptr to OXDNA/LRF/kk fix

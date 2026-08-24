@@ -15,16 +15,15 @@
 
 #include "atom_kokkos.h"
 #include "atom_masks.h"
-#include "comm.h"
 #include "error.h"
 #include "force.h"
 #include "kokkos.h"
 #include "math_const.h"
 #include "memory_kokkos.h"
 #include "modify.h"
+#include "neigh_list_kokkos.h"
 #include "neigh_request.h"
 #include "neighbor.h"
-#include "update.h"
 
 #include "fix_oxdna_lrf_kokkos.h"
 #include "mf_oxdna_kokkos.h"
@@ -42,7 +41,7 @@ PairOxdnaCoaxstkKokkos<DeviceType>::PairOxdnaCoaxstkKokkos(LAMMPS *lmp) : PairOx
   atomKK = (AtomKokkos *) atom;
   execution_space = ExecutionSpaceFromDevice<DeviceType>::space;
   // Internal FixOxdnaLRFKokkos already syncs all read masks that do not
-  // change between pair/bond styles. 
+  // change between pair/bond styles.
   datamask_read = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
   datamask_modify = F_MASK | TORQUE_MASK | ENERGY_MASK | VIRIAL_MASK;
 }
@@ -252,7 +251,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
   KK_FLOAT aybx,azbx,rax,ray,raz,rbx;
   KK_FLOAT dcdr,dcdrbx;
   KK_FLOAT dcdaxbx,dcdaybx,dcdazbx;
-  KK_FLOAT dcdrax,dcdray,dcdraz; 
+  KK_FLOAT dcdrax,dcdray,dcdraz;
 
   KK_FLOAT f2,f4t1,f4t4,f4t5,f4t6,f5c3;
   KK_FLOAT df2,df4t1,df4t4,df4t5,df4t6,df5c3;
@@ -266,7 +265,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
   ra_cs[0] = d_cs*d_nx_xtrct(a,0);
   ra_cs[1] = d_cs*d_nx_xtrct(a,1);
   ra_cs[2] = d_cs*d_nx_xtrct(a,2);
-  
+
   const int bnum = d_numneigh(a);
 
   for (int ib = 0; ib < bnum; ib++) {
@@ -321,7 +320,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
     // beginning of modulation factors
 
     // f4t1 = f4(theta1,..) + f4(theta1p,..) modulation factors
-    f4t1 = F4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
+    f4t1 = F4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
                  d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) + \
            F4_KK(theta1p, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
                  d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype));
@@ -334,7 +333,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
       if (cost4 < -1.0) cost4 = -1.0;
       theta4 = acos(cost4);
       // f4t4 = f4 modulation factor
-      f4t4 = F4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
+      f4t4 = F4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype),
               d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype));
     // end of f4t1
 
@@ -346,9 +345,9 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
       theta5 = acos(cost5);
       theta5p = MY_PI - theta5;
       // f4t5 = f4(theta5,..) + f4(theta5p,..) modulation factors
-      f4t5 = F4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
+      f4t5 = F4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
               d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) + \
-             F4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
+             F4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
               d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype));
     // end of f4t4
 
@@ -360,9 +359,9 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
       theta6 = acos(cost6);
       theta6p = MY_PI - theta6;
       // f4t6 = f4(theta6,..) + f4(theta6p,..) modulation factors
-      f4t6 = F4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
+      f4t6 = F4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
               d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) + \
-             F4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
+             F4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
               d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype));
 
       v1tmp[0] = delr_ss_norm[1] * d_nx_xtrct(a,2) - delr_ss_norm[2] * d_nx_xtrct(a,1);
@@ -372,12 +371,12 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
       if (cosphi3 > 1.0) cosphi3 = 1.0;
       if (cosphi3 < -1.0) cosphi3 = -1.0;
       // f2 = f2 modulation factor
-      f2 = F2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
-              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
-              d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype), 
+      f2 = F2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
+              d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype),
               d_cut_cxst_c(atype,btype));
       // f5c3 = f5 modulation factor
-      f5c3 = F5_KK(cosphi3, d_a_cxst3p(atype,btype), d_cosphi_cxst3p_ast(atype,btype), 
+      f5c3 = F5_KK(cosphi3, d_a_cxst3p(atype,btype), d_cosphi_cxst3p_ast(atype,btype),
               d_b_cxst3p(atype,btype), d_cosphi_cxst3p_c(atype,btype));
 
       evdwl = f2 * f4t1 * f4t4 * f4t5 * f4t6 * f5c3 * f5c3 * factor_lj;
@@ -386,29 +385,29 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
     // evdwl early rejection criterium
     if (evdwl) {
       // df2 = DF2 modulation factor
-      df2 = DF2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype), 
-              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype), 
+      df2 = DF2_KK(r_st, d_k_cxst(atype,btype), d_cut_cxst_0(atype,btype), d_cut_cxst_lc(atype,btype),
+              d_cut_cxst_hc(atype,btype), d_cut_cxst_lo(atype,btype), d_cut_cxst_hi(atype,btype),
               d_b_cxst_lo(atype,btype), d_b_cxst_hi(atype,btype));
       // df4t1 = DF4(theta1,..)/sin(theta1) - DF4(theta1p,..)/sin(theta1) modulation factors
-      df4t1 = ( DF4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
+      df4t1 = ( DF4_KK(theta1, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
                      d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) - \
-              DF4_KK(theta1p, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype), 
+              DF4_KK(theta1p, d_a_cxst1(atype,btype), d_theta_cxst1_0(atype,btype), d_dtheta_cxst1_ast(atype,btype),
                      d_b_cxst1(atype,btype), d_dtheta_cxst1_c(atype,btype)) ) / sin(theta1);
       // df4t4 = DF4 modulation factor
-      df4t4 = DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype), 
+      df4t4 = DF4_KK(theta4, d_a_cxst4(atype,btype), d_theta_cxst4_0(atype, btype), d_dtheta_cxst4_ast(atype, btype),
                      d_b_cxst4(atype, btype), d_dtheta_cxst4_c(atype, btype)) / sin(theta4);
       // df4t5 = DF4(theta5,..)/sin(theta5) - DF4(theta5p,..)/sin(theta5) modulation factors
-      df4t5 = ( DF4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
+      df4t5 = ( DF4_KK(theta5, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
                      d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) - \
-              DF4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype), 
+              DF4_KK(theta5p, d_a_cxst5(atype,btype), d_theta_cxst5_0(atype,btype), d_dtheta_cxst5_ast(atype,btype),
                      d_b_cxst5(atype,btype), d_dtheta_cxst5_c(atype,btype)) ) / sin(theta5);
       // df4t6 = DF4(theta6,..)/sin(theta6) - DF4(theta6p,..)/sin(theta6) modulation factors
-      df4t6 = ( DF4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
+      df4t6 = ( DF4_KK(theta6, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
                      d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) - \
-              DF4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype), 
+              DF4_KK(theta6p, d_a_cxst6(atype,btype), d_theta_cxst6_0(atype,btype), d_dtheta_cxst6_ast(atype,btype),
                      d_b_cxst6(atype,btype), d_dtheta_cxst6_c(atype,btype)) ) / sin(theta6);
       // df5c3 = DF5 modulation factor
-      df5c3 = DF5_KK(cosphi3, d_a_cxst3p(atype,btype), d_cosphi_cxst3p_ast(atype,btype), 
+      df5c3 = DF5_KK(cosphi3, d_a_cxst3p(atype,btype), d_cosphi_cxst3p_ast(atype,btype),
                      d_b_cxst3p(atype,btype), d_cosphi_cxst3p_c(atype,btype));
 
       // force, torque, and viral contributions for forces between h-bonding sites
@@ -454,7 +453,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
 
       // cosphi3 and cosphi4 (=cosphi3) force and virial
       if (cosphi3) {
-        
+
         finc  = -f2 * f4t1* f4t4 * f4t5 * f4t6 * 2.0 * f5c3 * df5c3 * factor_lj;
 
         gamma = d_cs - d_cst;
@@ -648,7 +647,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::operator()(TagPairOxdnaCoaxstkCompute<N
         deltb[1] -= v1tmp[1] * dcdrbx * tpair;
         deltb[2] -= v1tmp[2] * dcdrbx * tpair;
       }
-      
+
       // increment torques
 
       a_torque(a,0) += delta[0];
@@ -792,7 +791,7 @@ void PairOxdnaCoaxstkKokkos<DeviceType>::settings(int narg, char **/*arg*/)
 /* ---------------------------------------------------------------------- */
 
 template<class DeviceType>
-void PairOxdnaCoaxstkKokkos<DeviceType>::init_style() 
+void PairOxdnaCoaxstkKokkos<DeviceType>::init_style()
 {
   neighbor->add_request(this);
   neighflag = lmp->kokkos->neighflag;

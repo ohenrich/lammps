@@ -16,7 +16,6 @@
 ------------------------------------------------------------------------- */
 
 #include "pair_oxdna2_dh.h"
-#include "atom_vec_oxdna.h"
 #include "nucleotide_oxdna.h"
 
 #include "atom.h"

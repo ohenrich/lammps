@@ -16,11 +16,9 @@
 ------------------------------------------------------------------------- */
 
 #include "pair_oxdna_excv.h"
-#include "constants_oxdna.h"
 #include "nucleotide_oxdna.h"
 
 #include "atom.h"
-#include "atom_vec_ellipsoid.h"
 #include "comm.h"
 #include "error.h"
 #include "fix_oxdna_lrf.h"

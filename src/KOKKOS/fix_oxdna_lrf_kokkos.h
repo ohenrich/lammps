@@ -29,9 +29,6 @@ FixStyle(OXDNA/LRF/kk/host,FixOxdnaLRFKokkos<LMPHostType>);
 
 namespace LAMMPS_NS {
 
-template<class DeviceType>
-struct AtomVecEllipsoidKokkosBonusArray;
-
 struct TagFixOxdnaLRFComputeQuatToXYZ{};
 
 template<class DeviceType>

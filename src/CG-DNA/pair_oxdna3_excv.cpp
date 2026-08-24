@@ -48,7 +48,7 @@ void PairOxdnaExcv::coeff_oxdna3_common(int narg, char **arg)
 
   if (narg != 3)
     error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/excv, use potential file" + utils::errorurl(21));
-  
+
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi,nlo,nhi;
@@ -188,7 +188,7 @@ void PairOxdnaExcv::coeff_oxdna3_common(int narg, char **arg)
   MPI_Bcast(&sigma_bsbs_one, 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut_bsbs_ast_one, 1, MPI_DOUBLE, 0, world);
 
-  // But for the tetramers, we put in the  prefix 
+  // But for the tetramers, we put in the prefix
   MPI_Bcast(&sigma4_bsbs[0][0][0][0], 625, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut4_bsbs_ast[0][0][0][0], 625, MPI_DOUBLE, 0, world);
 
