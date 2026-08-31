@@ -66,6 +66,8 @@ PairOxdnaExcv::PairOxdnaExcv(LAMMPS *lmp) :
 PairOxdnaExcv::~PairOxdnaExcv()
 {
 
+  Fix *fix = modify->get_fix_by_id("lrf");
+  auto *fix_lrf = dynamic_cast<FixOxdnaLRF *>(fix);
   if (fix_lrf) modify->delete_fix(fix_lrf->id);
 
   if (allocated && !copymode) {
@@ -180,6 +182,8 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
   firstneigh = list->firstneigh;
 
   // nxyz_xtrct = extracted local unit vectors in lab frame from fix oxdna/lrf
+  Fix *fix = modify->get_fix_by_id("lrf");
+  auto *fix_lrf = dynamic_cast<FixOxdnaLRF *>(fix);
   nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over pair interaction neighbors of my atoms
