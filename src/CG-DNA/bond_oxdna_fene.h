@@ -33,6 +33,7 @@ class BondOxdnaFene : public Bond {
   ~BondOxdnaFene() override;
   virtual void compute_backbone_site(double *, double *, double *, double *) const;
   void compute(int, int) override;
+  double bond_compute(int, int, int, int, int);
   void coeff(int, char **) override;
   void init_style() override;
   double equilibrium_distance(int) override;

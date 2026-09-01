@@ -781,8 +781,9 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
 void PairOxdnaExcv::init_style()
 {
   // ensure fix oxdna/lrf is added for backward-compatability
-  if (!fix_lrf)
-    fix_lrf = dynamic_cast<FixOxdnaLRF *>(modify->add_fix("lrf all OXDNA/LRF"));
+  fix_lrf = nullptr;
+  auto fixes = modify->get_fix_by_style("^OXDNA/LRF");
+  if (fixes.empty()) fix_lrf = dynamic_cast<FixOxdnaLRF *>(modify->add_fix("lrf all OXDNA/LRF"));
 
   neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
@@ -797,7 +798,6 @@ void PairOxdnaExcv::init_list(int id, NeighList *ptr)
   if (id  > 0) error->all(FLERR,"Respa not supported");
 
 }
-
 
 /* ----------------------------------------------------------------------
    init for one type pair i,j and corresponding j,i
