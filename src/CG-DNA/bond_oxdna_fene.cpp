@@ -65,40 +65,13 @@ void BondOxdnaFene::compute_backbone_site(double e1[3], double /*e2*/[3], double
 void BondOxdnaFene::compute(int eflag, int vflag)
 {
   int a, b, btemp, in, type;
-  int a3ptype, atype, btype, b5ptype;    // tetramer types
-  double delf[3], delta[3], deltb[3];    // force, torque increment
-  double delr_bkbk[3], ebond, fbond;
-  double rsq_bkbk, Deltasq, rlogarg;
-  double r_bkbk, rr0, rr0sq;
-  // vectors COM-backbone site in lab frame
-  double ra_cbk[3], rb_cbk[3];
-  // Cartesian unit vectors in lab frame
-  double ax[3], ay[3], az[3];
-  double bx[3], by[3], bz[3];
-
-  double **x = atom->x;
-  double **f = atom->f;
-  double **torque = atom->torque;
 
   int **bondlist = neighbor->bondlist;
   int nbondlist = neighbor->nbondlist;
-  int nlocal = atom->nlocal;
-  int newton_bond = force->newton_bond;
 
-  tagint *id3p = atom->id3p;
   tagint *id5p = atom->id5p;
-  int *atomtype = atom->type;
 
-  const double rlogarg_min = 0.2;
-  ebond = 0.0;
   ev_init(eflag, vflag);
-
-  double rsq, fforce;
-
-  // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
-  Fix *fix = modify->get_fix_by_id("lrf");
-  auto *fix_lrf = dynamic_cast<FixOxdnaLRF *>(fix);
-  nxyz_xtrct = fix_lrf->array_atom;
 
   // loop over FENE bonds
 
@@ -118,7 +91,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
 
     // a now in 3' direction, b in 5' direction
 
-    bond_compute(eflag,vflag,type,a,b);
+    bond_compute(eflag,type,a,b);
 
   }
 }
@@ -127,7 +100,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
    compute kernel for oxDNA FENE-bond interaction
    s=sugar-phosphate backbone site, b=base site, st=stacking site
 ------------------------------------------------------------------------- */
-double BondOxdnaFene::bond_compute(int eflag, int vflag, int type, int a, int b)
+double BondOxdnaFene::bond_compute(int eflag, int type, int a, int b)
 {
   int a3ptype, atype, btype, b5ptype;    // tetramer types
   double delf[3], delta[3], deltb[3];    // force, torque increment
@@ -157,6 +130,8 @@ double BondOxdnaFene::bond_compute(int eflag, int vflag, int type, int a, int b)
   ebond = 0.0;
 
   // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
+  Fix *fix = modify->get_fix_by_id("lrf");
+  auto *fix_lrf = dynamic_cast<FixOxdnaLRF *>(fix);
   nxyz_xtrct = fix_lrf->array_atom;
 
   ax[0] = nxyz_xtrct[a][0];
