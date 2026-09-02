@@ -107,6 +107,13 @@ void FixWallLJ93Kokkos<DeviceType>::precompute(int m)
 template <class DeviceType>
 void FixWallLJ93Kokkos<DeviceType>::post_force(int vflag)
 {
+  // set the virial flags before (re-)allocating the per-atom virial dual view.
+  // FixWall::post_force() calls v_init() as well, but only after this point:
+  // without this call vflag_atom is still unset on the first invocation with
+  // per-atom virial output, the dual view stays empty and the kernels tally
+  // out of bounds.
+
+  v_init(vflag);
 
   // reallocate per-atom arrays if necessary
 
