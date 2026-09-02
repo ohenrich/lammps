@@ -61,47 +61,11 @@ void BondOxdnaFene::compute_backbone_site(double e1[3], double /*e2*/[3], double
 
 /* ----------------------------------------------------------------------
    compute function for oxDNA FENE-bond interaction
+   s=sugar-phosphate backbone site, b=base site, st=stacking site
 ------------------------------------------------------------------------- */
 void BondOxdnaFene::compute(int eflag, int vflag)
 {
   int a, b, btemp, in, type;
-
-  int **bondlist = neighbor->bondlist;
-  int nbondlist = neighbor->nbondlist;
-
-  tagint *id5p = atom->id5p;
-
-  ev_init(eflag, vflag);
-
-  // loop over FENE bonds
-
-  for (in = 0; in < nbondlist; in++) {
-
-    a = bondlist[in][1];
-    b = bondlist[in][0];
-    type = bondlist[in][2];
-
-    // directionality test: a -> b is 3' -> 5'
-    if (atom->tag[b] != id5p[a]) {
-
-      btemp = b;
-      b = a;
-      a = btemp;
-    }
-
-    // a now in 3' direction, b in 5' direction
-
-    bond_compute(eflag,type,a,b);
-
-  }
-}
-
-/* ----------------------------------------------------------------------
-   compute kernel for oxDNA FENE-bond interaction
-   s=sugar-phosphate backbone site, b=base site, st=stacking site
-------------------------------------------------------------------------- */
-double BondOxdnaFene::bond_compute(int eflag, int type, int a, int b)
-{
   int a3ptype, atype, btype, b5ptype;    // tetramer types
   double delf[3], delta[3], deltb[3];    // force, torque increment
   double delr_bkbk[3], ebond, fbond;
@@ -128,139 +92,157 @@ double BondOxdnaFene::bond_compute(int eflag, int type, int a, int b)
 
   const double rlogarg_min = 0.2;
   ebond = 0.0;
+  ev_init(eflag, vflag);
 
   // nxyz_xtrct = extracted local unit vectors in lab frame from fix OXDNA/LRF
   Fix *fix = modify->get_fix_by_id("lrf");
   auto *fix_lrf = dynamic_cast<FixOxdnaLRF *>(fix);
   nxyz_xtrct = fix_lrf->array_atom;
 
-  ax[0] = nxyz_xtrct[a][0];
-  ax[1] = nxyz_xtrct[a][1];
-  ax[2] = nxyz_xtrct[a][2];
-  ay[0] = nxyz_xtrct[a][3];
-  ay[1] = nxyz_xtrct[a][4];
-  ay[2] = nxyz_xtrct[a][5];
-  az[0] = nxyz_xtrct[a][6];
-  az[1] = nxyz_xtrct[a][7];
-  az[2] = nxyz_xtrct[a][8];
-  bx[0] = nxyz_xtrct[b][0];
-  bx[1] = nxyz_xtrct[b][1];
-  bx[2] = nxyz_xtrct[b][2];
-  by[0] = nxyz_xtrct[b][3];
-  by[1] = nxyz_xtrct[b][4];
-  by[2] = nxyz_xtrct[b][5];
-  bz[0] = nxyz_xtrct[b][6];
-  bz[1] = nxyz_xtrct[b][7];
-  bz[2] = nxyz_xtrct[b][8];
+  // loop over FENE bonds
 
-  // determine tetramer types
-  // 3'neighbor a - a - b - 5'neighbor b
+  for (in = 0; in < nbondlist; in++) {
 
-  if (id3p[a] != -1) {
-    a3ptype = atomtype[atom->map(id3p[a])];
-  } else
-    a3ptype = 0;
+    a = bondlist[in][1];
+    b = bondlist[in][0];
+    type = bondlist[in][2];
 
-  atype = atomtype[a];
-  btype = atomtype[b];
+    // directionality test: a -> b is 3' -> 5'
+    if (atom->tag[b] != id5p[a]) {
 
-  if (id5p[b] != -1) {
-    b5ptype = atomtype[atom->map(id5p[b])];
-  } else
-    b5ptype = 0;
+      btemp = b;
+      b = a;
+      a = btemp;
+    }
 
-  // vector COM-backbone site a and b
-  compute_backbone_site(ax, ay, az, ra_cbk);
-  compute_backbone_site(bx, by, bz, rb_cbk);
+    // a now in 3' direction, b in 5' direction
 
-  // vector backbone site b to a
-  delr_bkbk[0] = x[a][0] + ra_cbk[0] - x[b][0] - rb_cbk[0];
-  delr_bkbk[1] = x[a][1] + ra_cbk[1] - x[b][1] - rb_cbk[1];
-  delr_bkbk[2] = x[a][2] + ra_cbk[2] - x[b][2] - rb_cbk[2];
-  rsq_bkbk = delr_bkbk[0] * delr_bkbk[0] + delr_bkbk[1] * delr_bkbk[1] + delr_bkbk[2] * delr_bkbk[2];
-  r_bkbk = sqrt(rsq_bkbk);
+    ax[0] = nxyz_xtrct[a][0];
+    ax[1] = nxyz_xtrct[a][1];
+    ax[2] = nxyz_xtrct[a][2];
+    ay[0] = nxyz_xtrct[a][3];
+    ay[1] = nxyz_xtrct[a][4];
+    ay[2] = nxyz_xtrct[a][5];
+    az[0] = nxyz_xtrct[a][6];
+    az[1] = nxyz_xtrct[a][7];
+    az[2] = nxyz_xtrct[a][8];
+    bx[0] = nxyz_xtrct[b][0];
+    bx[1] = nxyz_xtrct[b][1];
+    bx[2] = nxyz_xtrct[b][2];
+    by[0] = nxyz_xtrct[b][3];
+    by[1] = nxyz_xtrct[b][4];
+    by[2] = nxyz_xtrct[b][5];
+    bz[0] = nxyz_xtrct[b][6];
+    bz[1] = nxyz_xtrct[b][7];
+    bz[2] = nxyz_xtrct[b][8];
 
-  rr0 = r_bkbk - r0[type][a3ptype][atype][btype][b5ptype];
-  rr0sq = rr0 * rr0;
-  Deltasq = Delta[type][a3ptype][atype][btype][b5ptype] * Delta[type][a3ptype][atype][btype][b5ptype];
-  rlogarg = 1.0 - rr0sq / Deltasq;
+    // determine tetramer types
+    // 3'neighbor a - a - b - 5'neighbor b
 
-  // energy
-  if (eflag) { ebond = -0.5 * k[type] * log(rlogarg); }
+    if (id3p[a] != -1) {
+      a3ptype = atomtype[atom->map(id3p[a])];
+    } else
+      a3ptype = 0;
 
-  // switching to capped force for r-r0 -> Delta at
-  // r > r_max = r0 + Delta*sqrt(1-rlogarg) OR
-  // r < r_min = r0 - Delta*sqrt(1-rlogarg)
-  if (rlogarg < rlogarg_min) {
-    // issue warning, reset rlogarg and rr0 to cap force
-    error->warning(FLERR, "FENE bond too long: {} {} {} {}", update->ntimestep, atom->tag[a], atom->tag[b], r_bkbk);
-    rlogarg = rlogarg_min;
+    atype = atomtype[a];
+    btype = atomtype[b];
 
-    // if overstretched F(r)=F(r_max)=F_max, E(r)=E(r_max)+F_max*(r-r_max)
-    if (r_bkbk > r0[type][a3ptype][atype][btype][b5ptype]) {
-      rr0 = Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
-      // energy
-      if (eflag) {
-        ebond = -0.5 * k[type] * log(rlogarg) + k[type] * sqrt(1.0 - rlogarg) / rlogarg /
-                Delta[type][a3ptype][atype][btype][b5ptype] * (r_bkbk - r0[type][a3ptype][atype][btype][b5ptype] -
-                 Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg));
+    if (id5p[b] != -1) {
+      b5ptype = atomtype[atom->map(id5p[b])];
+    } else
+      b5ptype = 0;
+
+    // vector COM-backbone site a and b
+    compute_backbone_site(ax, ay, az, ra_cbk);
+    compute_backbone_site(bx, by, bz, rb_cbk);
+
+    // vector backbone site b to a
+    delr_bkbk[0] = x[a][0] + ra_cbk[0] - x[b][0] - rb_cbk[0];
+    delr_bkbk[1] = x[a][1] + ra_cbk[1] - x[b][1] - rb_cbk[1];
+    delr_bkbk[2] = x[a][2] + ra_cbk[2] - x[b][2] - rb_cbk[2];
+    rsq_bkbk = delr_bkbk[0] * delr_bkbk[0] + delr_bkbk[1] * delr_bkbk[1] + delr_bkbk[2] * delr_bkbk[2];
+    r_bkbk = sqrt(rsq_bkbk);
+
+    rr0 = r_bkbk - r0[type][a3ptype][atype][btype][b5ptype];
+    rr0sq = rr0 * rr0;
+    Deltasq = Delta[type][a3ptype][atype][btype][b5ptype] * Delta[type][a3ptype][atype][btype][b5ptype];
+    rlogarg = 1.0 - rr0sq / Deltasq;
+
+    // energy
+    if (eflag) { ebond = -0.5 * k[type] * log(rlogarg); }
+
+    // switching to capped force for r-r0 -> Delta at
+    // r > r_max = r0 + Delta*sqrt(1-rlogarg) OR
+    // r < r_min = r0 - Delta*sqrt(1-rlogarg)
+    if (rlogarg < rlogarg_min) {
+      // issue warning, reset rlogarg and rr0 to cap force
+      error->warning(FLERR, "FENE bond too long: {} {} {} {}", update->ntimestep, atom->tag[a], atom->tag[b], r_bkbk);
+      rlogarg = rlogarg_min;
+
+      // if overstretched F(r)=F(r_max)=F_max, E(r)=E(r_max)+F_max*(r-r_max)
+      if (r_bkbk > r0[type][a3ptype][atype][btype][b5ptype]) {
+        rr0 = Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
+        // energy
+        if (eflag) {
+          ebond = -0.5 * k[type] * log(rlogarg) + k[type] * sqrt(1.0 - rlogarg) / rlogarg /
+                  Delta[type][a3ptype][atype][btype][b5ptype] * (r_bkbk - r0[type][a3ptype][atype][btype][b5ptype] -
+                   Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg));
+        }
+      }
+      // if overcompressed F(r)=F(r_min)=F_max, E(r)=E(r_min)+F_max*(r_min-r)
+      else if (r_bkbk < r0[type][a3ptype][atype][btype][b5ptype]) {
+        rr0 = -Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
+        // energy
+        if (eflag) {
+          ebond = -0.5 * k[type] * log(rlogarg) +
+              k[type] * sqrt(1.0 - rlogarg) / rlogarg / Delta[type][a3ptype][atype][btype][b5ptype] *
+                  (r0[type][a3ptype][atype][btype][b5ptype] -
+                   Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg) - r_bkbk);
+        }
       }
     }
-    // if overcompressed F(r)=F(r_min)=F_max, E(r)=E(r_min)+F_max*(r_min-r)
-    else if (r_bkbk < r0[type][a3ptype][atype][btype][b5ptype]) {
-      rr0 = -Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg);
-      // energy
-      if (eflag) {
-        ebond = -0.5 * k[type] * log(rlogarg) +
-            k[type] * sqrt(1.0 - rlogarg) / rlogarg / Delta[type][a3ptype][atype][btype][b5ptype] *
-                (r0[type][a3ptype][atype][btype][b5ptype] -
-                 Delta[type][a3ptype][atype][btype][b5ptype] * sqrt(1.0 - rlogarg) - r_bkbk);
-      }
+
+    fbond = -k[type] * rr0 / rlogarg / Deltasq / r_bkbk;
+    delf[0] = delr_bkbk[0] * fbond;
+    delf[1] = delr_bkbk[1] * fbond;
+    delf[2] = delr_bkbk[2] * fbond;
+
+    // apply force and torque to each of 2 atoms
+
+    if (newton_bond || a < nlocal) {
+
+      f[a][0] += delf[0];
+      f[a][1] += delf[1];
+      f[a][2] += delf[2];
+
+      MathExtra::cross3(ra_cbk, delf, delta);
+
+      torque[a][0] += delta[0];
+      torque[a][1] += delta[1];
+      torque[a][2] += delta[2];
     }
+
+    if (newton_bond || b < nlocal) {
+
+      f[b][0] -= delf[0];
+      f[b][1] -= delf[1];
+      f[b][2] -= delf[2];
+
+      MathExtra::cross3(rb_cbk, delf, deltb);
+
+      torque[b][0] -= deltb[0];
+      torque[b][1] -= deltb[1];
+      torque[b][2] -= deltb[2];
+    }
+
+    // increment energy and virial
+    // NOTE: The virial is calculated on the 'molecular' basis.
+    // (see G. Ciccotti and J.P. Ryckaert, Comp. Phys. Rep. 4, 345-392 (1986))
+
+    if (evflag)
+      ev_tally_xyz(a, b, nlocal, newton_bond, ebond, delf[0], delf[1], delf[2], x[a][0] - x[b][0],
+                   x[a][1] - x[b][1], x[a][2] - x[b][2]);
   }
-
-  fbond = -k[type] * rr0 / rlogarg / Deltasq / r_bkbk;
-  delf[0] = delr_bkbk[0] * fbond;
-  delf[1] = delr_bkbk[1] * fbond;
-  delf[2] = delr_bkbk[2] * fbond;
-
-  // apply force and torque to each of 2 atoms
-
-  if (newton_bond || a < nlocal) {
-
-    f[a][0] += delf[0];
-    f[a][1] += delf[1];
-    f[a][2] += delf[2];
-
-    MathExtra::cross3(ra_cbk, delf, delta);
-
-    torque[a][0] += delta[0];
-    torque[a][1] += delta[1];
-    torque[a][2] += delta[2];
-  }
-
-  if (newton_bond || b < nlocal) {
-
-    f[b][0] -= delf[0];
-    f[b][1] -= delf[1];
-    f[b][2] -= delf[2];
-
-    MathExtra::cross3(rb_cbk, delf, deltb);
-
-    torque[b][0] -= deltb[0];
-    torque[b][1] -= deltb[1];
-    torque[b][2] -= deltb[2];
-  }
-
-  // increment energy and virial
-  // NOTE: The virial is calculated on the 'molecular' basis.
-  // (see G. Ciccotti and J.P. Ryckaert, Comp. Phys. Rep. 4, 345-392 (1986))
-
-  if (evflag)
-    ev_tally_xyz(a, b, nlocal, newton_bond, ebond, delf[0], delf[1], delf[2], x[a][0] - x[b][0],
-                 x[a][1] - x[b][1], x[a][2] - x[b][2]);
-
-  return ebond;
 }
 
 /* ---------------------------------------------------------------------- */
