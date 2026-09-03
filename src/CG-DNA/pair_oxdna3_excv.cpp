@@ -42,7 +42,7 @@ using namespace MathSpecial;
   KOKKOS versions.
 ------------------------------------------------------------------------- */
 
-void PairOxdnaExcv::coeff_oxdna3_common(int narg, char **arg)
+void PairOxdna3Excv::coeff(int narg, char **arg)
 {
   int count;
 
@@ -319,7 +319,4 @@ void PairOxdnaExcv::coeff_oxdna3_common(int narg, char **arg)
   }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
-
 }
-
-void PairOxdna3Excv::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }

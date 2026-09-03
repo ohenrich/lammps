@@ -41,7 +41,7 @@ using namespace MathSpecial;
    duplicating the file parsing logic or requiring KOKKOS to inherit from
    BondOxdna3Fene.
 ------------------------------------------------------------------------- */
-void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
+void BondOxdna3Fene::coeff(int narg, char **arg)
 {
   if (narg != 2)
     error->all(FLERR, "Incorrect args for bond coefficients in oxdna3/fene, use potential file" + utils::errorurl(21));
@@ -164,5 +164,3 @@ void BondOxdnaFene::coeff_oxdna3_common(int narg, char **arg)
   if (count == 0)
     error->all(FLERR, "Incorrect args for bond coefficients in oxdna3/fene" + utils::errorurl(21));
 }
-
-void BondOxdna3Fene::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }
