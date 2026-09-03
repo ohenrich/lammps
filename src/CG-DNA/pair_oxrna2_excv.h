@@ -34,7 +34,7 @@ class PairOxrna2Excv : public PairOxdnaExcv {
                              double rbk[3]) const override
   {
     NucleotideOxrna2 oxrna2;
-    oxrna2.backbone_site(e1, nullptr, e3, rbk);
+    oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
   };
 };
 

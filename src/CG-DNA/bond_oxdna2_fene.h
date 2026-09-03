@@ -34,7 +34,7 @@ class BondOxdna2Fene : public BondOxdnaFene {
                              double rbk[3]) const override
   {
     NucleotideOxdna2 oxdna2;
-    oxdna2.backbone_site(e1, e2, nullptr, rbk);
+    oxdna2.backbone_site<0>(e1, e2, nullptr, rbk);
   };
 };
 
