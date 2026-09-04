@@ -204,7 +204,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
     az[2] = nxyz_xtrct[a][8];
 
     // vector COM - backbone site a
-    compute_backbone_site(atype,ax,ay,az,ra_cbk);
+    compute_backbone_site(atype%8,ax,ay,az,ra_cbk);
 
     // vector COM - base site a
     compute_base_site(atype%4, ax,ay,az,ra_cbs);
@@ -239,7 +239,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
       bz[2] = nxyz_xtrct[b][8];
 
       // vector COM - backbone site b
-      compute_backbone_site(btype,bx,by,bz,rb_cbk);
+      compute_backbone_site(btype%8,bx,by,bz,rb_cbk);
 
       // vector COM - base site b
       compute_base_site(btype%4, bx,by,bz,rb_cbs);
