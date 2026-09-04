@@ -13,12 +13,12 @@
 
 #ifdef PAIR_CLASS
 // clang-format off
-PairStyle(oxdna2/excv,PairOxdna2Excv);
+PairStyle(oxdrh2/excv,PairOxdrh2Excv);
 // clang-format on
 #else
 
-#ifndef LMP_PAIR_OXDNA2_EXCV_H
-#define LMP_PAIR_OXDNA2_EXCV_H
+#ifndef LMP_PAIR_OXDRH2_EXCV_H
+#define LMP_PAIR_OXDRH2_EXCV_H
 
 #include "nucleotide_oxdna.h"
 #include "pair_oxdna_excv.h"
@@ -27,11 +27,11 @@ namespace LAMMPS_NS {
 
 class PairOxdrh2Excv : public PairOxdnaExcv {
  public:
-  PairOxdna2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
+  PairOxdrh2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
   // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
   void compute_backbone_site(int type, double e1[3], double e2[3],
-    double /*e3*/[3], double rbk[3]) const override
+    double e3[3], double rbk[3]) const override
   {
     NucleotideOxdna2 oxdna2;
     NucleotideOxrna2 oxrna2;
@@ -40,13 +40,13 @@ class PairOxdrh2Excv : public PairOxdnaExcv {
       case 1:
       case 2:
       case 3:
-        oxdna2.backbone_site<0>(e1, nullptr, nullptr, rbs);
+        oxdna2.backbone_site<0>(e1, e2, nullptr, rbk);
         break;
       case 4:
       case 5:
       case 6:
       case 7:
-        oxrna2.backbone_site<0>(e1, nullptr, nullptr, rbs);
+        oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
         break;
     }
   };
