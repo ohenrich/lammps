@@ -33,6 +33,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <cassert>
 
 using namespace LAMMPS_NS;
 using namespace MathConst;
@@ -327,6 +328,7 @@ void PairOxrna2Stk::compute(int eflag, int vflag)
     bz[0] = nxyz_xtrct[b][6];
     bz[1] = nxyz_xtrct[b][7];
     bz[2] = nxyz_xtrct[b][8];
+
 
     // vector COM a - 5'-stacking site a
     ra_cstk[0] = dx_cstk_5p_oxrna2*ax[0] + dy_cstk_5p_oxrna2*ay[0];
@@ -859,9 +861,13 @@ void PairOxrna2Stk::coeff(int narg, char **arg)
   if (narg != 5 && narg != 27) error->all(FLERR,"Incorrect args for pair coefficients in oxrna2/stk" + utils::errorurl(21));
   if (!allocated) allocate();
 
-  int ilo,ihi,jlo,jhi;
+  int ilo,ihi,jlo,jhi,nlo,nhi,imod4,jmod4;
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
+
+  assert((ilo == jlo) & (ihi == jhi));
+  nlo = ilo;
+  nhi = ihi;
 
   // stacking interaction
   count = 0;
@@ -1051,11 +1057,16 @@ void PairOxrna2Stk::coeff(int narg, char **arg)
   b_st2_one = a_st2_one*a_st2_one*cosphi_st2_ast_one*cosphi_st2_ast_one/(1-a_st2_one*cosphi_st2_ast_one*cosphi_st2_ast_one);
   cosphi_st2_c_one=1/(a_st2_one*cosphi_st2_ast_one);
 
-  for (int i = ilo; i <= ihi; i++) {
-    for (int j = MAX(jlo,i); j <= jhi; j++) {
+  for (int i = nlo; i <= nhi; i++) {
+    imod4 = i%4;
+    if (imod4 == 0) imod4 = 4;
+
+    for (int j = nlo; j <= nhi; j++) {
+      jmod4 = j%4;
+      if (jmod4 == 0) jmod4 = 4;
 
       epsilon_st[i][j] = epsilon_st_one;
-      if (seqdepflag) epsilon_st[i][j] *= eta_st[i-1][j-1];
+      if (seqdepflag) epsilon_st[i][j] *= eta_st[imod4-1][jmod4-1];
       a_st[i][j] = a_st_one;
       cut_st_0[i][j] = cut_st_0_one;
       cut_st_c[i][j] = cut_st_c_one;
@@ -1063,10 +1074,11 @@ void PairOxrna2Stk::coeff(int narg, char **arg)
       cut_st_hi[i][j] = cut_st_hi_one;
       cut_st_lc[i][j] = cut_st_lc_one;
       cut_st_hc[i][j] = cut_st_hc_one;
+      cutsq_st_hc[i][j] = cut_st_hc[i][j]*cut_st_hc[i][j];
       b_st_lo[i][j] = b_st_lo_one;
       b_st_hi[i][j] = b_st_hi_one;
       shift_st[i][j] = shift_st_one;
-      if (seqdepflag) shift_st[i][j] *= eta_st[i-1][j-1];
+      if (seqdepflag) shift_st[i][j] *= eta_st[imod4-1][jmod4-1];
 
       a_st5[i][j] = a_st5_one;
       theta_st5_0[i][j] = theta_st5_0_one;
@@ -1152,65 +1164,6 @@ double PairOxrna2Stk::init_one(int i, int j)
   if (offset_flag) {
     error->all(FLERR,"Offset not supported in oxRNA");
   }
-
-  if (seqdepflag) {
-    epsilon_st[j][i] = epsilon_st[i][j]  / eta_st[i-1][j-1] * eta_st[j-1][i-1];
-  }
-  else {
-    epsilon_st[j][i] = epsilon_st[i][j];
-  }
-  a_st[j][i] = a_st[i][j];
-  b_st_lo[j][i] = b_st_lo[i][j];
-  b_st_hi[j][i] = b_st_hi[i][j];
-  cut_st_0[j][i] = cut_st_0[i][j];
-  cut_st_c[j][i] = cut_st_c[i][j];
-  cut_st_lo[j][i] = cut_st_lo[i][j];
-  cut_st_hi[j][i] = cut_st_hi[i][j];
-  cut_st_lc[j][i] = cut_st_lc[i][j];
-  cut_st_hc[j][i] = cut_st_hc[i][j];
-  if (seqdepflag) {
-    shift_st[j][i] = shift_st[i][j] / eta_st[i-1][j-1] * eta_st[j-1][i-1];
-  }
-  else {
-    shift_st[j][i] = shift_st[i][j];
-  }
-
-  a_st5[j][i] = a_st5[i][j];
-  theta_st5_0[j][i] = theta_st5_0[i][j];
-  dtheta_st5_ast[j][i] = dtheta_st5_ast[i][j];
-  b_st5[j][i] = b_st5[i][j];
-  dtheta_st5_c[j][i] = dtheta_st5_c[i][j];
-
-  a_st6[j][i] = a_st6[i][j];
-  theta_st6_0[j][i] = theta_st6_0[i][j];
-  dtheta_st6_ast[j][i] = dtheta_st6_ast[i][j];
-  b_st6[j][i] = b_st6[i][j];
-  dtheta_st6_c[j][i] = dtheta_st6_c[i][j];
-
-  a_st9[j][i] = a_st9[i][j];
-  theta_st9_0[j][i] = theta_st9_0[i][j];
-  dtheta_st9_ast[j][i] = dtheta_st9_ast[i][j];
-  b_st9[j][i] = b_st9[i][j];
-  dtheta_st9_c[j][i] = dtheta_st9_c[i][j];
-
-  a_st10[j][i] = a_st10[i][j];
-  theta_st10_0[j][i] = theta_st10_0[i][j];
-  dtheta_st10_ast[j][i] = dtheta_st10_ast[i][j];
-  b_st10[j][i] = b_st10[i][j];
-  dtheta_st10_c[j][i] = dtheta_st10_c[i][j];
-
-  a_st1[j][i] = a_st1[i][j];
-  cosphi_st1_ast[j][i] = cosphi_st1_ast[i][j];
-  b_st1[j][i] = b_st1[i][j];
-  cosphi_st1_c[j][i] = cosphi_st1_c[i][j];
-
-  a_st2[j][i] = a_st2[i][j];
-  cosphi_st2_ast[j][i] = cosphi_st2_ast[i][j];
-  b_st2[j][i] = b_st2[i][j];
-  cosphi_st2_c[j][i] = cosphi_st2_c[i][j];
-
-  cutsq_st_hc[i][j] = cut_st_hc[i][j]*cut_st_hc[i][j];
-  cutsq_st_hc[j][i] = cutsq_st_hc[i][j];
 
   // set the master list distance cutoff
   return cut_st_hc[i][j];
