@@ -37,7 +37,7 @@ using namespace MFOxdna;
 
 /* ---------------------------------------------------------------------- */
 
-void PairOxdnaHbond::init_alpha_hb_oxdna3()
+PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 {
   // sequence-specific base-pairing strength
   // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
@@ -61,34 +61,16 @@ void PairOxdnaHbond::init_alpha_hb_oxdna3()
   alpha_hb[3][1] = 1.00000;
   alpha_hb[3][2] = 1.00000;
   alpha_hb[3][3] = 1.00000;
+
+  single_enable = 0;
+  writedata = 0;
+  trim_flag = 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
-PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
-{
-  single_enable = 0;
-  writedata = 0;
-  trim_flag = 0;
+void PairOxdna3Hbond::coeff(int narg, char **arg) {
 
-  // Keep oxDNA3 sequence-specific alpha values in a shared base helper so
-  // vanilla and KOKKOS paths initialise identical parameters.
-  init_alpha_hb_oxdna3();
-}
-
-/* ----------------------------------------------------------------------
-  set coeffs - introduces new function to handle KOKKOS compatibility.
-  Vanilla oxdna3 "coeff" literally just calls this "coeff_oxdna3_common"
-  function. The structure here avoids messy inheritance issues in KOKKOS
-  by not calling "PairOxdna3Hbond::coeff" directly. We can also avoid
-  code duplication of coeff within KOKKOS using this approach.
-
-  "coeff_oxdna3_common" is implemented as a base-class member of
-  PairOxdnaHbond, which means it can be called from both the vanilla and
-  KOKKOS versions.
-------------------------------------------------------------------------- */
-void PairOxdnaHbond::coeff_oxdna3_common(int narg, char **arg)
-{
   int count;
 
   if (narg != 3) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond, use potential file" + utils::errorurl(21));
@@ -344,7 +326,4 @@ void PairOxdnaHbond::coeff_oxdna3_common(int narg, char **arg)
   }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond" + utils::errorurl(21));
-
 }
-
-void PairOxdna3Hbond::coeff(int narg, char **arg) { coeff_oxdna3_common(narg, arg); }

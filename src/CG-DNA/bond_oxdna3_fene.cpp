@@ -29,18 +29,6 @@
 using namespace LAMMPS_NS;
 using namespace MathSpecial;
 
-/* ----------------------------------------------------------------------
-   set coeffs - introduces function to handle KOKKOS compatibility.
-   Vanilla oxdna3 coeff() just calls the coeff_oxdna3_common() function.
-   The structure here avoids messy inheritance issues in KOKKOS
-   by not calling BondOxdna3FENE::coeff directly. We can also avoid
-   code duplication of coeff within KOKKOS using this approach.
-
-   coeff_oxdna3_common() lives on the BondOxdnaFene base class, which means
-   it can be called from both the vanilla and KOKKOS versions without
-   duplicating the file parsing logic or requiring KOKKOS to inherit from
-   BondOxdna3Fene.
-------------------------------------------------------------------------- */
 void BondOxdna3Fene::coeff(int narg, char **arg)
 {
   if (narg != 2)

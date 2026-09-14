@@ -20,8 +20,12 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-void PairOxdnaHbond::init_alpha_hb_oxrna2()
+PairOxrna2Hbond::PairOxrna2Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 {
+  single_enable = 0;
+  writedata = 0;
+  trim_flag = 0;
+
   // sequence-specific base-pairing strength
   // A:0 C:1 G:2 U:3, 5'- [i][j] -3'
 
@@ -44,15 +48,4 @@ void PairOxdnaHbond::init_alpha_hb_oxrna2()
   alpha_hb[3][1] = 1.00000;
   alpha_hb[3][2] = 0.58655;
   alpha_hb[3][3] = 1.00000;
-}
-
-PairOxrna2Hbond::PairOxrna2Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
-{
-  single_enable = 0;
-  writedata = 0;
-  trim_flag = 0;
-
-  // Keep oxRNA2 sequence-specific alpha_hb values in a shared base helper so
-  // vanilla and KOKKOS paths initialise identical parameters.
-  init_alpha_hb_oxrna2();
 }

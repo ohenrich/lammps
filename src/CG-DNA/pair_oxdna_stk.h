@@ -46,7 +46,6 @@ class PairOxdnaStk : public Pair {
  protected:
   // Shared oxDNA3 setup and coeff parser (and used by KOKKOS), defined in pair_oxdna3_stk.cpp
   void init_eta_st_oxdna3();
-  void coeff_oxdna3_common(int, char **);
   // stacking interaction
   double eta_st[4][4];
   double stacking_strength(double, double, double);
