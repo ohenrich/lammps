@@ -59,27 +59,33 @@ PairOxdnaHbond::PairOxdnaHbond(LAMMPS *lmp) :
   trim_flag = 0;
 
   // sequence-specific base-pairing strength
-  // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
+  // A:0/4 C:1/5 G:2/6 T:3/7, 5'- [i][j] -3'
 
-  alpha_hb[0][0] = 1.00000;
-  alpha_hb[0][1] = 1.00000;
-  alpha_hb[0][2] = 1.00000;
+  for (int i=0; i<8; i++) {
+    for (int j=0; j<8; j++) {
+      alpha_hb[i][j] = 1.00000;
+    }
+  }
+
   alpha_hb[0][3] = 0.82915;
+  alpha_hb[0][7] = 0.82915;
+  alpha_hb[4][3] = 0.82915;
+  alpha_hb[4][7] = 0.82915;
 
-  alpha_hb[1][0] = 1.00000;
-  alpha_hb[1][1] = 1.00000;
   alpha_hb[1][2] = 1.15413;
-  alpha_hb[1][3] = 1.00000;
+  alpha_hb[1][6] = 1.15413;
+  alpha_hb[5][2] = 1.15413;
+  alpha_hb[5][6] = 1.15413;
 
-  alpha_hb[2][0] = 1.00000;
   alpha_hb[2][1] = 1.15413;
-  alpha_hb[2][2] = 1.00000;
-  alpha_hb[2][3] = 1.00000;
+  alpha_hb[2][5] = 1.15413;
+  alpha_hb[6][1] = 1.15413;
+  alpha_hb[6][5] = 1.15413;
 
   alpha_hb[3][0] = 0.82915;
-  alpha_hb[3][1] = 1.00000;
-  alpha_hb[3][2] = 1.00000;
-  alpha_hb[3][3] = 1.00000;
+  alpha_hb[3][4] = 0.82915;
+  alpha_hb[7][0] = 0.82915;
+  alpha_hb[7][4] = 0.82915;
 
   idc = nullptr;
 }
@@ -667,7 +673,7 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
   if (narg != 4 && narg != 27) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/hbond" + utils::errorurl(21));
   if (!allocated) allocate();
 
-  int ilo,ihi,jlo,jhi,imod4,jmod4;
+  int ilo,ihi,jlo,jhi,imod8,jmod8;
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
 
@@ -869,13 +875,14 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
 
-      imod4 = i%4;
-      if (imod4 == 0) imod4 = 4;
-      jmod4 = j%4;
-      if (jmod4 == 0) jmod4 = 4;
+      imod8 = i%8;
+      if (imod8 == 0) imod8 = 8;
+      jmod8 = j%8;
+      if (jmod8 == 0) jmod8 = 8;
 
       epsilon_hb[i][j] = epsilon_hb_one;
-      if (seqdepflag) epsilon_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
+      if (seqdepflag) epsilon_hb[i][j] *= alpha_hb[imod8-1][jmod8-1];
+
       a_hb[i][j] = a_hb_one;
       cut_hb_0[i][j] = cut_hb_0_one;
       cut_hb_c[i][j] = cut_hb_c_one;
@@ -886,7 +893,7 @@ void PairOxdnaHbond::coeff(int narg, char **arg)
       b_hb_lo[i][j] = b_hb_lo_one;
       b_hb_hi[i][j] = b_hb_hi_one;
       shift_hb[i][j] = shift_hb_one;
-      if (seqdepflag) shift_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
+      if (seqdepflag) shift_hb[i][j] *= alpha_hb[imod8-1][jmod8-1];
 
       a_hb1[i][j] = a_hb1_one;
       theta_hb1_0[i][j] = theta_hb1_0_one;
@@ -981,7 +988,7 @@ void PairOxdnaHbond::init_list(int id, NeighList *ptr)
 
 double PairOxdnaHbond::init_one(int i, int j)
 {
-  int imod4,jmod4;
+  int imod8,jmod8;
 
   if (setflag[i][j] == 0) {
     error->all(FLERR,"Coefficient mixing not defined in oxDNA");
@@ -990,13 +997,13 @@ double PairOxdnaHbond::init_one(int i, int j)
     error->all(FLERR,"Offset not supported in oxDNA");
   }
 
-  imod4 = i%4;
-  if (imod4 == 0) imod4 = 4;
-  jmod4 = j%4;
-  if (jmod4 == 0) jmod4 = 4;
+  imod8 = i%8;
+  if (imod8 == 0) imod8 = 8;
+  jmod8 = j%8;
+  if (jmod8 == 0) jmod8 = 8;
 
   if (seqdepflag) {
-    epsilon_hb[j][i] = epsilon_hb[i][j] / alpha_hb[imod4-1][jmod4-1] * alpha_hb[jmod4-1][imod4-1];
+    epsilon_hb[j][i] = epsilon_hb[i][j] / alpha_hb[imod8-1][jmod8-1] * alpha_hb[jmod8-1][imod8-1];
   }
   else {
     epsilon_hb[j][i] = epsilon_hb[i][j];
@@ -1011,7 +1018,7 @@ double PairOxdnaHbond::init_one(int i, int j)
   cut_hb_lc[j][i] = cut_hb_lc[i][j];
   cut_hb_hc[j][i] = cut_hb_hc[i][j];
   if (seqdepflag) {
-    shift_hb[j][i] = shift_hb[i][j] / alpha_hb[imod4-1][jmod4-1] * alpha_hb[jmod4-1][imod4-1];
+    shift_hb[j][i] = shift_hb[i][j] / alpha_hb[imod8-1][jmod8-1] * alpha_hb[jmod8-1][imod8-1];
   }
   else {
     shift_hb[j][i] = shift_hb[i][j];

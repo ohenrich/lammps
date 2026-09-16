@@ -39,32 +39,39 @@ using namespace MFOxdna;
 
 PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
 {
-  // sequence-specific base-pairing strength
-  // A:0 C:1 G:2 T:3, 5'- [i][j] -3'
-
-  alpha_hb[0][0] = 1.00000;
-  alpha_hb[0][1] = 1.00000;
-  alpha_hb[0][2] = 1.00000;
-  alpha_hb[0][3] = 0.6493620379646540;
-
-  alpha_hb[1][0] = 1.00000;
-  alpha_hb[1][1] = 1.00000;
-  alpha_hb[1][2] = 1.1999420813642658;
-  alpha_hb[1][3] = 1.00000;
-
-  alpha_hb[2][0] = 1.00000;
-  alpha_hb[2][1] = 1.1999420813642658;
-  alpha_hb[2][2] = 1.00000;
-  alpha_hb[2][3] = 1.00000;
-
-  alpha_hb[3][0] = 0.6493620379646540;
-  alpha_hb[3][1] = 1.00000;
-  alpha_hb[3][2] = 1.00000;
-  alpha_hb[3][3] = 1.00000;
-
   single_enable = 0;
   writedata = 0;
   trim_flag = 0;
+
+  // sequence-specific base-pairing strength
+  // A:0/4 C:1/5 G:2/6 T:3/7, 5'- [i][j] -3'
+
+  for (int i=0; i<8; i++) {
+    for (int j=0; j<8; j++) {
+      alpha_hb[i][j] = 1.00000;
+    }
+  }
+
+  alpha_hb[0][3] = 0.6493620379646540;
+  alpha_hb[0][7] = 0.6493620379646540;
+  alpha_hb[4][3] = 0.6493620379646540;
+  alpha_hb[4][7] = 0.6493620379646540;
+
+  alpha_hb[1][2] = 1.1999420813642658;
+  alpha_hb[1][6] = 1.1999420813642658;
+  alpha_hb[5][2] = 1.1999420813642658;
+  alpha_hb[5][6] = 1.1999420813642658;
+
+  alpha_hb[2][1] = 1.1999420813642658;
+  alpha_hb[2][5] = 1.1999420813642658;
+  alpha_hb[6][1] = 1.1999420813642658;
+  alpha_hb[6][5] = 1.1999420813642658;
+
+  alpha_hb[3][0] = 0.6493620379646540;
+  alpha_hb[3][4] = 0.6493620379646540;
+  alpha_hb[7][0] = 0.6493620379646540;
+  alpha_hb[7][4] = 0.6493620379646540;
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -76,7 +83,7 @@ void PairOxdna3Hbond::coeff(int narg, char **arg) {
   if (narg != 3) error->all(FLERR,"Incorrect args for pair coefficients in oxdna3/hbond, use potential file" + utils::errorurl(21));
   if (!allocated) allocate();
 
-  int ilo,ihi,jlo,jhi,imod4,jmod4;
+  int ilo,ihi,jlo,jhi,imod8,jmod8;
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
 
@@ -255,13 +262,13 @@ void PairOxdna3Hbond::coeff(int narg, char **arg) {
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
 
-      imod4 = i%4;
-      if (imod4 == 0) imod4 = 4;
-      jmod4 = j%4;
-      if (jmod4 == 0) jmod4 = 4;
+      imod8 = i%8;
+      if (imod8 == 0) imod8 = 8;
+      jmod8 = j%8;
+      if (jmod8 == 0) jmod8 = 8;
 
       epsilon_hb[i][j] = epsilon_hb_one;
-      epsilon_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
+      epsilon_hb[i][j] *= alpha_hb[imod8-1][jmod8-1];
       a_hb[i][j] = a_hb_one;
       cut_hb_0[i][j] = cut_hb_0_one;
       cut_hb_c[i][j] = cut_hb_c_one;
@@ -272,7 +279,7 @@ void PairOxdna3Hbond::coeff(int narg, char **arg) {
       b_hb_lo[i][j] = b_hb_lo_one;
       b_hb_hi[i][j] = b_hb_hi_one;
       shift_hb[i][j] = shift_hb_one;
-      shift_hb[i][j] *= alpha_hb[imod4-1][jmod4-1];
+      shift_hb[i][j] *= alpha_hb[imod8-1][jmod8-1];
 
       a_hb1[i][j] = a_hb1_one;
       theta_hb1_0[i][j] = theta_hb1_0_one;
@@ -292,7 +299,9 @@ void PairOxdna3Hbond::coeff(int narg, char **arg) {
       b_hb3[i][j] = b_hb3_one;
       dtheta_hb3_c[i][j] = dtheta_hb3_c_one;
 
-      if((imod4==1 && jmod4==4) || (imod4==4 && jmod4==1)){
+      if(((imod8==1 || imod8==5) && (jmod8==4 || jmod8==8)) ||
+         ((imod8==4 || imod8==8) && (jmod8==1 || jmod8==5))) 
+      {
         a_hb4[i][j] = a_hb4_at;
         theta_hb4_0[i][j] = theta_hb4_0_at;
         dtheta_hb4_ast[i][j] = dtheta_hb4_ast_at;
@@ -300,7 +309,9 @@ void PairOxdna3Hbond::coeff(int narg, char **arg) {
         dtheta_hb4_c[i][j] = dtheta_hb4_c_at;
       }
 
-      if((imod4==2 && jmod4==3) || (imod4==3 && jmod4==2)){
+      if(((imod8==2 || imod8==6) && (jmod8==3 || jmod8==7)) ||
+         ((imod8==3 || imod8==7) && (jmod8==2 || jmod8==6)))
+      {
         a_hb4[i][j] = a_hb4_cg;
         theta_hb4_0[i][j] = theta_hb4_0_cg;
         dtheta_hb4_ast[i][j] = dtheta_hb4_ast_cg;

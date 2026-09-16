@@ -27,25 +27,42 @@ PairOxrna2Hbond::PairOxrna2Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
   trim_flag = 0;
 
   // sequence-specific base-pairing strength
-  // A:0 C:1 G:2 U:3, 5'- [i][j] -3'
+  // A:0/4 C:1/5 G:2/6 U:3/7, 5'- [i][j] -3'
 
-  alpha_hb[0][0] = 1.00000;
-  alpha_hb[0][1] = 1.00000;
-  alpha_hb[0][2] = 1.00000;
+ for (int i=0; i<8; i++) {
+    for (int j=0; j<8; j++) {
+      alpha_hb[i][j] = 1.00000;
+    }
+  }
+
   alpha_hb[0][3] = 0.94253;
+  alpha_hb[0][7] = 0.94253;
+  alpha_hb[4][3] = 0.94253;
+  alpha_hb[4][7] = 0.94253;
 
-  alpha_hb[1][0] = 1.00000;
-  alpha_hb[1][1] = 1.00000;
   alpha_hb[1][2] = 1.22288;
-  alpha_hb[1][3] = 1.00000;
+  alpha_hb[1][6] = 1.22288;
+  alpha_hb[5][2] = 1.22288;
+  alpha_hb[5][6] = 1.22288;
 
-  alpha_hb[2][0] = 1.00000;
   alpha_hb[2][1] = 1.22288;
-  alpha_hb[2][2] = 1.00000;
+  alpha_hb[2][5] = 1.22288;
+  alpha_hb[6][1] = 1.22288;
+  alpha_hb[6][5] = 1.22288;
+
   alpha_hb[2][3] = 0.58655;
+  alpha_hb[2][7] = 0.58655;
+  alpha_hb[6][3] = 0.58655;
+  alpha_hb[6][7] = 0.58655;
 
   alpha_hb[3][0] = 0.94253;
-  alpha_hb[3][1] = 1.00000;
+  alpha_hb[3][4] = 0.94253;
+  alpha_hb[7][0] = 0.94253;
+  alpha_hb[7][4] = 0.94253;
+
   alpha_hb[3][2] = 0.58655;
-  alpha_hb[3][3] = 1.00000;
+  alpha_hb[3][6] = 0.58655;
+  alpha_hb[7][2] = 0.58655;
+  alpha_hb[7][6] = 0.58655;
+
 }
