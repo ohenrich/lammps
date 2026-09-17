@@ -44,7 +44,7 @@ PairOxdna3Hbond::PairOxdna3Hbond(LAMMPS *lmp) : PairOxdnaHbond(lmp)
   trim_flag = 0;
 
   // sequence-specific base-pairing strength
-  // A:0/4 C:1/5 G:2/6 T:3/7, 5'- [i][j] -3'
+  // A:0/4 C:1/5 G:2/6 T:3/7, 3'- [i][j] -5'
 
   for (int i=0; i<8; i++) {
     for (int j=0; j<8; j++) {
