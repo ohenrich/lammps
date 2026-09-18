@@ -381,7 +381,7 @@ void PairOxrna2Stk::compute(int eflag, int vflag)
 
     f1 = F1(r_stkstk, epsilon_st[atype][btype], a_st[atype][btype], cut_st_0[atype][btype],
         cut_st_lc[atype][btype], cut_st_hc[atype][btype], cut_st_lo[atype][btype], cut_st_hi[atype][btype],
-        b_st_lo[atype][btype], b_st_hi[atype][btype], shift_st[atype][btype]);
+        b_st_lo[atype][btype], b_st_hi[atype][btype], shift_st[atype][btype], df1);
 
     // early rejection criterium
     if (f1 != 0.0) {
@@ -449,10 +449,6 @@ void PairOxrna2Stk::compute(int eflag, int vflag)
 
     // early rejection criterium
     if (evdwl != 0.0) {
-
-    df1 = DF1(r_stkstk, epsilon_st[atype][btype], a_st[atype][btype], cut_st_0[atype][btype],
-        cut_st_lc[atype][btype], cut_st_hc[atype][btype], cut_st_lo[atype][btype], cut_st_hi[atype][btype],
-        b_st_lo[atype][btype], b_st_hi[atype][btype]);
 
     df4t5 = DF4(theta5p, a_st5[atype][btype], theta_st5_0[atype][btype], dtheta_st5_ast[atype][btype],
         b_st5[atype][btype], dtheta_st5_c[atype][btype])/sin(theta5p);

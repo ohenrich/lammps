@@ -266,7 +266,7 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       f1 = F1(r_bsbs, epsilon_hb[atype][btype], a_hb[atype][btype], cut_hb_0[atype][btype],
             cut_hb_lc[atype][btype], cut_hb_hc[atype][btype], cut_hb_lo[atype][btype], cut_hb_hi[atype][btype],
-            b_hb_lo[atype][btype], b_hb_hi[atype][btype], shift_hb[atype][btype]);
+            b_hb_lo[atype][btype], b_hb_hi[atype][btype], shift_hb[atype][btype], df1);
 
       // early rejection criterium
       if (f1 != 0.0) {
@@ -345,10 +345,6 @@ void PairOxdnaHbond::compute(int eflag, int vflag)
 
       // early rejection criterium
       if (evdwl != 0.0) {
-
-      df1 = DF1(r_bsbs, epsilon_hb[atype][btype], a_hb[atype][btype], cut_hb_0[atype][btype],
-            cut_hb_lc[atype][btype], cut_hb_hc[atype][btype], cut_hb_lo[atype][btype], cut_hb_hi[atype][btype],
-            b_hb_lo[atype][btype], b_hb_hi[atype][btype]);
 
       df4t1 = DF4(theta1, a_hb1[atype][btype], theta_hb1_0[atype][btype], dtheta_hb1_ast[atype][btype],
             b_hb1[atype][btype], dtheta_hb1_c[atype][btype])/sin(theta1);
