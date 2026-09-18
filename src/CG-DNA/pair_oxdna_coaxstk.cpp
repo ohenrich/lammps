@@ -343,7 +343,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
 
       f2 = F2(r_stkstk, k_cxst[atype][btype], cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
               cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
-              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype]);
+              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype], df2);
 
       f5c3 = F5(cosphi3, a_cxst3p[atype][btype], cosphi_cxst3p_ast[atype][btype], b_cxst3p[atype][btype],
                 cosphi_cxst3p_c[atype][btype]);
@@ -352,10 +352,6 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
 
       // early rejection criterium
       if (evdwl != 0.0) {
-
-      df2 = DF2(r_stkstk, k_cxst[atype][btype], cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
-                cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
-                b_cxst_lo[atype][btype], b_cxst_hi[atype][btype]);
 
       df4t1 = (DF4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
                    dtheta_cxst1_ast[atype][btype], b_cxst1[atype][btype],

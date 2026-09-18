@@ -292,12 +292,14 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       f2_33 = F2(r_bsbs, k_xst[atype][btype], cut_xst_0_33[a3ptype][atype][btype][b3ptype],
               cut_xst_lc_33[a3ptype][atype][btype][b3ptype], cut_xst_hc_33[a3ptype][atype][btype][b3ptype],
               cut_xst_lo_33[a3ptype][atype][btype][b3ptype], cut_xst_hi_33[a3ptype][atype][btype][b3ptype],
-              b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c_33[a3ptype][atype][btype][b3ptype]);
+              b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c_33[a3ptype][atype][btype][b3ptype],
+              df2_33);
 
       f2_55 = F2(r_bsbs, k_xst[atype][btype], cut_xst_0_55[a5ptype][atype][btype][b5ptype],
               cut_xst_lc_55[a5ptype][atype][btype][b5ptype], cut_xst_hc_55[a5ptype][atype][btype][b5ptype],
               cut_xst_lo_55[a5ptype][atype][btype][b5ptype], cut_xst_hi_55[a5ptype][atype][btype][b5ptype],
-              b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c_55[a5ptype][atype][btype][b5ptype]);
+              b_xst_lo[atype][btype], b_xst_hi[atype][btype], cut_xst_c_55[a5ptype][atype][btype][b5ptype],
+              df2_55);
 
       // early rejection criterium
       if ((f2_33 != 0.0) || (f2_55 != 0.0)) {
@@ -387,16 +389,6 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
 
       // early rejection criterium
       if (evdwl != 0.0) {
-
-      df2_33 = DF2(r_bsbs, k_xst[atype][btype], cut_xst_0_33[a3ptype][atype][btype][b3ptype],
-                 cut_xst_lc_33[a3ptype][atype][btype][b3ptype], cut_xst_hc_33[a3ptype][atype][btype][b3ptype],
-                 cut_xst_lo_33[a3ptype][atype][btype][b3ptype], cut_xst_hi_33[a3ptype][atype][btype][b3ptype],
-                 b_xst_lo[atype][btype], b_xst_hi[atype][btype]);
-
-      df2_55 = DF2(r_bsbs, k_xst[atype][btype], cut_xst_0_55[a5ptype][atype][btype][b5ptype],
-                 cut_xst_lc_55[a5ptype][atype][btype][b5ptype], cut_xst_hc_55[a5ptype][atype][btype][b5ptype],
-                 cut_xst_lo_55[a5ptype][atype][btype][b5ptype], cut_xst_hi_55[a5ptype][atype][btype][b5ptype],
-                 b_xst_lo[atype][btype], b_xst_hi[atype][btype]);
 
       df4t1 = DF4(theta1, a_xst1[atype][btype], theta_xst1_0[atype][btype], dtheta_xst1_ast[atype][btype],
                 b_xst1[atype][btype], dtheta_xst1_c[atype][btype])/sin(theta1);

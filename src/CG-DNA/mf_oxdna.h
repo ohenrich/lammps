@@ -18,10 +18,8 @@
 
 namespace MFOxdna {
 
-inline double F1(double, double, double, double, double, double, double, double, double, double,
-                 double, double &);
-inline double F2(double, double, double, double, double, double, double, double, double, double);
-inline double DF2(double, double, double, double, double, double, double, double, double);
+inline double F1(double, double, double, double, double, double, double, double, double, double, double, double &);
+inline double F2(double, double, double, double, double, double, double, double, double, double, double &);
 inline double F3(double, double, double, double, double, double, double, double &);
 inline double F4(double, double, double, double, double, double);
 inline double DF4(double, double, double, double, double, double);
@@ -64,34 +62,22 @@ inline double MFOxdna::F1(double r, double eps, double a, double cut_0, double c
    f2 modulation factor
    ------------------------------------------------------------------------- */
 inline double MFOxdna::F2(double r, double k, double cut_0, double cut_lc, double cut_hc,
-                          double cut_lo, double cut_hi, double b_lo, double b_hi, double cut_c)
+                          double cut_lo, double cut_hi, double b_lo, double b_hi, double cut_c,
+                          double &df)
 {
 
   if (r < cut_lc || r > cut_hc) {
+    df = 0.0;
     return 0.0;
   } else if (r < cut_lo) {
+    df = 2 * k * b_lo * (r - cut_lc);
     return k * b_lo * (cut_lc - r) * (cut_lc - r);
   } else if (r < cut_hi) {
+    df = k * (r - cut_0);
     return k * 0.5 * ((r - cut_0) * (r - cut_0) - (cut_0 - cut_c) * (cut_0 - cut_c));
   } else {
+    df = 2 * k * b_hi * (r - cut_hc);
     return k * b_hi * (cut_hc - r) * (cut_hc - r);
-  }
-}
-
-/* ----------------------------------------------------------------------
-   derivative of f2 modulation factor
-   ------------------------------------------------------------------------- */
-inline double MFOxdna::DF2(double r, double k, double cut_0, double cut_lc, double cut_hc,
-                           double cut_lo, double cut_hi, double b_lo, double b_hi)
-{
-  if (r < cut_lc || r > cut_hc) {
-    return 0.0;
-  } else if (r < cut_lo) {
-    return 2 * k * b_lo * (r - cut_lc);
-  } else if (r < cut_hi) {
-    return k * (r - cut_0);
-  } else {
-    return 2 * k * b_hi * (r - cut_hc);
   }
 }
 

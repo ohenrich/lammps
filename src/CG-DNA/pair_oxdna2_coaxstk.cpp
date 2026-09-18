@@ -366,16 +366,12 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
 
       f2 = F2(r_stkstk, k_cxst_ab, cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
               cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
-              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype]);
+              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype], df2);
 
       evdwl = f2 * f4f6t1 * f4t4 * f4t5 * f4t6 * factor_lj;
 
       // early rejection criterium
       if (evdwl != 0.0) {
-
-      df2 = DF2(r_stkstk, k_cxst_ab, cut_cxst_0[atype][btype],
-                cut_cxst_lc[atype][btype], cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype],
-                cut_cxst_hi[atype][btype], b_cxst_lo[atype][btype], b_cxst_hi[atype][btype]);
 
       df4f6t1 = (DF4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
                     dtheta_cxst1_ast[atype][btype], b_cxst1[atype][btype],
