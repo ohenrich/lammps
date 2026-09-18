@@ -22,6 +22,7 @@ inline double F1(double, double, double, double, double, double, double, double,
 inline double F2(double, double, double, double, double, double, double, double, double, double, double &);
 inline double F3(double, double, double, double, double, double, double, double &);
 inline double F4(double, double, double, double, double, double);
+inline double FF4(double, double, double, double, double, double, double &);
 inline double DF4(double, double, double, double, double, double);
 inline double F5(double, double, double, double, double, double &);
 inline double F6(double, double, double, double &);
@@ -99,6 +100,29 @@ inline double MFOxdna::F3(double rsq, double cutsq_ast, double cut_c, double lj1
     evdwl = eps * b * (cut_c - r) * (cut_c - r);
   }
   return evdwl;
+}
+
+/* ----------------------------------------------------------------------
+   f4 modulation factor
+   ------------------------------------------------------------------------- */
+inline double MFOxdna::FF4(double theta, double a, double theta_0, double dtheta_ast, double b,
+                          double dtheta_c, double &df)
+{
+  double dtheta = theta - theta_0;
+
+  if (fabs(dtheta) > dtheta_c) {
+    df = 0.0;
+    return 0.0;
+  } else if (dtheta > dtheta_ast) {
+    df = 2 * b * (dtheta - dtheta_c); 
+    return b * (dtheta - dtheta_c) * (dtheta - dtheta_c);
+  } else if (dtheta > -dtheta_ast) {
+    df = -2 * a * dtheta;
+    return 1 - a * dtheta * dtheta;
+  } else {
+    df = 2 * b * (dtheta + dtheta_c);
+    return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
+  }
 }
 
 /* ----------------------------------------------------------------------
