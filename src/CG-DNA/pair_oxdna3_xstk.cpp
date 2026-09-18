@@ -309,7 +309,7 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost1 < -1.0) cost1 = -1.0;
       theta1 = acos(cost1);
 
-      f4t1 = FF4(theta1, a_xst1[atype][btype], theta_xst1_0[atype][btype], dtheta_xst1_ast[atype][btype],
+      f4t1 = F4(theta1, a_xst1[atype][btype], theta_xst1_0[atype][btype], dtheta_xst1_ast[atype][btype],
              b_xst1[atype][btype], dtheta_xst1_c[atype][btype], df4t1);
 
       // early rejection criterium
@@ -320,7 +320,7 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost2 < -1.0) cost2 = -1.0;
       theta2 = acos(cost2);
 
-      f4t2 = FF4(theta2, a_xst2[atype][btype], theta_xst2_0[atype][btype], dtheta_xst2_ast[atype][btype],
+      f4t2 = F4(theta2, a_xst2[atype][btype], theta_xst2_0[atype][btype], dtheta_xst2_ast[atype][btype],
              b_xst2[atype][btype], dtheta_xst2_c[atype][btype], df4t2);
 
       // early rejection criterium
@@ -331,7 +331,7 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost3 < -1.0) cost3 = -1.0;
       theta3 = acos(cost3);
 
-      f4t3 = FF4(theta3, a_xst3[atype][btype], theta_xst3_0[atype][btype], dtheta_xst3_ast[atype][btype],
+      f4t3 = F4(theta3, a_xst3[atype][btype], theta_xst3_0[atype][btype], dtheta_xst3_ast[atype][btype],
              b_xst3[atype][btype], dtheta_xst3_c[atype][btype], df4t3);
 
       // early rejection criterium
@@ -349,11 +349,11 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost4 < -1.0) cost4 = -1.0;
       theta4 = acos(cost4);
 
-      f4t4_33 = FF4(theta4, a_xst4_33[a3ptype][atype][btype][b3ptype], theta_xst4_0_33[a3ptype][atype][btype][b3ptype],
+      f4t4_33 = F4(theta4, a_xst4_33[a3ptype][atype][btype][b3ptype], theta_xst4_0_33[a3ptype][atype][btype][b3ptype],
                   dtheta_xst4_ast_33[a3ptype][atype][btype][b3ptype], b_xst4_33[a3ptype][atype][btype][b3ptype],
                   dtheta_xst4_c_33[a3ptype][atype][btype][b3ptype], df4t4_33);
 
-      f4t4_55 = FF4(theta4, a_xst4_55[a5ptype][atype][btype][b5ptype], theta_xst4_0_55[a5ptype][atype][btype][b5ptype],
+      f4t4_55 = F4(theta4, a_xst4_55[a5ptype][atype][btype][b5ptype], theta_xst4_0_55[a5ptype][atype][btype][b5ptype],
                   dtheta_xst4_ast_55[a5ptype][atype][btype][b5ptype], b_xst4_55[a5ptype][atype][btype][b5ptype],
                   dtheta_xst4_c_55[a5ptype][atype][btype][b5ptype], df4t4_55);
 
@@ -365,10 +365,10 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost7 < -1.0) cost7 = -1.0;
       theta7 = acos(cost7);
 
-      f4t7_33 = FF4(theta7, a_xst7[atype][btype], theta_xst7_0_33[atype][btype], dtheta_xst7_ast[atype][btype],
+      f4t7_33 = F4(theta7, a_xst7[atype][btype], theta_xst7_0_33[atype][btype], dtheta_xst7_ast[atype][btype],
                  b_xst7[atype][btype], dtheta_xst7_c[atype][btype], df4t7_33);
 
-      f4t7_55 = FF4(theta7, a_xst7[atype][btype], theta_xst7_0_55[atype][btype], dtheta_xst7_ast[atype][btype],
+      f4t7_55 = F4(theta7, a_xst7[atype][btype], theta_xst7_0_55[atype][btype], dtheta_xst7_ast[atype][btype],
                  b_xst7[atype][btype], dtheta_xst7_c[atype][btype], df4t7_55);
 
       // early rejection criterium
@@ -379,10 +379,10 @@ void PairOxdna3Xstk::compute(int eflag, int vflag)
       if (cost8 < -1.0) cost8 = -1.0;
       theta8 = acos(cost8);
 
-      f4t8_33 = FF4(theta8, a_xst8[atype][btype], theta_xst8_0_33[atype][btype], dtheta_xst8_ast[atype][btype],
+      f4t8_33 = F4(theta8, a_xst8[atype][btype], theta_xst8_0_33[atype][btype], dtheta_xst8_ast[atype][btype],
                  b_xst8[atype][btype], dtheta_xst8_c[atype][btype], df4t8_33);
 
-      f4t8_55 = FF4(theta8, a_xst8[atype][btype], theta_xst8_0_55[atype][btype], dtheta_xst8_ast[atype][btype],
+      f4t8_55 = F4(theta8, a_xst8[atype][btype], theta_xst8_0_55[atype][btype], dtheta_xst8_ast[atype][btype],
                  b_xst8[atype][btype], dtheta_xst8_c[atype][btype], df4t8_55);
 
       evdwl = f4t1 * f4t2 * f4t3 * (f2_33 * f4t4_33 * f4t7_33 * f4t8_33 + f2_55 * f4t4_55 * f4t7_55 * f4t8_55) * factor_lj;

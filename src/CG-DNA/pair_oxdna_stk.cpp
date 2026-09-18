@@ -390,7 +390,7 @@ void PairOxdnaStk::compute(int eflag, int vflag)
     if (cost4 < -1.0) cost4 = -1.0;
     theta4 = acos(cost4);
 
-    f4t4 = FF4(theta4, a_st4[a3ptype][atype][btype][b5ptype], theta_st4_0[atype][btype],
+    f4t4 = F4(theta4, a_st4[a3ptype][atype][btype][b5ptype], theta_st4_0[atype][btype],
         dtheta_st4_ast[a3ptype][atype][btype][b5ptype], b_st4[a3ptype][atype][btype][b5ptype],
         dtheta_st4_c[a3ptype][atype][btype][b5ptype], df4t4);
 
@@ -403,7 +403,7 @@ void PairOxdnaStk::compute(int eflag, int vflag)
     if (cost5p < -1.0) cost5p = -1.0;
     theta5p = acos(cost5p);
 
-    f4t5 = FF4(theta5p, a_st5[atype][btype], theta_st5_0[atype][btype], dtheta_st5_ast[atype][btype],
+    f4t5 = F4(theta5p, a_st5[atype][btype], theta_st5_0[atype][btype], dtheta_st5_ast[atype][btype],
         b_st5[atype][btype], dtheta_st5_c[atype][btype], df4t5);
 
     // early rejection criterium
@@ -429,7 +429,7 @@ void PairOxdnaStk::compute(int eflag, int vflag)
     if (cosphi2 >  1.0) cosphi2 =  1.0;
     if (cosphi2 < -1.0) cosphi2 = -1.0;
 
-    f4t6 = FF4(theta6p, a_st6[atype][btype], theta_st6_0[atype][btype], dtheta_st6_ast[atype][btype],
+    f4t6 = F4(theta6p, a_st6[atype][btype], theta_st6_0[atype][btype], dtheta_st6_ast[atype][btype],
         b_st6[atype][btype], dtheta_st6_c[atype][btype], df4t6);
 
     f5c1 = F5(-cosphi1, a_st1[atype][btype], -cosphi_st1_ast[atype][btype], b_st1[atype][btype],

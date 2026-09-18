@@ -21,9 +21,7 @@ namespace MFOxdna {
 inline double F1(double, double, double, double, double, double, double, double, double, double, double, double &);
 inline double F2(double, double, double, double, double, double, double, double, double, double, double &);
 inline double F3(double, double, double, double, double, double, double, double &);
-inline double F4(double, double, double, double, double, double);
-inline double FF4(double, double, double, double, double, double, double &);
-inline double DF4(double, double, double, double, double, double);
+inline double F4(double, double, double, double, double, double, double &);
 inline double F5(double, double, double, double, double, double &);
 inline double F6(double, double, double, double &);
 inline double is_3pto5p(const double *, const double *);
@@ -104,8 +102,13 @@ inline double MFOxdna::F3(double rsq, double cutsq_ast, double cut_c, double lj1
 
 /* ----------------------------------------------------------------------
    f4 modulation factor
+
+   NOTE: We handle the sin(theta) factor from the partial derivative
+   of d(cos(theta))/dtheta externally. The reason for this is
+   because the sign of DF4 depends on the sign of theta in the
+   function call. It is also more efficient to store sin(theta).
    ------------------------------------------------------------------------- */
-inline double MFOxdna::FF4(double theta, double a, double theta_0, double dtheta_ast, double b,
+inline double MFOxdna::F4(double theta, double a, double theta_0, double dtheta_ast, double b,
                           double dtheta_c, double &df)
 {
   double dtheta = theta - theta_0;
@@ -122,49 +125,6 @@ inline double MFOxdna::FF4(double theta, double a, double theta_0, double dtheta
   } else {
     df = 2 * b * (dtheta + dtheta_c);
     return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
-  }
-}
-
-/* ----------------------------------------------------------------------
-   f4 modulation factor
-   ------------------------------------------------------------------------- */
-inline double MFOxdna::F4(double theta, double a, double theta_0, double dtheta_ast, double b,
-                          double dtheta_c)
-{
-  double dtheta = theta - theta_0;
-
-  if (fabs(dtheta) > dtheta_c) {
-    return 0.0;
-  } else if (dtheta > dtheta_ast) {
-    return b * (dtheta - dtheta_c) * (dtheta - dtheta_c);
-  } else if (dtheta > -dtheta_ast) {
-    return 1 - a * dtheta * dtheta;
-  } else {
-    return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
-  }
-}
-
-/* ----------------------------------------------------------------------
-   derivative of f4 modulation factor
-
-   NOTE: We handle the sin(theta) factor from the partial derivative
-   of d(cos(theta))/dtheta externally. The reason for this is
-   because the sign of DF4 depends on the sign of theta in the
-   function call. It is also more efficient to store sin(theta).
-   ------------------------------------------------------------------------- */
-inline double MFOxdna::DF4(double theta, double a, double theta_0, double dtheta_ast, double b,
-                           double dtheta_c)
-{
-  double dtheta = theta - theta_0;
-
-  if (fabs(dtheta) > dtheta_c) {
-    return 0.0;
-  } else if (dtheta > dtheta_ast) {
-    return 2 * b * (dtheta - dtheta_c);
-  } else if (dtheta > -dtheta_ast) {
-    return -2 * a * dtheta;
-  } else {
-    return 2 * b * (dtheta + dtheta_c);
   }
 }
 
