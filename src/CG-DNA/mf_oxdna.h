@@ -23,10 +23,8 @@ inline double F2(double, double, double, double, double, double, double, double,
 inline double F3(double, double, double, double, double, double, double, double &);
 inline double F4(double, double, double, double, double, double);
 inline double DF4(double, double, double, double, double, double);
-inline double F5(double, double, double, double, double);
-inline double DF5(double, double, double, double, double);
-inline double F6(double, double, double);
-inline double DF6(double, double, double);
+inline double F5(double, double, double, double, double, double &);
+inline double F6(double, double, double, double &);
 inline double is_3pto5p(const double *, const double *);
 
 }    // namespace MFOxdna
@@ -149,32 +147,20 @@ inline double MFOxdna::DF4(double theta, double a, double theta_0, double dtheta
 /* ----------------------------------------------------------------------
    f5 modulation factor
    ------------------------------------------------------------------------- */
-inline double MFOxdna::F5(double x, double a, double x_ast, double b, double x_c)
+inline double MFOxdna::F5(double x, double a, double x_ast, double b, double x_c, double &df)
 {
 
   if (x >= 0) {
+    df = 0.0;
     return 1.0;
   } else if (x > x_ast) {
+    df = -2 * a * x;
     return 1 - a * x * x;
   } else if (x > x_c) {
+    df = 2 * b * (x - x_c);
     return b * (x - x_c) * (x - x_c);
   } else {
-    return 0.0;
-  }
-}
-
-/* ----------------------------------------------------------------------
-   derivative of f5 modulation factor
-   ------------------------------------------------------------------------- */
-inline double MFOxdna::DF5(double x, double a, double x_ast, double b, double x_c)
-{
-  if (x >= 0) {
-    return 0.0;
-  } else if (x > x_ast) {
-    return -2 * a * x;
-  } else if (x > x_c) {
-    return 2 * b * (x - x_c);
-  } else {
+    df = 0.0;
     return 0.0;
   }
 }
@@ -182,24 +168,14 @@ inline double MFOxdna::DF5(double x, double a, double x_ast, double b, double x_
 /* ----------------------------------------------------------------------
    f6 modulation factor
    ------------------------------------------------------------------------- */
-inline double MFOxdna::F6(double theta, double a, double b)
+inline double MFOxdna::F6(double theta, double a, double b, double &df)
 {
   if (theta < b) {
+    df = 0.0;
     return 0.0;
   } else {
+    df = a * (theta - b);
     return 0.5 * a * (theta - b) * (theta - b);
-  }
-}
-
-/* ----------------------------------------------------------------------
-   derivative of f6 modulation factor
-   ------------------------------------------------------------------------- */
-inline double MFOxdna::DF6(double theta, double a, double b)
-{
-  if (theta < b) {
-    return 0.0;
-  } else {
-    return a * (theta - b);
   }
 }
 

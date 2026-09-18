@@ -346,7 +346,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
               b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype], df2);
 
       f5c3 = F5(cosphi3, a_cxst3p[atype][btype], cosphi_cxst3p_ast[atype][btype], b_cxst3p[atype][btype],
-                cosphi_cxst3p_c[atype][btype]);
+                cosphi_cxst3p_c[atype][btype], df5c3);
 
       evdwl = f2 * f4t1 * f4t4 * f4t5 * f4t6 * f5c3 * f5c3 * factor_lj;
 
@@ -380,10 +380,6 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
                DF4(theta6p, a_cxst6[atype][btype], theta_cxst6_0[atype][btype],
                    dtheta_cxst6_ast[atype][btype], b_cxst6[atype][btype],
                    dtheta_cxst6_c[atype][btype]))/sin(theta6);
-
-      df5c3 = DF5(cosphi3, a_cxst3p[atype][btype], cosphi_cxst3p_ast[atype][btype], b_cxst3p[atype][btype],
-                  cosphi_cxst3p_c[atype][btype]);
-
 
      // force, torque and virial contribution for forces between stacking sites
 

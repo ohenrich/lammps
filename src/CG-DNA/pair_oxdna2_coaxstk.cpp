@@ -196,7 +196,7 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
   double k_cxst_ab;
 
   double f2,f4f6t1,f4t4,f4t5,f4t6;
-  double df2,df4f6t1,df4t4,df4t5,df4t6;
+  double df2,df4f6t1,df4t4,df4t5,df4t6,df6t1;
 
   evdwl = 0.0;
   ev_init(eflag,vflag);
@@ -289,7 +289,7 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
       f4f6t1 = F4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
                   dtheta_cxst1_ast[atype][btype], b_cxst1[atype][btype],
                   dtheta_cxst1_c[atype][btype]) +
-               F6(theta1, AA_cxst1[atype][btype], BB_cxst1[atype][btype]);
+               F6(theta1, AA_cxst1[atype][btype], BB_cxst1[atype][btype], df6t1);
 
       // early rejection criterium
       if (f4f6t1 != 0.0) {
@@ -375,8 +375,7 @@ void PairOxdna2Coaxstk::compute(int eflag, int vflag)
 
       df4f6t1 = (DF4(theta1, a_cxst1[atype][btype], theta_cxst1_0[atype][btype],
                     dtheta_cxst1_ast[atype][btype], b_cxst1[atype][btype],
-                    dtheta_cxst1_c[atype][btype]) +
-                 DF6(theta1, AA_cxst1[atype][btype], BB_cxst1[atype][btype]))/sin(theta1);
+                    dtheta_cxst1_c[atype][btype]) + df6t1)/sin(theta1);
 
       df4t4 = (DF4(theta4, a_cxst4[atype][btype], theta_cxst4_0[atype][btype],
                   dtheta_cxst4_ast[atype][btype], b_cxst4[atype][btype],
