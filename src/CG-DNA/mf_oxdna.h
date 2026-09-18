@@ -40,15 +40,19 @@ inline double MFOxdna::F1(double r, double eps, double a, double cut_0, double c
     df = 0.0;
     return 0.0;
   } else if (r > cut_hi) {
-    df = 2 * eps * b_hi * (1 - cut_hc / r);
-    return eps * b_hi * (r - cut_hc) * (r - cut_hc);
+    double tmp1 = r - cut_hc;
+    double tmp2 = eps * b_hi * tmp1;
+    df = 2 * tmp2 / r;
+    return tmp1 * tmp2;
   } else if (r > cut_lo) {
     double tmp = 1 - exp(-(r - cut_0) * a);
     df = 2 * eps * (1 - tmp) * tmp * a / r;
     return eps * tmp * tmp - shift;
   } else if (r > cut_lc) {
-    df = 2 * eps * b_lo * (1 - cut_lc / r);
-    return eps * b_lo * (r - cut_lc) * (r - cut_lc);
+    double tmp1 = r - cut_lc; 
+    double tmp2 = eps * b_lo * tmp1;
+    df = 2 * tmp2 / r;
+    return tmp1 * tmp2; 
   } else {
     df = 0.0;
     return 0.0;
@@ -67,14 +71,20 @@ inline double MFOxdna::F2(double r, double k, double cut_0, double cut_lc, doubl
     df = 0.0;
     return 0.0;
   } else if (r < cut_lo) {
-    df = 2 * k * b_lo * (r - cut_lc);
-    return k * b_lo * (cut_lc - r) * (cut_lc - r);
+    double tmp1 = r - cut_lc;
+    double tmp2 = k * b_lo;
+    df = 2 * tmp1 * tmp2;
+    return tmp1 * tmp1 * tmp2;
   } else if (r < cut_hi) {
-    df = k * (r - cut_0);
-    return k * 0.5 * ((r - cut_0) * (r - cut_0) - (cut_0 - cut_c) * (cut_0 - cut_c));
+    double tmp1 = r - cut_0;
+    double tmp2 = cut_0 - cut_c;
+    df = k * tmp1;
+    return 0.5 * k * (tmp1*tmp1 - tmp2*tmp2);
   } else {
-    df = 2 * k * b_hi * (r - cut_hc);
-    return k * b_hi * (cut_hc - r) * (cut_hc - r);
+    double tmp1 = r - cut_hc;
+    double tmp2 = k * b_hi;
+    df = 2 * tmp1 * tmp2;
+    return tmp1 * tmp1 * tmp2;
   }
 }
 
@@ -117,14 +127,18 @@ inline double MFOxdna::F4(double theta, double a, double theta_0, double dtheta_
     df = 0.0;
     return 0.0;
   } else if (dtheta > dtheta_ast) {
-    df = 2 * b * (dtheta - dtheta_c); 
-    return b * (dtheta - dtheta_c) * (dtheta - dtheta_c);
+    double tmp1 = dtheta - dtheta_c;
+    double tmp2 = b * tmp1;
+    df = 2 * tmp2;
+    return tmp1 * tmp2;
   } else if (dtheta > -dtheta_ast) {
     df = -2 * a * dtheta;
     return 1 - a * dtheta * dtheta;
   } else {
-    df = 2 * b * (dtheta + dtheta_c);
-    return b * (dtheta + dtheta_c) * (dtheta + dtheta_c);
+    double tmp1 = dtheta + dtheta_c;
+    double tmp2 = b * tmp1;
+    df = 2 * tmp2;
+    return tmp1 * tmp2;
   }
 }
 
@@ -141,8 +155,10 @@ inline double MFOxdna::F5(double x, double a, double x_ast, double b, double x_c
     df = -2 * a * x;
     return 1 - a * x * x;
   } else if (x > x_c) {
-    df = 2 * b * (x - x_c);
-    return b * (x - x_c) * (x - x_c);
+    double tmp1 = x - x_c;
+    double tmp2 = b * tmp1;
+    df = 2 * tmp2;
+    return tmp1 * tmp2;
   } else {
     df = 0.0;
     return 0.0;
@@ -158,8 +174,9 @@ inline double MFOxdna::F6(double theta, double a, double b, double &df)
     df = 0.0;
     return 0.0;
   } else {
-    df = a * (theta - b);
-    return 0.5 * a * (theta - b) * (theta - b);
+    double tmp = theta - b;
+    df = a * tmp;
+    return 0.5 * df * tmp;
   }
 }
 
