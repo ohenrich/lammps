@@ -405,7 +405,6 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
 
       }
 
-
       // cosphi3 and cosphi4 (=cosphi3) force and virial
       if (cosphi3 != 0.0) {
 
