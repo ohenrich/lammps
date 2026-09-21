@@ -29,7 +29,7 @@ class PairOxdna3Excv : public PairOxdna2Excv {
   PairOxdna3Excv(class LAMMPS *lmp) : PairOxdna2Excv(lmp) {}
   // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
-  void compute_base_site(int type, double e1[3], double /*e2*/[3], double /*e3*/[3],
+  inline void compute_base_site(int type, double e1[3], double /*e2*/[3], double /*e3*/[3],
                          double rbs[3]) const override
   {
     NucleotideOxdna3 oxdna3;

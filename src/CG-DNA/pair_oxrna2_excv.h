@@ -30,7 +30,7 @@ class PairOxrna2Excv : public PairOxdnaExcv {
   PairOxrna2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
   // inline below has to be here in the header file, otherwise KOKKOS
   // compilation fails due to undefined vtable symbols.
-  void compute_backbone_site(int /*type*/, double e1[3], double /*e2*/[3],
+  inline void compute_backbone_site(int /*type*/, double e1[3], double /*e2*/[3],
     double e3[3], double rbk[3]) const override
   {
     NucleotideOxrna2 oxrna2;
