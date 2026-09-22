@@ -133,94 +133,6 @@ PairOxdnaStk::~PairOxdnaStk()
 }
 
 /* ----------------------------------------------------------------------
-   tally energy and virial into global and per-atom accumulators
-
-   NOTE: Although this is a pair style interaction, the algorithm below
-   follows the virial incrementation of the bond style. This is because
-   the bond topology is used in the main compute loop.
-------------------------------------------------------------------------- */
-
-void PairOxdnaStk::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
-                    double evdwl,
-                    double fx, double fy, double fz,
-                    double delx, double dely, double delz)
-{
-  double evdwlhalf,v[6];
-
-  if (eflag_either) {
-    if (eflag_global) {
-      if (newton_bond) eng_vdwl += evdwl;
-      else {
-        evdwlhalf = 0.5*evdwl;
-        if (i < nlocal) eng_vdwl += evdwlhalf;
-        if (j < nlocal) eng_vdwl += evdwlhalf;
-      }
-    }
-    if (eflag_atom) {
-      evdwlhalf = 0.5*evdwl;
-      if (newton_bond || i < nlocal) eatom[i] += evdwlhalf;
-      if (newton_bond || j < nlocal) eatom[j] += evdwlhalf;
-    }
-  }
-
-  if (vflag_either) {
-    v[0] = delx*fx;
-    v[1] = dely*fy;
-    v[2] = delz*fz;
-    v[3] = delx*fy;
-    v[4] = delx*fz;
-    v[5] = dely*fz;
-
-    if (vflag_global) {
-      if (newton_bond) {
-        virial[0] += v[0];
-        virial[1] += v[1];
-        virial[2] += v[2];
-        virial[3] += v[3];
-        virial[4] += v[4];
-        virial[5] += v[5];
-      } else {
-        if (i < nlocal) {
-          virial[0] += 0.5*v[0];
-          virial[1] += 0.5*v[1];
-          virial[2] += 0.5*v[2];
-          virial[3] += 0.5*v[3];
-          virial[4] += 0.5*v[4];
-          virial[5] += 0.5*v[5];
-        }
-        if (j < nlocal) {
-          virial[0] += 0.5*v[0];
-          virial[1] += 0.5*v[1];
-          virial[2] += 0.5*v[2];
-          virial[3] += 0.5*v[3];
-          virial[4] += 0.5*v[4];
-          virial[5] += 0.5*v[5];
-        }
-      }
-    }
-
-    if (vflag_atom) {
-      if (newton_bond || i < nlocal) {
-        vatom[i][0] += 0.5*v[0];
-        vatom[i][1] += 0.5*v[1];
-        vatom[i][2] += 0.5*v[2];
-        vatom[i][3] += 0.5*v[3];
-        vatom[i][4] += 0.5*v[4];
-        vatom[i][5] += 0.5*v[5];
-      }
-      if (newton_bond || j < nlocal) {
-        vatom[j][0] += 0.5*v[0];
-        vatom[j][1] += 0.5*v[1];
-        vatom[j][2] += 0.5*v[2];
-        vatom[j][3] += 0.5*v[3];
-        vatom[j][4] += 0.5*v[4];
-        vatom[j][5] += 0.5*v[5];
-      }
-    }
-  }
-}
-
-/* ----------------------------------------------------------------------
     compute vector COM-backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
 inline void PairOxdnaStk::compute_backbone_site(double e1[3], double /*e2*/[3],
@@ -708,6 +620,94 @@ void PairOxdnaStk::compute(int eflag, int vflag)
   // end stacking interaction
 
   if (vflag_fdotr) virial_fdotr_compute();
+}
+
+/* ----------------------------------------------------------------------
+   tally energy and virial into global and per-atom accumulators
+
+   NOTE: Although this is a pair style interaction, the algorithm below
+   follows the virial incrementation of the bond style. This is because
+   the bond topology is used in the main compute loop.
+------------------------------------------------------------------------- */
+
+void PairOxdnaStk::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
+                    double evdwl,
+                    double fx, double fy, double fz,
+                    double delx, double dely, double delz)
+{
+  double evdwlhalf,v[6];
+
+  if (eflag_either) {
+    if (eflag_global) {
+      if (newton_bond) eng_vdwl += evdwl;
+      else {
+        evdwlhalf = 0.5*evdwl;
+        if (i < nlocal) eng_vdwl += evdwlhalf;
+        if (j < nlocal) eng_vdwl += evdwlhalf;
+      }
+    }
+    if (eflag_atom) {
+      evdwlhalf = 0.5*evdwl;
+      if (newton_bond || i < nlocal) eatom[i] += evdwlhalf;
+      if (newton_bond || j < nlocal) eatom[j] += evdwlhalf;
+    }
+  }
+
+  if (vflag_either) {
+    v[0] = delx*fx;
+    v[1] = dely*fy;
+    v[2] = delz*fz;
+    v[3] = delx*fy;
+    v[4] = delx*fz;
+    v[5] = dely*fz;
+
+    if (vflag_global) {
+      if (newton_bond) {
+        virial[0] += v[0];
+        virial[1] += v[1];
+        virial[2] += v[2];
+        virial[3] += v[3];
+        virial[4] += v[4];
+        virial[5] += v[5];
+      } else {
+        if (i < nlocal) {
+          virial[0] += 0.5*v[0];
+          virial[1] += 0.5*v[1];
+          virial[2] += 0.5*v[2];
+          virial[3] += 0.5*v[3];
+          virial[4] += 0.5*v[4];
+          virial[5] += 0.5*v[5];
+        }
+        if (j < nlocal) {
+          virial[0] += 0.5*v[0];
+          virial[1] += 0.5*v[1];
+          virial[2] += 0.5*v[2];
+          virial[3] += 0.5*v[3];
+          virial[4] += 0.5*v[4];
+          virial[5] += 0.5*v[5];
+        }
+      }
+    }
+
+    if (vflag_atom) {
+      if (newton_bond || i < nlocal) {
+        vatom[i][0] += 0.5*v[0];
+        vatom[i][1] += 0.5*v[1];
+        vatom[i][2] += 0.5*v[2];
+        vatom[i][3] += 0.5*v[3];
+        vatom[i][4] += 0.5*v[4];
+        vatom[i][5] += 0.5*v[5];
+      }
+      if (newton_bond || j < nlocal) {
+        vatom[j][0] += 0.5*v[0];
+        vatom[j][1] += 0.5*v[1];
+        vatom[j][2] += 0.5*v[2];
+        vatom[j][3] += 0.5*v[3];
+        vatom[j][4] += 0.5*v[4];
+        vatom[j][5] += 0.5*v[5];
+      }
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------

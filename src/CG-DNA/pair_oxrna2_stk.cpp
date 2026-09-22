@@ -143,6 +143,36 @@ PairOxrna2Stk::~PairOxrna2Stk()
 }
 
 /* ----------------------------------------------------------------------
+   compute vector COM-sugar-phosphate backbone interaction site in oxRNA2
+------------------------------------------------------------------------- */
+inline void PairOxrna2Stk::compute_backbone_site(int type, double e1[3],
+    double /*e2*/[3], double e3[3], double rbk[3]) const
+{
+  NucleotideOxrna2 oxrna2;
+  oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
+}
+
+/* ----------------------------------------------------------------------
+   compute vector COM-3'-stacking interaction site in oxRNA2
+------------------------------------------------------------------------- */
+inline void PairOxrna2Stk::compute_stacking_site_3p(double e1[3], double e2[3],
+    double /*e3*/[3], double rstk[3]) const
+{
+  NucleotideOxrna2 oxrna2;
+  oxrna2.stacking_site_3p(e1, e2, nullptr, rstk);
+}
+
+/* ----------------------------------------------------------------------
+   compute vector COM-5'-stacking interaction site in oxRNA2
+------------------------------------------------------------------------- */
+inline void PairOxrna2Stk::compute_stacking_site_5p(double e1[3], double e2[3],
+    double /*e3*/[3], double rstk[3]) const
+{
+  NucleotideOxrna2 oxrna2;
+  oxrna2.stacking_site_5p(e1, e2, nullptr, rstk);
+}
+
+/* ----------------------------------------------------------------------
    tally energy and virial into global and per-atom accumulators
 
    NOTE: Although this is a pair style interaction, the algorithm below
@@ -228,36 +258,6 @@ void PairOxrna2Stk::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
       }
     }
   }
-}
-
-/* ----------------------------------------------------------------------
-   compute vector COM-sugar-phosphate backbone interaction site in oxRNA2
-------------------------------------------------------------------------- */
-inline void PairOxrna2Stk::compute_backbone_site(int type, double e1[3],
-    double /*e2*/[3], double e3[3], double rbk[3]) const
-{
-  NucleotideOxrna2 oxrna2;
-  oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
-}
-
-/* ----------------------------------------------------------------------
-   compute vector COM-3'-stacking interaction site in oxRNA2
-------------------------------------------------------------------------- */
-inline void PairOxrna2Stk::compute_stacking_site_3p(double e1[3], double e2[3],
-    double /*e3*/[3], double rstk[3]) const
-{
-  NucleotideOxrna2 oxrna2;
-  oxrna2.stacking_site_3p(e1, e2, nullptr, rstk);
-}
-
-/* ----------------------------------------------------------------------
-   compute vector COM-5'-stacking interaction site in oxRNA2
-------------------------------------------------------------------------- */
-inline void PairOxrna2Stk::compute_stacking_site_5p(double e1[3], double e2[3],
-    double /*e3*/[3], double rstk[3]) const
-{
-  NucleotideOxrna2 oxrna2;
-  oxrna2.stacking_site_5p(e1, e2, nullptr, rstk);
 }
 
 /* ----------------------------------------------------------------------
