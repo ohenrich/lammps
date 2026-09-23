@@ -218,7 +218,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
     compute_stacking_site(atype,ax,ay,az,ra_cstk);
 
     // vector COM a - backbone site a
-    compute_backbone_site(atype,ax,ay,az,ra_cbk);
+    compute_backbone_site(atype%8,ax,ay,az,ra_cbk);
 
     blist = firstneigh[a];
     bnum = numneigh[a];
@@ -263,7 +263,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
       delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
       // vector COM b - backbone site b
-      compute_backbone_site(btype,bx,by,bz,rb_cbk);
+      compute_backbone_site(btype%8,bx,by,bz,rb_cbk);
 
       // vector backbone site b to a
       delr_bkbk[0] = (x[a][0] + ra_cbk[0] - x[b][0] - rb_cbk[0]);
