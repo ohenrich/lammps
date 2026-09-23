@@ -1,0 +1,115 @@
+variable number	equal 1
+variable ofreq	equal 1000
+variable efreq	equal 1
+variable T      equal 0.1
+variable rhos   equal 0.2
+variable nsteps equal 10
+
+units lj
+
+dimension 3
+
+newton on
+
+boundary  p p p
+
+atom_style hybrid bond ellipsoid oxdna
+atom_modify sort 0 1.0
+
+# Pair interactions require lists of neighbours to be calculated
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+
+read_data data.duplex4
+
+set atom * mass 3.1575
+
+group all type 1 8
+
+# oxDNA2:oxRNA2 bond interactions
+bond_style hybrid oxdna2/fene oxrna2/fene
+bond_coeff 1 oxdna2/fene 2.0 0.25 0.7564
+bond_coeff 2 oxrna2/fene 2.0 0.25 0.761070781051
+special_bonds lj 0 1 1
+
+# oxDNA2:oxRNA2 pair interactions
+pair_style hybrid/overlay oxdrh2/excv oxdna2/stk oxrna2/stk oxdna2/hbond oxrna2/hbond oxdrh2/hbond oxdna2/xstk oxrna2/xstk oxdrh2/xstk oxdna2/coaxstk oxrna2/coaxstk oxdrh2/coaxstk
+pair_coeff * * none
+pair_coeff * * oxdrh2/excv 2.0 0.7 0.675 2.0 0.515 0.5 2.0 0.33 0.32
+pair_coeff 1*4 1*4 oxdna2/stk seqdep ${T} 1.3523 2.6717 6.0 0.4 0.9 0.32 0.75 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 0.65 2.0 0.65
+pair_coeff 5*8 5*8 oxrna2/stk seqdep ${T} 1.40206 2.77 6.0 0.43 0.93 0.35 0.78 0.9 0 0.95 0.9 0 0.95 1.3 0 0.8 1.3 0 0.8 2.0 0.65 2.0 0.65
+pair_coeff 1 4 oxdna2/hbond   seqdep 1.0678 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 2 3 oxdna2/hbond   seqdep 1.0678 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 5 8 oxrna2/hbond   seqdep 0.870439 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 6 7 oxrna2/hbond   seqdep 0.870439 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 7 8 oxrna2/hbond   seqdep 0.870439 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 1 8 oxdrh2/hbond   seqdep 1.5 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 2 7 oxdrh2/hbond   seqdep 1.5 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 3 6 oxdrh2/hbond   seqdep 1.5 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 4 5 oxdrh2/hbond   seqdep 1.5 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
+pair_coeff 1*4 1*4 oxdna2/xstk 47.5 0.575 0.675 0.495 0.655 2.25 0.791592653589793 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68
+pair_coeff 5*8 5*8 oxrna2/xstk 59.9626 0.5 0.6 0.42 0.58 2.25 0.505 0.58 1.7 1.266 0.68 1.7 1.266 0.68 1.7 0.309 0.68 1.7 0.309 0.68
+pair_coeff 1*4 5*8 oxdrh2/xstk 44.535 0.575 0.675 0.495 0.655 2.25 0.791592653589793 0.58 1.7 1.0 0.68 1.7 1.0 0.68 1.5 0 0.65 1.7 0.875 0.68 1.7 0.875 0.68
+pair_coeff 1*4 1*4 oxdna2/coaxstk 58.5 0.4 0.6 0.22 0.58 2.0 2.891592653589793 0.65 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 40.0 3.116592653589793
+pair_coeff 5*8 5*8 oxrna2/coaxstk 80 0.5 0.6 0.42 0.58 2.0 2.592 0.65 1.3 0.151 0.8 0.9 0.685 0.95 0.9 0.685 0.95 2.0 -0.65 2.0 -0.65
+pair_coeff 1*4 5*8 oxdrh2/coaxstk 58.5 0.4 0.6 0.22 0.58 2.0 2.541592653589793 0.65 1.3 0 0.8 0.9 0 0.95 0.9 0 0.95 2.0 -0.65 2.0 -0.65
+
+# NVE ensemble
+fix 1 all nve/asphere
+#fix 2 all langevin ${T} ${T} 0.025 457145 angmom 10
+
+timestep 1e-4
+
+#comm_style tiled
+fix 3 all balance 1000 1.03 shift xyz 10 1.03
+comm_modify cutoff 3.8
+
+compute quat all property/atom quatw quati quatj quatk
+
+compute erot all erotate/asphere
+compute ekin all ke
+compute epot all pe
+variable erot equal c_erot
+variable ekin equal c_ekin
+variable edyn equal c_erot+c_ekin
+variable epot equal c_epot
+variable etot equal c_erot+c_ekin+c_epot
+
+compute ebond all bond
+compute eexcv all pair oxdrh2/excv
+compute estk_dna  all pair oxdna2/stk
+compute estk_rna  all pair oxrna2/stk
+compute ehbond_dna all pair oxdna2/hbond
+compute ehbond_rna all pair oxrna2/hbond
+compute ehbond_drh all pair oxdrh2/hbond
+compute exstk_dna all pair oxdna2/xstk
+compute exstk_rna all pair oxrna2/xstk
+compute exstk_drh all pair oxdrh2/xstk
+compute ecoaxstk_dna all pair oxdna2/coaxstk
+compute ecoaxstk_rna all pair oxrna2/coaxstk
+compute ecoaxstk_drh all pair oxdrh2/coaxstk
+
+#compute edh all pair oxdna2/dh
+
+variable ebond equal c_ebond[1]+c_ebond[2]
+variable eexcv equal c_eexcv
+variable estk equal c_estk_dna+c_estk_rna
+variable ehbond equal c_ehbond_dna+c_ehbond_rna+c_ehbond_drh
+variable exstk equal c_exstk_dna+c_exstk_rna+c_exstk_drh
+variable ecoaxstk equal c_ecoaxstk_dna+c_ecoaxstk_rna+c_ecoaxstk_drh
+
+
+#variable ecoaxstk equal c_ecoaxstk
+#variable edh equal c_edh
+
+#fix 5 all print ${efreq} "$(step)  ekin = ${ekin} |  erot = ${erot} | edyn = ${edyn} | ebond = ${ebond} | eexcv = ${eexcv} | estk = ${estk} | ehbond = ${ehbond} | exstk = ${exstk} | ecoaxstk = ${ecoaxstk} | edh = ${edh} | epot = ${epot} | etot = ${etot}" screen yes
+fix 5 all print ${efreq} "$(step)  ekin = ${ekin} |  erot = ${erot} | edyn = ${edyn} | ebond = ${ebond} | eexcv = ${eexcv} | estk = ${estk} | ehbond = ${ehbond} | exstk = ${exstk} | ecoaxstk = ${ecoaxstk} | epot = ${epot} | etot = ${etot}" screen yes
+
+dump out all custom ${ofreq} out.${number}.lammpstrj id mol type x y z ix iy iz vx vy vz c_quat[1] c_quat[2] c_quat[3] c_quat[4] angmomx angmomy angmomz
+dump_modify out sort id
+dump_modify out format line "%d %d %d  %22.15le %22.15le %22.15le  %d %d %d  %22.15le %22.15le %22.15le  %22.15le %22.15le %22.15le %22.15le  %22.15le %22.15le %22.15le"
+
+run ${nsteps}
+
+#write_data last_config.${number}.* nocoeff
+#write_restart last_config.${number}.*
