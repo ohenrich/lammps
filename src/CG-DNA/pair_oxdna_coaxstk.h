@@ -30,7 +30,7 @@ class PairOxdnaCoaxstk : public Pair {
   PairOxdnaCoaxstk(class LAMMPS *);
   ~PairOxdnaCoaxstk() override;
   virtual void compute_backbone_site(int, double *, double *, double *, double *) const;
-  virtual void compute_stacking_site(int, double *, double *, double *, double *) const;
+  virtual void compute_stacking_site(double *, double *, double *, double *) const;
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;

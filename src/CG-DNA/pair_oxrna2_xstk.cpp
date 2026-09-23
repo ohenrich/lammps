@@ -115,7 +115,7 @@ PairOxrna2Xstk::~PairOxrna2Xstk()
 
 /* ---------------------------------------------------------------------
     compute vector COM-base site in oxRNA2
-    identical templates for A=1, C=2, G=3, T=0
+    uses oxDNA1 base site
 ------------------------------------------------------------------------ */
 inline void PairOxrna2Xstk::compute_base_site(int /*type*/, double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rbs[3]) const
@@ -125,8 +125,7 @@ inline void PairOxrna2Xstk::compute_base_site(int /*type*/, double e1[3],
 }
 
 /* ----------------------------------------------------------------------
-   compute function for oxDNA pair interactions
-   hb=hydrogen bonding site
+   compute function for oxRNA2 pair interaction
 
    NOTE: The cross-stacking interaction takes place between hb sites
 ------------------------------------------------------------------------- */

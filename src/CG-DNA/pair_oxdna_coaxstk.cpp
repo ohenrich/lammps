@@ -120,7 +120,7 @@ PairOxdnaCoaxstk::~PairOxdnaCoaxstk()
     compute vector COM-sugar-phosphate backbone interaction site in oxDNA
 ------------------------------------------------------------------------- */
 inline void PairOxdnaCoaxstk::compute_backbone_site(int /*type*/, double e1[3],
-  double /*e2*/[3], double /*e3*/[3], double rbk[3]) const
+    double /*e2*/[3], double /*e3*/[3], double rbk[3]) const
 {
   NucleotideOxdna1 oxdna1;
   oxdna1.backbone_site<0>(e1, nullptr, nullptr, rbk);
@@ -129,7 +129,7 @@ inline void PairOxdnaCoaxstk::compute_backbone_site(int /*type*/, double e1[3],
 /* ----------------------------------------------------------------------
     compute vector COM-stacking interaction site in oxDNA
 ------------------------------------------------------------------------- */
-inline void PairOxdnaCoaxstk::compute_stacking_site(int /*type*/, double e1[3],
+inline void PairOxdnaCoaxstk::compute_stacking_site(double e1[3],
   double /*e2*/[3], double /*e3*/[3], double rstk[3]) const
 {
   NucleotideOxdna1 oxdna1;
@@ -215,7 +215,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
     ax[2] = nxyz_xtrct[a][2];
 
     // vector COM a - stacking site a
-    compute_stacking_site(atype,ax,ay,az,ra_cstk);
+    compute_stacking_site(ax,ay,az,ra_cstk);
 
     // vector COM a - backbone site a
     compute_backbone_site(atype%8,ax,ay,az,ra_cbk);
@@ -239,7 +239,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
       bx[2] = nxyz_xtrct[b][2];
 
       // vector COM b - stacking site b
-      compute_stacking_site(btype,bx,by,bz,rb_cstk);
+      compute_stacking_site(bx,by,bz,rb_cstk);
 
       // vector stacking site b to a
       delr_stkstk[0] = x[a][0] + ra_cstk[0] - x[b][0] - rb_cstk[0];

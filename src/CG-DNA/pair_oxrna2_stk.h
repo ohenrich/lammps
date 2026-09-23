@@ -28,7 +28,7 @@ class PairOxrna2Stk : public Pair {
  public:
   PairOxrna2Stk(class LAMMPS *);
   ~PairOxrna2Stk() override;
-  void compute_backbone_site(int, double *, double *, double *, double *) const;
+  void compute_backbone_site(double *, double *, double *, double *) const;
   void compute_stacking_site_3p(double *, double *, double *, double *) const;
   void compute_stacking_site_5p(double *, double *, double *, double *) const;
   void compute(int, int) override;

@@ -145,8 +145,8 @@ PairOxrna2Stk::~PairOxrna2Stk()
 /* ----------------------------------------------------------------------
    compute vector COM-sugar-phosphate backbone interaction site in oxRNA2
 ------------------------------------------------------------------------- */
-inline void PairOxrna2Stk::compute_backbone_site(int type, double e1[3],
-    double /*e2*/[3], double e3[3], double rbk[3]) const
+inline void PairOxrna2Stk::compute_backbone_site(double e1[3], double /*e2*/[3],
+    double e3[3], double rbk[3]) const
 {
   NucleotideOxrna2 oxrna2;
   oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
@@ -170,94 +170,6 @@ inline void PairOxrna2Stk::compute_stacking_site_5p(double e1[3], double e2[3],
 {
   NucleotideOxrna2 oxrna2;
   oxrna2.stacking_site_5p(e1, e2, nullptr, rstk);
-}
-
-/* ----------------------------------------------------------------------
-   tally energy and virial into global and per-atom accumulators
-
-   NOTE: Although this is a pair style interaction, the algorithm below
-   follows the virial incrementation of the bond style. This is because
-   the bond topology is used in the main compute loop.
-------------------------------------------------------------------------- */
-
-void PairOxrna2Stk::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
-                    double evdwl,
-                    double fx, double fy, double fz,
-                    double delx, double dely, double delz)
-{
-  double evdwlhalf,v[6];
-
-  if (eflag_either) {
-    if (eflag_global) {
-      if (newton_bond) eng_vdwl += evdwl;
-      else {
-        evdwlhalf = 0.5*evdwl;
-        if (i < nlocal) eng_vdwl += evdwlhalf;
-        if (j < nlocal) eng_vdwl += evdwlhalf;
-      }
-    }
-    if (eflag_atom) {
-      evdwlhalf = 0.5*evdwl;
-      if (newton_bond || i < nlocal) eatom[i] += evdwlhalf;
-      if (newton_bond || j < nlocal) eatom[j] += evdwlhalf;
-    }
-  }
-
-  if (vflag_either) {
-    v[0] = delx*fx;
-    v[1] = dely*fy;
-    v[2] = delz*fz;
-    v[3] = delx*fy;
-    v[4] = delx*fz;
-    v[5] = dely*fz;
-
-    if (vflag_global) {
-      if (newton_bond) {
-        virial[0] += v[0];
-        virial[1] += v[1];
-        virial[2] += v[2];
-        virial[3] += v[3];
-        virial[4] += v[4];
-        virial[5] += v[5];
-      } else {
-        if (i < nlocal) {
-          virial[0] += 0.5*v[0];
-          virial[1] += 0.5*v[1];
-          virial[2] += 0.5*v[2];
-          virial[3] += 0.5*v[3];
-          virial[4] += 0.5*v[4];
-          virial[5] += 0.5*v[5];
-        }
-        if (j < nlocal) {
-          virial[0] += 0.5*v[0];
-          virial[1] += 0.5*v[1];
-          virial[2] += 0.5*v[2];
-          virial[3] += 0.5*v[3];
-          virial[4] += 0.5*v[4];
-          virial[5] += 0.5*v[5];
-        }
-      }
-    }
-
-    if (vflag_atom) {
-      if (newton_bond || i < nlocal) {
-        vatom[i][0] += 0.5*v[0];
-        vatom[i][1] += 0.5*v[1];
-        vatom[i][2] += 0.5*v[2];
-        vatom[i][3] += 0.5*v[3];
-        vatom[i][4] += 0.5*v[4];
-        vatom[i][5] += 0.5*v[5];
-      }
-      if (newton_bond || j < nlocal) {
-        vatom[j][0] += 0.5*v[0];
-        vatom[j][1] += 0.5*v[1];
-        vatom[j][2] += 0.5*v[2];
-        vatom[j][3] += 0.5*v[3];
-        vatom[j][4] += 0.5*v[4];
-        vatom[j][5] += 0.5*v[5];
-      }
-    }
-  }
 }
 
 /* ----------------------------------------------------------------------
@@ -375,10 +287,10 @@ void PairOxrna2Stk::compute(int eflag, int vflag)
     delr_stkstk_norm[2] = delr_stkstk[2] * rinv_stkstk;
 
     // vector COM a - backbone site a
-    compute_backbone_site(atype,ax,ay,az,ra_cbk);
+    compute_backbone_site(ax,ay,az,ra_cbk);
 
     // vector COM b - backbone site b
-    compute_backbone_site(btype,bx,by,bz,rb_cbk);
+    compute_backbone_site(bx,by,bz,rb_cbk);
 
     // vector backbone site a to b
     delr_bkbk[0] = (x[b][0] + rb_cbk[0] - x[a][0] - ra_cbk[0]);
@@ -760,6 +672,94 @@ void PairOxrna2Stk::compute(int eflag, int vflag)
   // end stacking interaction
 
   if (vflag_fdotr) virial_fdotr_compute();
+}
+
+/* ----------------------------------------------------------------------
+   tally energy and virial into global and per-atom accumulators
+
+   NOTE: Although this is a pair style interaction, the algorithm below
+   follows the virial incrementation of the bond style. This is because
+   the bond topology is used in the main compute loop.
+------------------------------------------------------------------------- */
+
+void PairOxrna2Stk::ev_tally_xyz(int i, int j, int nlocal, int newton_bond,
+                    double evdwl,
+                    double fx, double fy, double fz,
+                    double delx, double dely, double delz)
+{
+  double evdwlhalf,v[6];
+
+  if (eflag_either) {
+    if (eflag_global) {
+      if (newton_bond) eng_vdwl += evdwl;
+      else {
+        evdwlhalf = 0.5*evdwl;
+        if (i < nlocal) eng_vdwl += evdwlhalf;
+        if (j < nlocal) eng_vdwl += evdwlhalf;
+      }
+    }
+    if (eflag_atom) {
+      evdwlhalf = 0.5*evdwl;
+      if (newton_bond || i < nlocal) eatom[i] += evdwlhalf;
+      if (newton_bond || j < nlocal) eatom[j] += evdwlhalf;
+    }
+  }
+
+  if (vflag_either) {
+    v[0] = delx*fx;
+    v[1] = dely*fy;
+    v[2] = delz*fz;
+    v[3] = delx*fy;
+    v[4] = delx*fz;
+    v[5] = dely*fz;
+
+    if (vflag_global) {
+      if (newton_bond) {
+        virial[0] += v[0];
+        virial[1] += v[1];
+        virial[2] += v[2];
+        virial[3] += v[3];
+        virial[4] += v[4];
+        virial[5] += v[5];
+      } else {
+        if (i < nlocal) {
+          virial[0] += 0.5*v[0];
+          virial[1] += 0.5*v[1];
+          virial[2] += 0.5*v[2];
+          virial[3] += 0.5*v[3];
+          virial[4] += 0.5*v[4];
+          virial[5] += 0.5*v[5];
+        }
+        if (j < nlocal) {
+          virial[0] += 0.5*v[0];
+          virial[1] += 0.5*v[1];
+          virial[2] += 0.5*v[2];
+          virial[3] += 0.5*v[3];
+          virial[4] += 0.5*v[4];
+          virial[5] += 0.5*v[5];
+        }
+      }
+    }
+
+    if (vflag_atom) {
+      if (newton_bond || i < nlocal) {
+        vatom[i][0] += 0.5*v[0];
+        vatom[i][1] += 0.5*v[1];
+        vatom[i][2] += 0.5*v[2];
+        vatom[i][3] += 0.5*v[3];
+        vatom[i][4] += 0.5*v[4];
+        vatom[i][5] += 0.5*v[5];
+      }
+      if (newton_bond || j < nlocal) {
+        vatom[j][0] += 0.5*v[0];
+        vatom[j][1] += 0.5*v[1];
+        vatom[j][2] += 0.5*v[2];
+        vatom[j][3] += 0.5*v[3];
+        vatom[j][4] += 0.5*v[4];
+        vatom[j][5] += 0.5*v[5];
+      }
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
