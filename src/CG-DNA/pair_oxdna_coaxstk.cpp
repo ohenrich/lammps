@@ -248,6 +248,14 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
 
       rsq_stkstk = delr_stkstk[0]*delr_stkstk[0] + delr_stkstk[1]*delr_stkstk[1] + delr_stkstk[2]*delr_stkstk[2];
       r_stkstk = sqrt(rsq_stkstk);
+
+      f2 = F2(r_stkstk, k_cxst[atype][btype], cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
+              cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
+              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype], df2);
+
+      // early rejection criterium
+      if (f2 != 0.0) {
+
       rinv_stkstk = 1.0/r_stkstk;
 
       delr_stkstk_norm[0] = delr_stkstk[0] * rinv_stkstk;
@@ -341,10 +349,6 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
       cosphi3 = MathExtra::dot3(delr_stkstk_norm,v1tmp);
       if (cosphi3 >  1.0) cosphi3 =  1.0;
       if (cosphi3 < -1.0) cosphi3 = -1.0;
-
-      f2 = F2(r_stkstk, k_cxst[atype][btype], cut_cxst_0[atype][btype], cut_cxst_lc[atype][btype],
-              cut_cxst_hc[atype][btype], cut_cxst_lo[atype][btype], cut_cxst_hi[atype][btype],
-              b_cxst_lo[atype][btype], b_cxst_hi[atype][btype], cut_cxst_c[atype][btype], df2);
 
       f5c3 = F5(cosphi3, a_cxst3p[atype][btype], cosphi_cxst3p_ast[atype][btype], b_cxst3p[atype][btype],
                 cosphi_cxst3p_c[atype][btype], df5c3);
@@ -600,6 +604,7 @@ void PairOxdnaCoaxstk::compute(int eflag, int vflag)
 
       }
 
+      }
       }
       }
       }
