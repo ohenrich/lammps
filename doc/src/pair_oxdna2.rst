@@ -322,7 +322,7 @@ Related commands
 Default
 """""""
 
-none
+Default of *half_charged_ends* is *no*.
 
 ----------
 

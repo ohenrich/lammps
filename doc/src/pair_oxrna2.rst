@@ -47,10 +47,12 @@ Syntax
      *oxrna2/hbond* args = seq eps 8.0 0.4 0.75 0.34 0.7 1.5 0 0.7 1.5 0 0.7 1.5 0 0.7 0.46 3.141592653589793 0.7 4.0 1.5707963267948966 0.45 4.0 1.5707963267948966 0.45
        seq = seqav (for average sequence base-pairing strength) or seqdep (for sequence-dependent base-pairing strength)
        eps = 0.870439 (LJ units) or 5.18928666388042 (real units), average hydrogen bonding strength between A-U and C-G Watson-Crick and G-U wobble base pairs, 0 between all other pairs
-     *oxrna2/dh* args = T rhos qeff
+     *oxrna2/dh* args [keyword value] = T rhos qeff [half_charged_ends no|yes]
        T = temperature (LJ units: 0.1 = 300 K, real units: 300 = 300 K)
        rhos = salt concentration (mole per litre)
        qeff = 1.02455 (effective charge in elementary charges)
+       half_charged_ends yes = set half charge at terminal nucleotides
+       half_charged_ends no  = set full charge at terminal nucleotides
 
 Examples
 """"""""
@@ -319,8 +321,7 @@ Related commands
 Default
 """""""
 
-
-none
+Default of *half_charged_ends* is *no*.
 
 ----------
 
