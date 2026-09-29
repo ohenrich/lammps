@@ -103,8 +103,8 @@ void BondOxdnaFene::compute(int eflag, int vflag)
 
   for (in = 0; in < nbondlist; in++) {
 
-    a = bondlist[in][1];
-    b = bondlist[in][0];
+    a = bondlist[in][0];
+    b = bondlist[in][1];
     type = bondlist[in][2];
 
     // directionality test: a -> b is 3' -> 5'
@@ -113,6 +113,7 @@ void BondOxdnaFene::compute(int eflag, int vflag)
       btemp = b;
       b = a;
       a = btemp;
+
     }
 
     // a now in 3' direction, b in 5' direction
