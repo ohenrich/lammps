@@ -20,8 +20,8 @@ PairStyle(oxrna2/excv,PairOxrna2Excv);
 #ifndef LMP_PAIR_OXRNA2_EXCV_H
 #define LMP_PAIR_OXRNA2_EXCV_H
 
-#include "nucleotide_oxdna.h"
 #include "pair_oxdna_excv.h"
+#include "nucleotide_oxdna.h"
 
 namespace LAMMPS_NS {
 

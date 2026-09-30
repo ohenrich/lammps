@@ -20,15 +20,15 @@ PairStyle(oxdrh2/excv,PairOxdrh2Excv);
 #ifndef LMP_PAIR_OXDRH2_EXCV_H
 #define LMP_PAIR_OXDRH2_EXCV_H
 
-#include "nucleotide_oxdna.h"
 #include "pair_oxdna_excv.h"
+#include "nucleotide_oxdna.h"
 
 namespace LAMMPS_NS {
 
 class PairOxdrh2Excv : public PairOxdnaExcv {
  public:
   PairOxdrh2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
-  void compute_backbone_site(int type, double e1[3], double e2[3],
+  inline void compute_backbone_site(int type, double e1[3], double e2[3],
     double e3[3], double rbk[3]) const override
   {
     NucleotideOxdna2 oxdna2;
