@@ -29,7 +29,7 @@ class PairOxdna2Dh : public Pair {
  public:
   PairOxdna2Dh(class LAMMPS *);
   ~PairOxdna2Dh() override;
-  virtual void compute_backbone_site(double *, double *, double *, double *) const;
+  virtual void compute_backbone_site(int, double *, double *, double *, double *) const;
   void compute(int, int) override;
   void settings(int, char **) override;
   void coeff(int, char **) override;

@@ -27,7 +27,7 @@ namespace LAMMPS_NS {
 class PairOxrna2Dh : public PairOxdna2Dh {
  public:
   PairOxrna2Dh(class LAMMPS *lmp) : PairOxdna2Dh(lmp) {}
-  void compute_backbone_site(double *, double *, double *, double *) const override;
+  void compute_backbone_site(int, double *, double *, double *, double *) const override;
 };
 
 }    // namespace LAMMPS_NS

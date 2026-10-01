@@ -13,21 +13,21 @@
 
 #ifdef PAIR_CLASS
 // clang-format off
-PairStyle(oxdrh2/excv,PairOxdrh2Excv);
+PairStyle(oxdrh2/dh,PairOxdrh2Dh);
 // clang-format on
 #else
 
-#ifndef LMP_PAIR_OXDRH2_EXCV_H
-#define LMP_PAIR_OXDRH2_EXCV_H
+#ifndef LMP_PAIR_OXDRH2_DH_H
+#define LMP_PAIR_OXDRH2_DH_H
 
-#include "pair_oxdna_excv.h"
+#include "pair_oxdna2_dh.h"
 #include "nucleotide_oxdna.h"
 
 namespace LAMMPS_NS {
 
-class PairOxdrh2Excv : public PairOxdnaExcv {
+class PairOxdrh2Dh : public PairOxdna2Dh {
  public:
-  PairOxdrh2Excv(class LAMMPS *lmp) : PairOxdnaExcv(lmp) {}
+  PairOxdrh2Dh(class LAMMPS *lmp) : PairOxdna2Dh(lmp) {}
   inline void compute_backbone_site(int type, double e1[3], double e2[3],
     double e3[3], double rbk[3]) const override
   {

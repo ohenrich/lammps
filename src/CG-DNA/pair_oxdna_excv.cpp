@@ -573,9 +573,8 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
   utils::bounds(FLERR,arg[0],1,atom->ntypes,ilo,ihi,error);
   utils::bounds(FLERR,arg[1],1,atom->ntypes,jlo,jhi,error);
 
-  assert((ilo == jlo) & (ihi == jhi));
-  nlo = ilo;
-  nhi = ihi;
+  nlo = MIN(ilo,jlo);
+  nhi = MAX(ihi,jhi);
 
   double epsilon_bkbk_one, sigma_bkbk_one;
   double cut_bkbk_ast_one, cut_bkbk_c_one, b_bkbk_one;

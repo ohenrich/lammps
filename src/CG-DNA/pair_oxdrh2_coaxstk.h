@@ -28,7 +28,6 @@ namespace LAMMPS_NS {
 class PairOxdrh2Coaxstk : public PairOxdnaCoaxstk {
  public:
   PairOxdrh2Coaxstk(class LAMMPS *lmp) : PairOxdnaCoaxstk(lmp) {}
-
   inline void compute_backbone_site(int type, double e1[3], double e2[3],
     double e3[3], double rbk[3]) const override
   {
@@ -36,12 +35,14 @@ class PairOxdrh2Coaxstk : public PairOxdnaCoaxstk {
     NucleotideOxrna2 oxrna2;
     switch (type) {
       case 0:
+        oxrna2.backbone_site<0>(e1, nullptr, e3, rbk);
+        break;
       case 1:
       case 2:
       case 3:
+      case 4:
         oxdna2.backbone_site<0>(e1, e2, nullptr, rbk);
         break;
-      case 4:
       case 5:
       case 6:
       case 7:
