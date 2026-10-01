@@ -1152,62 +1152,6 @@ if [ $# -eq 1 ] && [ $1 = run ]; then
       if (failed == 0) print "# 4 MPI-tasks passed"
     }
   ' 2>&1 | tee -a $EXDIR/test.log
-  ######################################################
-  printf '\n# Running oxDNA3 NVT and unique base pairing test\n' | tee -a $EXDIR/test.log
-  cd $EXDIR/oxDNA3/unique_bp
-  mkdir test
-  cd test
-  cp $BUILDDIR/lmp_mpi .
-  cp ../in.dsring2 .
-  cp ../data.dsring2 .
-  if [ $UNITS = lj ]; then
-    cp ../oxdna3_lj.cgdna .
-  elif [ $UNITS = real ]; then
-    cp ../oxdna3_real.cgdna .
-  fi
-
-  ### 8 MPI-tasks ###
-  mpirun -np 8 ./lmp_mpi -in in.dsring2 > /dev/null
-  mv log.lammps log.$DATE.dsring2.g++.8
-  grep -e '[0-9]  ekin' log.$DATE.dsring2.g++.8 | awk '{print $1, $12}' > edyn_test.8.dat
-  grep -e '[0-9]  ekin' log.$DATE.dsring2.g++.8 | awk '{print $1, $28}' > ehbond_test.8.dat
-  grep -e '[0-9]  ekin' ../log*dsring2.g++.8 | awk '{print $1, $12}' > edyn_ref.8.dat
-  grep -e '[0-9]  ekin' ../log*dsring2.g++.8 | awk '{print $1, $28}' > ehbond_ref.8.dat
-
-  avg_edyn_test=$(awk '{sum += $2; n++} END {if (n > 0) print sum / n}' edyn_test.8.dat)
-  avg_edyn_ref=$(awk '{sum += $2; n++} END {if (n > 0) print sum / n}' edyn_ref.8.dat)
-  avg_ehbond_test=$(awk 'NR > 2000 {sum += $2; n++} END {if (n > 0) print sum / n}' ehbond_test.8.dat) 
-  avg_ehbond_ref=$(awk 'NR > 2000 {sum += $2; n++} END {if (n > 0) print sum / n}' ehbond_ref.8.dat)
-
-  tol=$REL_TOL_NVT
-
-  if [ $UNITS = lj ]; then
-    ekin=44.4
-  fi  
-
-  if [ $UNITS = real ]; then
-    ekin=264.6956072509588
-  fi
-
-  diff=$(echo "($avg_edyn_test - $ekin)/$ekin" | bc -l)
-  diff=$(echo "if ($diff < 0) -1 * $diff else $diff" | bc -l)
-
-  if (( $(echo "$diff > $REL_TOL_NVT" | bc -l) )); then
-    printf "# Relative difference of kinetic energy %g > %g\n" "$diff" "$tol" | tee -a $EXDIR/test.log 
-    echo "# 8 MPI-tasks NVT FAILED" | tee -a $EXDIR/test.log
-  else
-    echo "# 8 MPI-tasks NVT passed" | tee -a $EXDIR/test.log
-  fi
-
-  diff=$(echo "($avg_ehbond_test - $avg_ehbond_ref)/$avg_ehbond_ref" | bc -l)
-  diff=$(echo "if ($diff < 0) -1 * $diff else $diff" | bc -l)
-
-  if (( $(echo "$diff > $REL_TOL_NVT" | bc -l) )); then
-    printf "# Relative difference of hydrogen bonding energy %g > %g\n" "$diff" "$tol" | tee -a $EXDIR/test.log
-    echo "# 8 MPI-tasks unique base pairing FAILED" | tee -a $EXDIR/test.log
-  else
-    echo "# 8 MPI-tasks unique base pairing passed" | tee -a $EXDIR/test.log
-  fi
 
   ######################################################
   printf '\n# Running oxRNA2 duplex2 NVE test\n' | tee -a $EXDIR/test.log
@@ -1423,6 +1367,63 @@ if [ $# -eq 1 ] && [ $1 = run ]; then
       if (failed == 0) print "# 4 MPI-tasks passed"
     }
   ' 2>&1 | tee -a $EXDIR/test.log
+
+  ######################################################
+  printf '\n# Running oxDNA3 NVT and unique base pairing test\n' | tee -a $EXDIR/test.log
+  cd $EXDIR/oxDNA3/unique_bp
+  mkdir test
+  cd test
+  cp $BUILDDIR/lmp_mpi .
+  cp ../in.dsring2 .
+  cp ../data.dsring2 .
+  if [ $UNITS = lj ]; then
+    cp ../oxdna3_lj.cgdna .
+  elif [ $UNITS = real ]; then
+    cp ../oxdna3_real.cgdna .
+  fi
+
+  ### 8 MPI-tasks ###
+  mpirun -np 8 ./lmp_mpi -in in.dsring2 > /dev/null
+  mv log.lammps log.$DATE.dsring2.g++.8
+  grep -e '[0-9]  ekin' log.$DATE.dsring2.g++.8 | awk '{print $1, $12}' > edyn_test.8.dat
+  grep -e '[0-9]  ekin' log.$DATE.dsring2.g++.8 | awk '{print $1, $28}' > ehbond_test.8.dat
+  grep -e '[0-9]  ekin' ../log*dsring2.g++.8 | awk '{print $1, $12}' > edyn_ref.8.dat
+  grep -e '[0-9]  ekin' ../log*dsring2.g++.8 | awk '{print $1, $28}' > ehbond_ref.8.dat
+
+  avg_edyn_test=$(awk '{sum += $2; n++} END {if (n > 0) print sum / n}' edyn_test.8.dat)
+  avg_edyn_ref=$(awk '{sum += $2; n++} END {if (n > 0) print sum / n}' edyn_ref.8.dat)
+  avg_ehbond_test=$(awk 'NR > 2000 {sum += $2; n++} END {if (n > 0) print sum / n}' ehbond_test.8.dat) 
+  avg_ehbond_ref=$(awk 'NR > 2000 {sum += $2; n++} END {if (n > 0) print sum / n}' ehbond_ref.8.dat)
+
+  tol=$REL_TOL_NVT
+
+  if [ $UNITS = lj ]; then
+    ekin=44.4
+  fi  
+
+  if [ $UNITS = real ]; then
+    ekin=264.6956072509588
+  fi
+
+  diff=$(echo "($avg_edyn_test - $ekin)/$ekin" | bc -l)
+  diff=$(echo "if ($diff < 0) -1 * $diff else $diff" | bc -l)
+
+  if (( $(echo "$diff > $REL_TOL_NVT" | bc -l) )); then
+    printf "# Relative difference of kinetic energy %g > %g\n" "$diff" "$tol" | tee -a $EXDIR/test.log 
+    echo "# 8 MPI-tasks NVT FAILED" | tee -a $EXDIR/test.log
+  else
+    echo "# 8 MPI-tasks NVT passed" | tee -a $EXDIR/test.log
+  fi
+
+  diff=$(echo "($avg_ehbond_test - $avg_ehbond_ref)/$avg_ehbond_ref" | bc -l)
+  diff=$(echo "if ($diff < 0) -1 * $diff else $diff" | bc -l)
+
+  if (( $(echo "$diff > $REL_TOL_NVT" | bc -l) )); then
+    printf "# Relative difference of hydrogen bonding energy %g > %g\n" "$diff" "$tol" | tee -a $EXDIR/test.log
+    echo "# 8 MPI-tasks unique base pairing FAILED" | tee -a $EXDIR/test.log
+  else
+    echo "# 8 MPI-tasks unique base pairing passed" | tee -a $EXDIR/test.log
+  fi
 
  ######################################################
 
