@@ -2015,6 +2015,7 @@ Khersonskii
 Khrapak
 Khvostov
 Ki
+KiB
 Kikkawa
 Kikugawa
 kim
@@ -4116,6 +4117,7 @@ ters
 tersoff
 Tersoff
 Tetot
+tetrahedra
 tex
 textrm
 tfac
