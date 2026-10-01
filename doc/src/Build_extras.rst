@@ -976,6 +976,20 @@ speedup on GPUs for some models, but a slowdown for others. LayoutRight
 is always used for positions on GPUs since it has been found to be
 faster, and when compiling exclusively for CPUs.
 
+.. versionadded:: 30Sep2026
+
+The CMake option ``-D KOKKOS_DEBUG_RNG=on`` makes those KOKKOS styles
+that need random numbers (for example :doc:`fix langevin <fix_langevin>`
+or :doc:`fix brownian <fix_brownian>`) use the same random number
+generator as the corresponding plain styles instead of the parallel
+generator of the Kokkos library.  A run on a single MPI process with the
+Serial back end then follows the same trajectory as a run without the
+KOKKOS package, which makes it possible to compare the two directly and
+thus to validate the KOKKOS versions of those styles.  This is a
+validation and debugging aid only: the substitute generator is slower
+and produces the same numbers only when there is no parallelism, so this
+option must not be used for production simulations.
+
 ----------
 
 .. _lepton:
@@ -1336,7 +1350,7 @@ code for the library can be found at:
 
 Instead of including the MBX package directly into LAMMPS, it is also
 possible to skip this step and build the MBX package as a plugin using
-the CMake script files in the ``examples/PACKAGE/mbx/plugin`` folder and
+the CMake script files in the ``examples/PACKAGES/mbx/plugin`` folder and
 then load this plugin at runtime with the :doc:`plugin command
 <plugin>`.
 
@@ -1381,7 +1395,7 @@ at: `https://github.com/ICAMS/lammps-user-pace/ <https://github.com/ICAMS/lammps
 
 Instead of including the ML-PACE package directly into LAMMPS, it
 is also possible to skip this step and build the ML-PACE package as
-a plugin using the CMake script files in the ``examples/PACKAGE/pace/plugin``
+a plugin using the CMake script files in the ``examples/PACKAGES/pace/plugin``
 folder and then load this plugin at runtime with the :doc:`plugin command <plugin>`.
 
 .. tabs::
@@ -1527,7 +1541,7 @@ LAMMPS build.
 
 Instead of including the PLUMED package directly into LAMMPS, it
 is also possible to skip this step and build the PLUMED package as
-a plugin using the CMake script files in the ``examples/PACKAGE/plumed/plugin``
+a plugin using the CMake script files in the ``examples/PACKAGES/plumed/plugin``
 folder and then load this plugin at runtime with the :doc:`plugin command <plugin>`.
 
 .. tabs::
@@ -1789,6 +1803,14 @@ code when using features from the INTEL package.
       .. code-block:: bash
 
          -D INTEL_LRT_MODE=value # value = threads, none, or c++17
+
+      .. versionchanged:: 30Sep2026
+
+      With the LLVM based Intel compilers (``icx`` and ``icpx``), CMake
+      adds the flags ``-xHost`` and ``-qopt-zmm-usage=high`` and compiles
+      the INTEL package sources with ``-fp-model=fast=2``.  The ``-xHost``
+      flag is omitted when a target architecture is already selected in
+      ``CMAKE_CXX_FLAGS``, e.g. when compiling for a different CPU.
 
    .. tab:: Traditional make
 
